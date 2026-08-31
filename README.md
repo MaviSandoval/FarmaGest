@@ -1,6 +1,9 @@
 # FarmaGest 💊
 
-Aplicación de escritorio para la gestión integral de una farmacia, desarrollada como Trabajo Práctico de **Taller de Programación II** — Licenciatura en Sistemas de Información, Facultad de Ciencias Exactas y Naturales y Agrimensura, Universidad Nacional del Nordeste (UNNE). Año 2026, Grupo 23.
+Aplicación de escritorio para la gestión integral de una farmacia, desarrollada como Trabajo Práctico de **Taller de Programación II** 
+— Licenciatura en Sistemas de Información, 
+Facultad de Ciencias Exactas y Naturales y Agrimensura, Universidad Nacional del Nordeste (UNNE). 
+Año 2026, Grupo 23.
 
 ## Integrantes
 
