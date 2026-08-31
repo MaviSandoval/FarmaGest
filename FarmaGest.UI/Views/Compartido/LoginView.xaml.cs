@@ -1,5 +1,7 @@
+using System.Windows;
 using System.Windows.Controls;
 using FarmaGest.UI.ViewModels.Compartido;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FarmaGest.UI.Views.Compartido;
 
@@ -28,8 +30,24 @@ public partial class LoginView : Page
 
     private void NavegarSegunPerfil(string perfil)
     {
-        // Navegación según perfil no implementada aún. Evitar referencias a vistas inexistentes
-        // Implementar navegación real cuando las vistas de destino estén disponibles.
-        return;
+        switch (perfil)
+        {
+            case "Administrador":
+                var mainWindow = App.Services.GetRequiredService<MainWindow>();
+                mainWindow.Show();
+                break;
+
+            default:
+                // Todavía no hay vistas armadas para Farmaceutico/Cliente
+                MessageBox.Show(
+                    $"El perfil '{perfil}' todavía no tiene una vista implementada.",
+                    "FarmaGest",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
+                return; // no cerramos el login si no hay a dónde navegar
+        }
+
+        // Cerramos la ventana de login (AuthWindow) una vez que se abrió el destino
+        Window.GetWindow(this)?.Close();
     }
 }

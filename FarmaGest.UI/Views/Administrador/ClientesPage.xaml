@@ -1,0 +1,10 @@
+<Page x:Class="FarmaGest.UI.Views.Administrador.ClientesPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Title="Clientes">
+    <Grid Background="{StaticResource FarmaBackgroundBrush}">
+        <TextBlock Text="Vista de Clientes — próximamente"
+                   FontSize="16" Foreground="{StaticResource FarmaTextMutedBrush}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+    </Grid>
+</Page>

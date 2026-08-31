@@ -1,0 +1,145 @@
+<Page x:Class="FarmaGest.UI.Views.Administrador.DashboardPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
+      Title="Inicio">
+
+    <ScrollViewer Padding="26,20" VerticalScrollBarVisibility="Auto">
+        <StackPanel>
+
+            <!-- ===================== FILA DE KPIs ===================== -->
+            <UniformGrid Columns="5" Rows="1">
+                <Border Style="{StaticResource CardStyle}" Margin="0,0,10,0">
+                    <StackPanel>
+                        <TextBlock Text="Ventas del día" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                        <TextBlock x:Name="VentasDiaText" Text="—" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
+                        <TextBlock x:Name="VariacionDiaText" Text="—" FontSize="11" Foreground="{StaticResource FarmaSuccessBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="5,0">
+                    <StackPanel>
+                        <TextBlock Text="Ventas del mes" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                        <TextBlock x:Name="VentasMesText" Text="—" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
+                        <TextBlock x:Name="VariacionMesText" Text="—" FontSize="11" Foreground="{StaticResource FarmaSuccessBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="5,0">
+                    <StackPanel>
+                        <TextBlock Text="Recetas atendidas" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                        <TextBlock x:Name="RecetasHoyText" Text="—" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
+                        <TextBlock Text="Hoy" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="5,0">
+                    <StackPanel>
+                        <TextBlock Text="Productos" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                        <TextBlock x:Name="ProductosActivosText" Text="—" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
+                        <TextBlock Text="Activos en stock" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource CardStyle}" Margin="10,0,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Stock bajo" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                        <TextBlock x:Name="StockBajoCountText" Text="—" FontSize="22" FontWeight="Bold" Foreground="{StaticResource FarmaDangerBrush}" Margin="0,6,0,4" />
+                        <TextBlock Text="Productos" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+
+            <!-- ===================== FILA: GRÁFICO + STOCK BAJO ===================== -->
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Ventas de los últimos 7 días" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <lvc:CartesianChart x:Name="VentasSemanaChart" Height="220" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Stock bajo" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <TextBlock x:Name="StockBajoVacioText" Text="Sin productos con stock bajo por ahora."
+                                   FontSize="12.5" Foreground="{StaticResource FarmaTextMutedBrush}"
+                                   TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,10" />
+                        <ItemsControl x:Name="StockBajoList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="{Binding Descripcion}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource FarmaDangerBrush}" />
+                                        <TextBlock FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}">
+                                            <Run Text="Stock actual: " /><Run Text="{Binding Stock}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ui:HyperlinkButton x:Name="VerTodoStockBajoLink" Content="Ver todos" Padding="0" Click="VerTodoStockBajo_Click" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- ===================== FILA: ÚLTIMAS VENTAS + VENCIMIENTOS ===================== -->
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="1*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Últimas ventas" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <TextBlock x:Name="UltimasVentasVacioText" Text="Todavía no se registraron ventas."
+                                   FontSize="12.5" Foreground="{StaticResource FarmaTextMutedBrush}"
+                                   TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,10" />
+                        <DataGrid x:Name="UltimasVentasGrid"
+                                  AutoGenerateColumns="False"
+                                  IsReadOnly="True"
+                                  HeadersVisibility="Column"
+                                  GridLinesVisibility="None"
+                                  RowHeight="34"
+                                  Background="Transparent"
+                                  BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="N° Venta" Binding="{Binding NumeroVenta}" Width="*" />
+                                <DataGridTextColumn Header="Cliente" Binding="{Binding ClienteNombre}" Width="1.4*" />
+                                <DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ {0:N0}'}" Width="*" />
+                                <DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat='dd/MM/yyyy HH:mm'}" Width="1.6*" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                        <ui:HyperlinkButton x:Name="VerTodasVentasLink" Content="Ver todas las ventas" Padding="0" Margin="0,8,0,0" Click="VerTodasVentas_Click" />
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Column="2" Style="{StaticResource CardStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Vencimientos próximos" FontWeight="SemiBold" Margin="0,0,0,10" />
+                        <TextBlock x:Name="VencimientosVacioText" Text="No hay vencimientos próximos cargados."
+                                   FontSize="12.5" Foreground="{StaticResource FarmaTextMutedBrush}"
+                                   TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,10" />
+                        <ItemsControl x:Name="VencimientosList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,10">
+                                        <TextBlock Text="{Binding Descripcion}" FontSize="12.5" FontWeight="SemiBold" />
+                                        <TextBlock FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}">
+                                            <Run Text="Vence: " /><Run Text="{Binding FechaVencimiento, StringFormat='dd/MM/yyyy'}" />
+                                        </TextBlock>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <ui:HyperlinkButton x:Name="VerTodosVencimientosLink" Content="Ver todos" Padding="0" Click="VerTodosVencimientos_Click" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

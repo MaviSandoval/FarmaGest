@@ -1,0 +1,83 @@
+<Page x:Class="FarmaGest.UI.Views.Administrador.GestionUsuariosPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Usuarios">
+
+    <Grid Margin="26,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Gestión de usuarios" FontSize="20" FontWeight="Bold" Margin="0,0,0,16" />
+
+        <!-- Formulario alta / edición -->
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <StackPanel>
+                <TextBlock x:Name="TituloFormularioText" Text="Nuevo usuario" FontWeight="SemiBold" Margin="0,0,0,10" />
+                <UniformGrid Columns="5" Rows="1">
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="DNI" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBox x:Name="DniText" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Nombre" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBox x:Name="NombreText" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Apellido" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBox x:Name="ApellidoText" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,8,0">
+                        <TextBlock Text="Email" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,0,0,4" />
+                        <TextBox x:Name="EmailText" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Rol" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,0,0,4" />
+                        <ComboBox x:Name="RolCombo" DisplayMemberPath="Nombre" />
+                    </StackPanel>
+                </UniformGrid>
+                <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                    <ui:Button x:Name="GuardarButton" Content="Guardar" Appearance="Primary" Click="GuardarButton_Click" />
+                    <ui:Button x:Name="CancelarButton" Content="Cancelar" Margin="8,0,0,0" Click="CancelarButton_Click" Visibility="Collapsed" />
+                    <TextBlock x:Name="MensajeText" Foreground="{StaticResource FarmaDangerBrush}" VerticalAlignment="Center" Margin="12,0,0,0" />
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Listado -->
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}">
+            <DataGrid x:Name="UsuariosGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="None"
+                      RowHeight="36"
+                      Background="Transparent"
+                      BorderThickness="0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="DNI" Binding="{Binding Dni}" Width="*" />
+                    <DataGridTextColumn Header="Nombre" Binding="{Binding Nombre}" Width="1.2*" />
+                    <DataGridTextColumn Header="Apellido" Binding="{Binding Apellido}" Width="1.2*" />
+                    <DataGridTextColumn Header="Email" Binding="{Binding Email}" Width="1.5*" />
+                    <DataGridTextColumn Header="Rol" Binding="{Binding Rol.Nombre}" Width="*" />
+                    <DataGridTextColumn Header="Estado" Binding="{Binding EstadoTexto}" Width="*" />
+                    <DataGridTemplateColumn Header="Acciones" Width="1.5*">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:HyperlinkButton Content="Editar" Padding="0" Margin="0,0,12,0"
+                                                         Click="EditarUsuario_Click" Tag="{Binding}" />
+                                    <ui:HyperlinkButton Content="{Binding TextoAccionEstado}" Padding="0"
+                                                         Click="CambiarEstadoUsuario_Click" Tag="{Binding}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+        </Border>
+    </Grid>
+</Page>

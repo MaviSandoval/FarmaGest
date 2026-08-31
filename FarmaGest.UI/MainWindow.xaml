@@ -1,32 +1,77 @@
-﻿<ui:FluentWindow
+<ui:FluentWindow
     x:Class="FarmaGest.UI.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-    Title="FarmaGest - Sistema de Gestión de Farmacia"
-    Width="1024"
-    Height="720"
-    ExtendsContentIntoTitleBar="True"
+    Title="Farma Gest"
+    Width="1400" Height="860"
+    MinWidth="1100" MinHeight="650"
     WindowStartupLocation="CenterScreen"
-    mc:Ignorable="d">
+    ExtendsContentIntoTitleBar="True"
+    WindowBackdropType="Mica">
 
 	<Grid>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="240" />
+			<ColumnDefinition Width="*" />
+		</Grid.ColumnDefinitions>
 		<Grid.RowDefinitions>
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="*" />
 		</Grid.RowDefinitions>
 
-		<!--  Barra superior Fluent  -->
-		<ui:TitleBar Grid.Row="0" Title="FarmaGest" />
+		<ui:TitleBar
+            Grid.Row="0" Grid.ColumnSpan="2"
+            Title="Farma Gest"
+            ShowMaximize="True" ShowMinimize="True" />
 
-		<!--  Contenedor principal para cambiar entre vistas  -->
-		<Frame
-            x:Name="MainFrame"
-            Grid.Row="1"
-            HorizontalAlignment="Stretch"
-            VerticalAlignment="Stretch"
-            NavigationUIVisibility="Hidden" />
+		<!-- ===================== SIDEBAR ===================== -->
+		<Border Grid.Row="1" Grid.Column="0" Background="{StaticResource FarmaSidebarBrush}">
+			<DockPanel LastChildFill="False">
+				<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,22,20,26">
+					<ui:SymbolIcon Symbol="Pill24" FontSize="26" Foreground="White" />
+					<StackPanel Margin="10,0,0,0">
+						<TextBlock Text="Farma Gest" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+						<TextBlock Text="Sistema de Gestión de Farmacia" FontSize="10" Foreground="#9FC6BF" TextWrapping="Wrap" Width="170" />
+					</StackPanel>
+				</StackPanel>
+
+				<StackPanel DockPanel.Dock="Top">
+					<RadioButton x:Name="NavInicio" Style="{StaticResource SidebarNavItem}" Content="Inicio" Tag="Home24" IsChecked="True" Click="NavItem_Click" />
+					<RadioButton x:Name="NavVentas" Style="{StaticResource SidebarNavItem}" Content="Ventas" Tag="Cart24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavRecetas" Style="{StaticResource SidebarNavItem}" Content="Recetas" Tag="DocumentCheckmark24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavProductos" Style="{StaticResource SidebarNavItem}" Content="Productos" Tag="Box24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavStock" Style="{StaticResource SidebarNavItem}" Content="Stock" Tag="DataHistogram24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavUsuarios" Style="{StaticResource SidebarNavItem}" Content="Usuarios" Tag="People24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavReportes" Style="{StaticResource SidebarNavItem}" Content="Reportes" Tag="DataArea24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavConfiguracion" Style="{StaticResource SidebarNavItem}" Content="Configuración" Tag="Settings24" Click="NavItem_Click" />
+				</StackPanel>
+			</DockPanel>
+		</Border>
+
+		<!-- ===================== CONTENIDO ===================== -->
+		<Grid Grid.Row="1" Grid.Column="1" Background="{StaticResource FarmaBackgroundBrush}">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto" />
+				<RowDefinition Height="*" />
+			</Grid.RowDefinitions>
+
+			<Border Grid.Row="0" Background="White" Padding="26,14" BorderThickness="0,0,0,1" BorderBrush="#E7ECEB">
+				<Grid>
+					<StackPanel HorizontalAlignment="Left">
+						<TextBlock Text="Bienvenido, Administrador" FontSize="15" FontWeight="SemiBold" Foreground="#1F2E2C" />
+						<TextBlock x:Name="FechaHoraText" Text="—" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+					</StackPanel>
+
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+						<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Alert24}" Content="Notificaciones" Margin="0,0,16,0" />
+						<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon QuestionCircle24}" Content="Ayuda" Margin="0,0,16,0" />
+						<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon SignOut24}" Content="Cerrar sesión" />
+					</StackPanel>
+				</Grid>
+			</Border>
+
+			<Frame x:Name="RootFrame" Grid.Row="1" NavigationUIVisibility="Hidden" />
+		</Grid>
 	</Grid>
 </ui:FluentWindow>

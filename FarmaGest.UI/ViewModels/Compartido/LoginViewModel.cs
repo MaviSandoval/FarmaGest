@@ -56,7 +56,7 @@ public partial class LoginViewModel : ObservableObject
 
         _intentosFallidos = 0;
 
-        // Notificamos a la vista pasándole el Perfil
-        OnLoginExitoso?.Invoke(usuarioAutenticado.Perfil);
+        // Notificamos a la vista pasándole el nombre del Rol
+        OnLoginExitoso?.Invoke(usuarioAutenticado.Rol.Nombre);
     }
 }
