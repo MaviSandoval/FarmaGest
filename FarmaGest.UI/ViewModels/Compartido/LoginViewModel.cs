@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using FarmaGest.Negocio.Servicios;
@@ -23,13 +24,13 @@ public partial class LoginViewModel : ObservableObject
     // Acción para notificar a la vista cuando el login es correcto
     public Action<string>? OnLoginExitoso;
 
-    public LoginViewModel()
+    public LoginViewModel(UsuarioService usuarioService)
     {
-        _usuarioService = new UsuarioService();
+        _usuarioService = usuarioService;
     }
 
     [RelayCommand]
-    private void IniciarSesion()
+    private async Task IniciarSesionAsync()
     {
         MensajeError = string.Empty;
 
@@ -45,7 +46,7 @@ public partial class LoginViewModel : ObservableObject
             return;
         }
 
-        var usuarioAutenticado = _usuarioService.ValidarCredenciales(Usuario, Contrasena);
+        var usuarioAutenticado = await _usuarioService.ValidarCredencialesAsync(Usuario, Contrasena);
 
         if (usuarioAutenticado == null)
         {

@@ -1,10 +1,12 @@
 using System;
 using System.Windows;
+using FarmaGest.Datos.Conexion;
 using FarmaGest.Datos.Contexto;
 using FarmaGest.Negocio.Servicios;
 using FarmaGest.UI.Views.Administrador;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using FarmaGest.UI.ViewModels.Compartido;
 
 namespace FarmaGest.UI;
 
@@ -12,7 +14,7 @@ public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -20,21 +22,42 @@ public partial class App : Application
         ConfigurarServicios(servicios);
         Services = servicios.BuildServiceProvider();
 
+        // ---- Verificación de conexión a la BD ----
+        using (var scope = Services.CreateScope())
+        {
+            var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<FarmaGestDbContext>>();
+            await using var db = await factory.CreateDbContextAsync();
+            bool conecta = await db.Database.CanConnectAsync();
+
+            if (!conecta)
+            {
+                MessageBox.Show(
+                    "No se pudo conectar a la base de datos FarmaGestDB.",
+                    "Error de conexión", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+                return;
+            }
+        }
+
         var authWindow = new AuthWindow();
         authWindow.Show();
     }
 
     private static void ConfigurarServicios(IServiceCollection servicios)
     {
+        // ---- Cadena de conexión centralizada (Singleton) ----
+        string cadena = ConexionSingleton.Instancia.CadenaConexion;
+
         // ---- Base de datos (EF Core) ----
-        servicios.AddDbContext<FarmaGestDbContext>(opt =>
-            opt.UseSqlServer(
-                "Server=MAVI\\SQLEXPRESS;Database=FarmaGestDB;Trusted_Connection=True;TrustServerCertificate=True;"));
+        servicios.AddDbContextFactory<FarmaGestDbContext>(opt =>
+            opt.UseSqlServer(cadena));
 
         // ---- Capa de Negocio ----
         // Por ahora usamos la implementación en memoria. Cuando FarmaGest.Datos
         // tenga los repositorios reales, solo se cambia esta línea.
         servicios.AddSingleton<IDashboardService, DashboardServiceEnMemoria>();
+        servicios.AddSingleton<UsuarioService>();
+        servicios.AddSingleton<GestionUsuariosService>();
 
         // ---- Capa de UI ----
         servicios.AddSingleton<MainWindow>();
@@ -43,11 +66,14 @@ public partial class App : Application
         servicios.AddTransient<RecetasPage>();
         servicios.AddTransient<ProductosPage>();
         servicios.AddTransient<StockPage>();
-        servicios.AddTransient<ProveedoresPage>();
         servicios.AddTransient<ClientesPage>();
         servicios.AddTransient<ReportesPage>();
         servicios.AddTransient<ConfiguracionPage>();
-        servicios.AddScoped<GestionUsuariosService>();
         servicios.AddTransient<GestionUsuariosPage>();
+        servicios.AddTransient<LoginViewModel>();
+
+        servicios.AddSingleton<MainWindowFarmaceutico>();
+        servicios.AddTransient<DashboardFarmaceuticoPage>();
+        servicios.AddTransient<DashboardFarmaceuticoViewModel>();
     }
 }

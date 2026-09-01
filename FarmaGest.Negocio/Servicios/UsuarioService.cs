@@ -1,42 +1,34 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Threading.Tasks;
+using BCrypt.Net;
+using FarmaGest.Datos.Contexto;
 using FarmaGest.Dominio;
+using Microsoft.EntityFrameworkCore;
 
 namespace FarmaGest.Negocio.Servicios;
 
-/// <summary>
-/// Implementación TEMPORAL en memoria para poder probar el login sin tener
-/// todavía conectada la base de datos. Cuando FarmaGest.Datos tenga el
-/// repositorio real de usuarios (con hash de contraseña, etc.), esta clase
-/// se reemplaza por esa implementación real.
-/// </summary>
 public class UsuarioService
 {
-    private static readonly List<(string Email, string Contrasena, string Perfil)> UsuariosDePrueba = new()
-    {
-        ("admin@farmacia.es", "admin123", "Administrador"),
-        ("farmaceutico@farmacia.es", "farma123", "Farmaceutico"),
-        ("cajero@farmacia.es", "cajero123", "Cajero"),
-    };
+    private readonly IDbContextFactory<FarmaGestDbContext> _factory;
 
-    public Usuario? ValidarCredenciales(string usuario, string contrasena)
+    public UsuarioService(IDbContextFactory<FarmaGestDbContext> factory)
     {
-        var encontrado = UsuariosDePrueba.FirstOrDefault(u =>
-            u.Email.Equals(usuario, StringComparison.OrdinalIgnoreCase) &&
-            u.Contrasena == contrasena);
+        _factory = factory;
+    }
 
-        if (encontrado.Email is null)
+    public async Task<Usuario?> ValidarCredencialesAsync(string emailODni, string contrasena)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+
+        var usuario = await context.Usuarios
+            .Include(u => u.Rol)
+            .FirstOrDefaultAsync(u =>
+                (u.Email == emailODni || u.Dni == emailODni) && u.Estado);
+
+        if (usuario == null)
             return null;
 
-        return new Usuario
-        {
-            Email = encontrado.Email,
-            Contrasena = encontrado.Contrasena,
-            Nombre = encontrado.Perfil,
-            Apellido = string.Empty,
-            Dni = string.Empty,
-            Rol = new Rol { Nombre = encontrado.Perfil }
-        };
+        bool contrasenaValida = BCrypt.Net.BCrypt.Verify(contrasena, usuario.Contrasena);
+
+        return contrasenaValida ? usuario : null;
     }
 }

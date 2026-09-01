@@ -13,7 +13,7 @@ public partial class LoginView : Page
     {
         InitializeComponent();
 
-        _viewModel = new LoginViewModel();
+        _viewModel = App.Services.GetRequiredService<LoginViewModel>();
         DataContext = _viewModel;
 
         // Suscribimos la navegación cuando el ViewModel autoriza el ingreso
@@ -37,17 +37,20 @@ public partial class LoginView : Page
                 mainWindow.Show();
                 break;
 
+            case "Farmaceutico":
+                var mainWindowFarmaceutico = App.Services.GetRequiredService<MainWindowFarmaceutico>();
+                mainWindowFarmaceutico.Show();
+                break;
+
             default:
-                // Todavía no hay vistas armadas para Farmaceutico/Cliente
                 MessageBox.Show(
                     $"El perfil '{perfil}' todavía no tiene una vista implementada.",
                     "FarmaGest",
                     MessageBoxButton.OK,
                     MessageBoxImage.Information);
-                return; // no cerramos el login si no hay a dónde navegar
+                return;
         }
 
-        // Cerramos la ventana de login (AuthWindow) una vez que se abrió el destino
         Window.GetWindow(this)?.Close();
     }
 }

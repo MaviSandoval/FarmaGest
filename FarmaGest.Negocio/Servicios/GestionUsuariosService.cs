@@ -10,23 +10,31 @@ namespace FarmaGest.Negocio.Servicios;
 
 public class GestionUsuariosService
 {
-    private readonly FarmaGestDbContext _context;
+    private readonly IDbContextFactory<FarmaGestDbContext> _factory;
 
-    public GestionUsuariosService(FarmaGestDbContext context)
+    public GestionUsuariosService(IDbContextFactory<FarmaGestDbContext> factory)
     {
-        _context = context;
+        _factory = factory;
     }
 
-    public async Task<List<Usuario>> ObtenerTodosAsync() =>
-        await _context.Usuarios.Include(u => u.Rol).OrderBy(u => u.Apellido).ToListAsync();
+    public async Task<List<Usuario>> ObtenerTodosAsync()
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+        return await context.Usuarios.Include(u => u.Rol).OrderBy(u => u.Apellido).ToListAsync();
+    }
 
-    public async Task<List<Rol>> ObtenerRolesAsync() =>
-        await _context.Roles.Where(r => r.Estado).OrderBy(r => r.Nombre).ToListAsync();
+    public async Task<List<Rol>> ObtenerRolesAsync()
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+        return await context.Roles.Where(r => r.Estado).OrderBy(r => r.Nombre).ToListAsync();
+    }
 
     /// <summary>Crea un usuario nuevo y devuelve la contraseña temporal en texto plano
     /// (única vez que existe en texto plano, para que el Admin la vea en pantalla).</summary>
     public async Task<string> CrearAsync(string dni, string nombre, string apellido, string? email, int rolId)
     {
+        await using var context = await _factory.CreateDbContextAsync();
+
         var contrasenaTemporal = GeneradorContrasena.Generar();
 
         var usuario = new Usuario
@@ -41,15 +49,17 @@ public class GestionUsuariosService
             Contrasena = BCrypt.Net.BCrypt.HashPassword(contrasenaTemporal)
         };
 
-        _context.Usuarios.Add(usuario);
-        await _context.SaveChangesAsync();
+        context.Usuarios.Add(usuario);
+        await context.SaveChangesAsync();
 
         return contrasenaTemporal;
     }
 
     public async Task EditarAsync(int id, string dni, string nombre, string apellido, string? email, int rolId)
     {
-        var usuario = await _context.Usuarios.FindAsync(id)
+        await using var context = await _factory.CreateDbContextAsync();
+
+        var usuario = await context.Usuarios.FindAsync(id)
             ?? throw new KeyNotFoundException("Usuario no encontrado.");
 
         usuario.Dni = dni;
@@ -58,15 +68,17 @@ public class GestionUsuariosService
         usuario.Email = email;
         usuario.RolId = rolId;
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public async Task CambiarEstadoAsync(int id, bool activo)
     {
-        var usuario = await _context.Usuarios.FindAsync(id)
+        await using var context = await _factory.CreateDbContextAsync();
+
+        var usuario = await context.Usuarios.FindAsync(id)
             ?? throw new KeyNotFoundException("Usuario no encontrado.");
 
         usuario.Estado = activo;
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 }
