@@ -77,7 +77,7 @@ namespace FarmaGest.UI.Views.Farmaceutico
         private void MostrarVistaPendiente(string nombreModulo)
         {
             // Placeholder temporal hasta que se implemente cada Page real.
-            RootFrame.Content = new TextBlock
+            RootFrame.Content = new System.Windows.Controls.TextBlock
             {
                 Text = $"Módulo '{nombreModulo}' — vista en construcción.",
                 FontSize = 16,

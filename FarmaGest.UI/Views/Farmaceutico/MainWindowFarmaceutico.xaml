@@ -1,99 +1,75 @@
-using System;
-using System.Globalization;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Threading;
-using Microsoft.Extensions.DependencyInjection;
-using Wpf.Ui.Controls;
+<ui:FluentWindow
+    x:Class="FarmaGest.UI.Views.Farmaceutico.MainWindowFarmaceutico"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    Title="Farma Gest"
+    Width="1400" Height="860"
+    MinWidth="1100" MinHeight="650"
+    WindowStartupLocation="CenterScreen"
+    ExtendsContentIntoTitleBar="True"
+    WindowBackdropType="Mica">
 
-namespace FarmaGest.UI.Views.Farmaceutico
-{
-    public partial class MainWindowFarmaceutico : FluentWindow
-    {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly DispatcherTimer _relojTimer;
+	<Grid>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="240" />
+			<ColumnDefinition Width="*" />
+		</Grid.ColumnDefinitions>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
 
-        public MainWindowFarmaceutico(IServiceProvider serviceProvider)
-        {
-            InitializeComponent();
-            _serviceProvider = serviceProvider;
+		<ui:TitleBar
+            Grid.Row="0" Grid.ColumnSpan="2"
+            Title="Farma Gest"
+            ShowMaximize="True" ShowMinimize="True" />
 
-            // ---- Vista inicial: Dashboard del Farmacéutico ----
-            RootFrame.Navigate(_serviceProvider.GetRequiredService<DashboardFarmaceuticoPage>());
+		<!-- ===================== SIDEBAR ===================== -->
+		<Border Grid.Row="1" Grid.Column="0" Background="{StaticResource FarmaSidebarBrush}">
+			<DockPanel LastChildFill="False">
+				<StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="20,22,20,26">
+					<ui:SymbolIcon Symbol="Pill24" FontSize="26" Foreground="White" />
+					<StackPanel Margin="10,0,0,0">
+						<TextBlock Text="Farma Gest" FontSize="16" FontWeight="SemiBold" Foreground="White" />
+						<TextBlock Text="Panel Farmacéutico" FontSize="10" Foreground="#9FC6BF" TextWrapping="Wrap" Width="170" />
+					</StackPanel>
+				</StackPanel>
 
-            // ---- Reloj de la barra superior ----
-            _relojTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            _relojTimer.Tick += (_, _) => ActualizarFechaHora();
-            _relojTimer.Start();
-            ActualizarFechaHora();
+				<StackPanel DockPanel.Dock="Top">
+					<RadioButton x:Name="NavInicio" Style="{StaticResource SidebarNavItem}" Content="Inicio" Tag="Home24" IsChecked="True" Click="NavItem_Click" />
+					<RadioButton x:Name="NavRecetas" Style="{StaticResource SidebarNavItem}" Content="Validación de recetas" Tag="DocumentCheckmark24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavVentas" Style="{StaticResource SidebarNavItem}" Content="Ventas" Tag="Cart24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavProductos" Style="{StaticResource SidebarNavItem}" Content="Productos" Tag="Box24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavStock" Style="{StaticResource SidebarNavItem}" Content="Stock" Tag="DataHistogram24" Click="NavItem_Click" />
+					<RadioButton x:Name="NavObrasSociales" Style="{StaticResource SidebarNavItem}" Content="Obras Sociales" Tag="ShieldCheckmark24" Click="NavItem_Click" />
+				</StackPanel>
+			</DockPanel>
+		</Border>
 
-            Closed += (_, _) => _relojTimer.Stop();
-        }
+		<!-- ===================== CONTENIDO ===================== -->
+		<Grid Grid.Row="1" Grid.Column="1" Background="{StaticResource FarmaBackgroundBrush}">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto" />
+				<RowDefinition Height="*" />
+			</Grid.RowDefinitions>
 
-        private void ActualizarFechaHora()
-        {
-            var cultura = new CultureInfo("es-AR");
-            var texto = DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy - HH:mm", cultura);
-            FechaHoraText.Text = char.ToUpper(texto[0], cultura) + texto[1..];
-        }
+			<Border Grid.Row="0" Background="White" Padding="26,14" BorderThickness="0,0,0,1" BorderBrush="#E7ECEB">
+				<Grid>
+					<StackPanel HorizontalAlignment="Left">
+						<TextBlock Text="Bienvenido, Farmacéutico" FontSize="15" FontWeight="SemiBold" Foreground="#1F2E2C" />
+						<TextBlock x:Name="FechaHoraText" Text="—" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+					</StackPanel>
 
-        private void NavItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is not RadioButton radioButton)
-            {
-                return;
-            }
+					<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+						<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Alert24}" Content="Notificaciones" Margin="0,0,16,0" />
+						<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon QuestionCircle24}" Content="Ayuda" Margin="0,0,16,0" />
+						<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon SignOut24}" Content="Cerrar sesión" Click="CerrarSesion_Click" />
+					</StackPanel>
+				</Grid>
+			</Border>
 
-            switch (radioButton.Name)
-            {
-                case nameof(NavInicio):
-                    RootFrame.Navigate(_serviceProvider.GetRequiredService
-	<DashboardFarmaceuticoPage>());
-                    break;
-
-                // TODO: reemplazar cada caso por su Page real a medida que se vayan
-                // implementando el resto de las vistas del Farmacéutico.
-                case nameof(NavRecetas):
-                    MostrarVistaPendiente("Validación de recetas");
-                    break;
-
-                case nameof(NavVentas):
-                    MostrarVistaPendiente("Ventas");
-                    break;
-
-                case nameof(NavProductos):
-                    MostrarVistaPendiente("Productos");
-                    break;
-
-                case nameof(NavStock):
-                    MostrarVistaPendiente("Stock");
-                    break;
-
-                case nameof(NavObrasSociales):
-                    MostrarVistaPendiente("Obras Sociales");
-                    break;
-            }
-        }
-
-        private void MostrarVistaPendiente(string nombreModulo)
-        {
-            // Placeholder temporal hasta que se implemente cada Page real.
-            RootFrame.Content = new TextBlock
-            {
-                Text = $"Módulo '{nombreModulo}' — vista en construcción.",
-                FontSize = 16,
-                Margin = new Thickness(32),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top
-            };
-        }
-
-        private void CerrarSesion_Click(object sender, RoutedEventArgs e)
-        {
-            var authWindow = _serviceProvider.GetRequiredService
-		<AuthWindow>();
-            authWindow.Show();
-            Close();
-        }
-    }
-}
+			<Frame x:Name="RootFrame" Grid.Row="1" NavigationUIVisibility="Hidden" />
+		</Grid>
+	</Grid>
+</ui:FluentWindow>

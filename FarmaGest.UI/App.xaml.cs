@@ -8,6 +8,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FarmaGest.UI.ViewModels.Compartido;
 
+
+using FarmaGest.UI.Views.Farmaceutico;
+using FarmaGest.UI.ViewModels.Farmaceutico;
+
 namespace FarmaGest.UI;
 
 public partial class App : Application
@@ -53,13 +57,10 @@ public partial class App : Application
             opt.UseSqlServer(cadena));
 
         // ---- Capa de Negocio ----
-        // Por ahora usamos la implementación en memoria. Cuando FarmaGest.Datos
-        // tenga los repositorios reales, solo se cambia esta línea.
-        servicios.AddSingleton<IDashboardService, DashboardServiceEnMemoria>();
         servicios.AddSingleton<UsuarioService>();
         servicios.AddSingleton<GestionUsuariosService>();
 
-        // ---- Capa de UI ----
+        // ---- Capa de UI - Administrador ----
         servicios.AddSingleton<MainWindow>();
         servicios.AddTransient<DashboardPage>();
         servicios.AddTransient<VentasPage>();
@@ -70,10 +71,14 @@ public partial class App : Application
         servicios.AddTransient<ReportesPage>();
         servicios.AddTransient<ConfiguracionPage>();
         servicios.AddTransient<GestionUsuariosPage>();
-        servicios.AddTransient<LoginViewModel>();
 
+        // ---- Capa de UI - Farmacéutico ----
         servicios.AddSingleton<MainWindowFarmaceutico>();
         servicios.AddTransient<DashboardFarmaceuticoPage>();
         servicios.AddTransient<DashboardFarmaceuticoViewModel>();
+
+        // ---- Compartido ----
+        servicios.AddTransient<LoginViewModel>();
+        servicios.AddTransient<AuthWindow>();
     }
 }

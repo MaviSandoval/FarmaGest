@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using FarmaGest.UI.ViewModels.Compartido;
 using Microsoft.Extensions.DependencyInjection;
 
+using FarmaGest.UI.Views.Farmaceutico;
+
 namespace FarmaGest.UI.Views.Compartido;
 
 public partial class LoginView : Page

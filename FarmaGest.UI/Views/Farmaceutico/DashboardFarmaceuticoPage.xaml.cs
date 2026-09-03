@@ -1,4 +1,4 @@
- using System.Windows.Controls;
+using System.Windows.Controls;
 using FarmaGest.UI.ViewModels.Farmaceutico;
 
 namespace FarmaGest.UI.Views.Farmaceutico
