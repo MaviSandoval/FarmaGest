@@ -61,6 +61,7 @@ public partial class App : Application
         servicios.AddSingleton<UsuarioService>();
         servicios.AddSingleton<GestionUsuariosService>();
         servicios.AddSingleton<IDashboardService, DashboardServiceEnMemoria>();
+        servicios.AddSingleton<ProductoService>();
 
         // ---- Capa de UI - Administrador ----
         servicios.AddSingleton<MainWindow>();
