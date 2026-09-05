@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using FarmaGest.Dominio;
 using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.ViewModels.Compartido;
@@ -23,6 +24,9 @@ public partial class LoginViewModel : ObservableObject
 
     // Acción para notificar a la vista cuando el login es correcto
     public Action<string>? OnLoginExitoso;
+
+    // Acción para notificar a la vista cuando hay que forzar el cambio de contraseña
+    public Action<Usuario>? OnRequiereCambioContrasena;
 
     public LoginViewModel(UsuarioService usuarioService)
     {
@@ -56,6 +60,12 @@ public partial class LoginViewModel : ObservableObject
         }
 
         _intentosFallidos = 0;
+
+        if (usuarioAutenticado.RequiereCambioContrasena)
+        {
+            OnRequiereCambioContrasena?.Invoke(usuarioAutenticado);
+            return;
+        }
 
         // Notificamos a la vista pasándole el nombre del Rol
         OnLoginExitoso?.Invoke(usuarioAutenticado.Rol.Nombre);

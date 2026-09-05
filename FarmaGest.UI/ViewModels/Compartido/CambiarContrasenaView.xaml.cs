@@ -1,37 +1,37 @@
 using System.Windows;
 using System.Windows.Controls;
+using FarmaGest.Dominio;
 using FarmaGest.UI.ViewModels.Compartido;
 using Microsoft.Extensions.DependencyInjection;
-
 using FarmaGest.UI.Views.Farmaceutico;
 
 namespace FarmaGest.UI.Views.Compartido;
 
-public partial class LoginView : Page
+public partial class CambiarContrasenaView : Page
 {
-    private readonly LoginViewModel _viewModel;
+    private readonly CambiarContrasenaViewModel _viewModel;
 
-    public LoginView()
+    public CambiarContrasenaView(Usuario usuario)
     {
         InitializeComponent();
 
-        _viewModel = App.Services.GetRequiredService<LoginViewModel>();
+        _viewModel = App.Services.GetRequiredService<CambiarContrasenaViewModel>();
+        _viewModel.Inicializar(usuario);
         DataContext = _viewModel;
 
-        // Suscribimos la navegación cuando el ViewModel autoriza el ingreso
-        _viewModel.OnLoginExitoso = NavegarSegunPerfil;
-
-        _viewModel.OnLoginExitoso = NavegarSegunPerfil;
-        _viewModel.OnRequiereCambioContrasena = NavegarACambioContrasena;
-
+        _viewModel.OnCambioExitoso = NavegarSegunPerfil;
     }
 
-    private void TxtPassword_PasswordChanged(object sender, System.Windows.RoutedEventArgs e)
+    private void TxtNuevaContrasena_PasswordChanged(object sender, RoutedEventArgs e)
     {
-        if (DataContext is LoginViewModel vm)
-        {
-            vm.Contrasena = TxtPassword.Password;
-        }
+        if (DataContext is CambiarContrasenaViewModel vm)
+            vm.NuevaContrasena = TxtNuevaContrasena.Password;
+    }
+
+    private void TxtConfirmarContrasena_PasswordChanged(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is CambiarContrasenaViewModel vm)
+            vm.ConfirmarContrasena = TxtConfirmarContrasena.Password;
     }
 
     private void NavegarSegunPerfil(string perfil)
@@ -58,10 +58,5 @@ public partial class LoginView : Page
         }
 
         Window.GetWindow(this)?.Close();
-    }
-
-    private void NavegarACambioContrasena(FarmaGest.Dominio.Usuario usuario)
-    {
-        NavigationService?.Navigate(new CambiarContrasenaView(usuario));
     }
 }

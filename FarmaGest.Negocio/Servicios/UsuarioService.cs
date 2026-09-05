@@ -31,4 +31,20 @@ public class UsuarioService
 
         return contrasenaValida ? usuario : null;
     }
+
+    /// <summary>Cambia la contraseña del usuario y desactiva el flag de cambio obligatorio.</summary>
+    public async Task<bool> CambiarContrasenaAsync(int idUsuario, string nuevaContrasena)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+
+        var usuario = await context.Usuarios.FirstOrDefaultAsync(u => u.Id == idUsuario);
+        if (usuario == null)
+            return false;
+
+        usuario.Contrasena = BCrypt.Net.BCrypt.HashPassword(nuevaContrasena);
+        usuario.RequiereCambioContrasena = false;
+
+        await context.SaveChangesAsync();
+        return true;
+    }
 }

@@ -56,9 +56,11 @@ public partial class App : Application
         servicios.AddDbContextFactory<FarmaGestDbContext>(opt =>
             opt.UseSqlServer(cadena));
 
+
         // ---- Capa de Negocio ----
         servicios.AddSingleton<UsuarioService>();
         servicios.AddSingleton<GestionUsuariosService>();
+        servicios.AddSingleton<IDashboardService, DashboardServiceEnMemoria>();
 
         // ---- Capa de UI - Administrador ----
         servicios.AddSingleton<MainWindow>();
@@ -80,5 +82,10 @@ public partial class App : Application
         // ---- Compartido ----
         servicios.AddTransient<LoginViewModel>();
         servicios.AddTransient<AuthWindow>();
+
+
+
+
+        servicios.AddTransient<CambiarContrasenaViewModel>();
     }
 }
