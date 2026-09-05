@@ -1,0 +1,230 @@
+-- =========================================================
+-- FarmaGestDB - Script de creación de base de datos
+-- =========================================================
+
+CREATE DATABASE FarmaGestDB;
+GO
+
+USE FarmaGestDB;
+GO
+
+-- =========================================================
+-- TABLA: Rol
+-- =========================================================
+CREATE TABLE Rol (
+    id_rol      INT IDENTITY(1,1) PRIMARY KEY,
+    nombre      VARCHAR(50)  NOT NULL,
+    descripcion VARCHAR(200) NULL,
+    estado      BIT          NOT NULL DEFAULT 1,
+    CONSTRAINT UQ_Rol_Nombre UNIQUE (nombre)
+);
+GO
+
+-- =========================================================
+-- TABLA: Usuario
+-- =========================================================
+CREATE TABLE Usuario (
+    id_usuario                 INT IDENTITY(1,1) PRIMARY KEY,
+    dni                        VARCHAR(15)  NOT NULL,
+    nombre                     VARCHAR(80)  NOT NULL,
+    apellido                   VARCHAR(80)  NOT NULL,
+    email                      VARCHAR(120) NULL,
+    contrasena                 VARCHAR(256) NOT NULL,  -- se guarda el hash, nunca texto plano
+    estado                     BIT          NOT NULL DEFAULT 1,
+    id_rol                     INT          NOT NULL,
+    requiere_cambio_contrasena BIT          NOT NULL DEFAULT 1,
+    CONSTRAINT UQ_Usuario_Dni   UNIQUE (dni),
+    CONSTRAINT UQ_Usuario_Email UNIQUE (email),
+    CONSTRAINT FK_Usuario_Rol   FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
+);
+GO
+
+-- =========================================================
+-- TABLA: Caja
+-- =========================================================
+CREATE TABLE Caja (
+    id_caja        INT IDENTITY(1,1) PRIMARY KEY,
+    fecha_apertura DATETIME      NOT NULL,
+    fecha_cierre   DATETIME      NULL,
+    monto_inicial  DECIMAL(10,2) NOT NULL,
+    monto_final    DECIMAL(10,2) NULL,
+    estado         BIT           NOT NULL DEFAULT 1,
+    id_usuario     INT           NOT NULL,
+    CONSTRAINT FK_Caja_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+GO
+
+-- =========================================================
+-- TABLA: CategoriasProductos
+-- =========================================================
+CREATE TABLE CategoriasProductos (
+    id_categoria INT IDENTITY(1,1) PRIMARY KEY,
+    nombre       VARCHAR(80) NOT NULL,
+    estado       BIT         NOT NULL DEFAULT 1,
+    CONSTRAINT UQ_Categoria_Nombre UNIQUE (nombre)
+);
+GO
+
+-- =========================================================
+-- TABLA: Producto
+-- =========================================================
+CREATE TABLE Producto (
+    id_producto    INT IDENTITY(1,1) PRIMARY KEY,
+    descripcion    VARCHAR(150)  NOT NULL,
+    precioVenta    DECIMAL(10,2) NOT NULL,
+    stockVenta     INT           NOT NULL DEFAULT 0,
+    requiereReceta BIT           NOT NULL DEFAULT 0,
+    esMedicamento  BIT           NOT NULL DEFAULT 0,
+    estado         BIT           NOT NULL DEFAULT 1,
+    id_categoria   INT           NOT NULL,
+    CONSTRAINT FK_Producto_Categoria FOREIGN KEY (id_categoria) REFERENCES CategoriasProductos(id_categoria)
+);
+GO
+
+-- =========================================================
+-- TABLA: ObraSocial
+-- =========================================================
+CREATE TABLE ObraSocial (
+    id_ObraSocial INT IDENTITY(1,1) PRIMARY KEY,
+    nombre        VARCHAR(100) NOT NULL,
+    codigo        VARCHAR(20)  NOT NULL,
+    telefono      VARCHAR(30)  NULL,
+    estado        BIT          NOT NULL DEFAULT 1,
+    CONSTRAINT UQ_ObraSocial_Codigo UNIQUE (codigo)
+);
+GO
+
+-- =========================================================
+-- TABLA: Planes
+-- =========================================================
+CREATE TABLE Planes (
+    idPlan        INT IDENTITY(1,1) PRIMARY KEY,
+    nombrePlan    VARCHAR(100) NOT NULL,
+    descripcion   VARCHAR(200) NULL,
+    id_ObraSocial INT          NOT NULL,
+    CONSTRAINT UQ_Planes_Nombre_ObraSocial UNIQUE (nombrePlan, id_ObraSocial),
+    CONSTRAINT FK_Planes_ObraSocial FOREIGN KEY (id_ObraSocial) REFERENCES ObraSocial(id_ObraSocial)
+);
+GO
+
+-- =========================================================
+-- TABLA: Afiliados
+-- =========================================================
+CREATE TABLE Afiliados (
+    id_afiliado INT IDENTITY(1,1) PRIMARY KEY,
+    nombre      VARCHAR(80) NOT NULL,
+    apellido    VARCHAR(80) NOT NULL,
+    activo      BIT         NOT NULL DEFAULT 1,
+    idPlan      INT         NOT NULL,
+    CONSTRAINT FK_Afiliados_Planes FOREIGN KEY (idPlan) REFERENCES Planes(idPlan)
+);
+GO
+
+-- =========================================================
+-- TABLA: CoberturaPlan
+-- =========================================================
+CREATE TABLE CoberturaPlan (
+    id_cobertura        INT IDENTITY(1,1) PRIMARY KEY,
+    porcentajeCobertura DECIMAL(5,2) NOT NULL,
+    idPlan              INT          NOT NULL,
+    id_producto         INT          NOT NULL,
+    CONSTRAINT UQ_Cobertura_Plan_Producto UNIQUE (idPlan, id_producto),
+    CONSTRAINT FK_Cobertura_Planes   FOREIGN KEY (idPlan) REFERENCES Planes(idPlan),
+    CONSTRAINT FK_Cobertura_Producto FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
+GO
+
+-- =========================================================
+-- TABLA: Recetas
+-- =========================================================
+CREATE TABLE Recetas (
+    id_Receta        INT IDENTITY(1,1) PRIMARY KEY,
+    fechaEmision     DATE         NOT NULL,
+    fechaVencimiento DATE         NOT NULL,
+    matriculaMedico  VARCHAR(30)  NOT NULL,
+    nombreMedico     VARCHAR(120) NOT NULL,
+    estado           BIT          NOT NULL DEFAULT 1,
+    id_afiliado      INT          NOT NULL,
+    CONSTRAINT FK_Recetas_Afiliados FOREIGN KEY (id_afiliado) REFERENCES Afiliados(id_afiliado)
+);
+GO
+
+-- =========================================================
+-- TABLA: DetalleReceta
+-- =========================================================
+CREATE TABLE DetalleReceta (
+    id_detalleReceta INT IDENTITY(1,1) PRIMARY KEY,
+    Cantidad         INT NOT NULL,
+    id_Receta        INT NOT NULL,
+    id_producto      INT NOT NULL,
+    CONSTRAINT UQ_DetalleReceta_Receta_Producto UNIQUE (id_Receta, id_producto),
+    CONSTRAINT FK_DetalleReceta_Recetas  FOREIGN KEY (id_Receta) REFERENCES Recetas(id_Receta),
+    CONSTRAINT FK_DetalleReceta_Producto FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
+GO
+
+-- =========================================================
+-- TABLA: Venta
+-- =========================================================
+CREATE TABLE Venta (
+    id_venta   INT IDENTITY(1,1) PRIMARY KEY,
+    fecha      DATETIME    NOT NULL DEFAULT GETDATE(),
+    estado     BIT         NOT NULL DEFAULT 1,
+    tipoVenta  VARCHAR(30) NOT NULL,
+    id_Receta  INT         NULL,  -- opcional: no toda venta tiene receta asociada
+    id_usuario INT         NOT NULL,
+    id_caja    INT         NOT NULL,
+    CONSTRAINT FK_Venta_Recetas FOREIGN KEY (id_Receta) REFERENCES Recetas(id_Receta),
+    CONSTRAINT FK_Venta_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    CONSTRAINT FK_Venta_Caja    FOREIGN KEY (id_caja) REFERENCES Caja(id_caja)
+);
+GO
+
+-- =========================================================
+-- TABLA: DetalleVenta
+-- =========================================================
+CREATE TABLE DetalleVenta (
+    idDetalleVenta INT IDENTITY(1,1) PRIMARY KEY,
+    cantidad       INT           NOT NULL,
+    precioUnitario DECIMAL(10,2) NOT NULL,
+    descuento      DECIMAL(10,2) NOT NULL DEFAULT 0,
+    id_producto    INT           NOT NULL,
+    id_venta       INT           NOT NULL,
+    id_cobertura   INT           NULL,  -- opcional: solo si se aplicó cobertura de obra social
+    CONSTRAINT FK_DetalleVenta_Producto  FOREIGN KEY (id_producto) REFERENCES Producto(id_producto),
+    CONSTRAINT FK_DetalleVenta_Venta     FOREIGN KEY (id_venta) REFERENCES Venta(id_venta),
+    CONSTRAINT FK_DetalleVenta_Cobertura FOREIGN KEY (id_cobertura) REFERENCES CoberturaPlan(id_cobertura)
+);
+GO
+
+-- =========================================================
+-- DATOS INICIALES (SEED)
+-- =========================================================
+INSERT INTO Rol (nombre, descripcion) VALUES
+    ('Administrador', 'Acceso total al sistema'),
+    ('Cajero', 'Gestión de ventas y caja'),
+    ('Farmaceutico', 'Gestión de recetas y stock');
+GO
+
+INSERT INTO Usuario (dni, nombre, apellido, email, contrasena, estado, id_rol, requiere_cambio_contrasena)
+VALUES (
+    '11222333',
+    'Admin',
+    'Sistema',
+    'admin@farmagest.com',
+    '$2b$11$XPYnHhH.lmEmv01FLDsuZuGE52JeBVxweTiNNHpu3Z96vHNKeOkwC',
+    1,
+    (SELECT id_rol FROM Rol WHERE nombre = 'Administrador'),
+    1
+);
+GO
+
+-- =========================================================
+-- VERIFICACIÓN
+-- =========================================================
+SELECT email, contrasena, LEN(contrasena) AS largo_hash
+FROM Usuario
+WHERE email = 'admin@farmagest.com';
+
+SELECT * FROM Rol;
+SELECT * FROM Usuario;
