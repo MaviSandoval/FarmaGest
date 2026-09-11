@@ -4,6 +4,7 @@ using FarmaGest.Dominio;
 using FarmaGest.UI.ViewModels.Compartido;
 using Microsoft.Extensions.DependencyInjection;
 using FarmaGest.UI.Views.Farmaceutico;
+using FarmaGest.UI.Views.Cajero;
 
 namespace FarmaGest.UI.Views.Compartido;
 
@@ -46,6 +47,11 @@ public partial class CambiarContrasenaView : Page
             case "Farmaceutico":
                 var mainWindowFarmaceutico = App.Services.GetRequiredService<MainWindowFarmaceutico>();
                 mainWindowFarmaceutico.Show();
+                break;
+
+            case "Cajero":
+                var mainWindowCajero = App.Services.GetRequiredService<MainWindowCajero>();
+                mainWindowCajero.Show();
                 break;
 
             default:

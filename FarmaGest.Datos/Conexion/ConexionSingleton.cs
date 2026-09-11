@@ -22,10 +22,10 @@ public sealed class ConexionSingleton
     private ConexionSingleton()
     {
         CadenaConexion =
-            "Server=MAVI\\SQLEXPRESS;" +
-            "Database=FarmaGestDB;" +
-            "Trusted_Connection=True;" +
-            "TrustServerCertificate=True;";
+    "Server=.\\SQLEXPRESS;" +
+    "Database=FarmaGestDB;" +
+    "Trusted_Connection=True;" +
+    "TrustServerCertificate=True;";
     }
 
     public SqlConnection CrearConexion() => new(CadenaConexion);

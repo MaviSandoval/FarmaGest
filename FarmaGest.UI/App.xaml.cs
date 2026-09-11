@@ -11,6 +11,7 @@ using FarmaGest.UI.ViewModels.Compartido;
 
 using FarmaGest.UI.Views.Farmaceutico;
 using FarmaGest.UI.ViewModels.Farmaceutico;
+using FarmaGest.UI.Views.Cajero;
 
 namespace FarmaGest.UI;
 
@@ -62,6 +63,8 @@ public partial class App : Application
         servicios.AddSingleton<GestionUsuariosService>();
         servicios.AddSingleton<IDashboardService, DashboardServiceEnMemoria>();
         servicios.AddSingleton<ProductoService>();
+        servicios.AddSingleton<SesionUsuarioService>();
+        servicios.AddSingleton<CajaService>();
 
         // ---- Capa de UI - Administrador ----
         servicios.AddSingleton<MainWindow>();
@@ -79,6 +82,9 @@ public partial class App : Application
         servicios.AddSingleton<MainWindowFarmaceutico>();
         servicios.AddTransient<DashboardFarmaceuticoPage>();
         servicios.AddTransient<DashboardFarmaceuticoViewModel>();
+
+        // ---- Capa de UI - Cajero ----
+        servicios.AddSingleton<MainWindowCajero>();
 
         // ---- Compartido ----
         servicios.AddTransient<LoginViewModel>();

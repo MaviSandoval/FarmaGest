@@ -10,6 +10,7 @@ namespace FarmaGest.UI.ViewModels.Compartido;
 public partial class LoginViewModel : ObservableObject
 {
     private readonly UsuarioService _usuarioService;
+    private readonly SesionUsuarioService _sesionUsuarioService;
     private int _intentosFallidos = 0;
     private const int MaxIntentos = 3;
 
@@ -28,9 +29,12 @@ public partial class LoginViewModel : ObservableObject
     // Acción para notificar a la vista cuando hay que forzar el cambio de contraseña
     public Action<Usuario>? OnRequiereCambioContrasena;
 
-    public LoginViewModel(UsuarioService usuarioService)
+    public LoginViewModel(
+    UsuarioService usuarioService,
+    SesionUsuarioService sesionUsuarioService)
     {
         _usuarioService = usuarioService;
+        _sesionUsuarioService = sesionUsuarioService;
     }
 
     [RelayCommand]
@@ -60,6 +64,9 @@ public partial class LoginViewModel : ObservableObject
         }
 
         _intentosFallidos = 0;
+
+        // Guardamos el usuario autenticado en la sesión
+        _sesionUsuarioService.IniciarSesion(usuarioAutenticado);
 
         if (usuarioAutenticado.RequiereCambioContrasena)
         {
