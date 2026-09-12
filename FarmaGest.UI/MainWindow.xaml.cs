@@ -3,14 +3,18 @@ using System.Windows;
 using System.Windows.Controls;
 using FarmaGest.UI.Views.Administrador;
 using Microsoft.Extensions.DependencyInjection;
-
+using FarmaGest.Negocio.Servicios;
 namespace FarmaGest.UI;
 
 public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
-    public MainWindow()
+    private readonly SesionUsuarioService _sesionUsuarioService;
+
+    public MainWindow(SesionUsuarioService sesionUsuarioService)
     {
         InitializeComponent();
+
+        _sesionUsuarioService = sesionUsuarioService;
 
         FechaHoraText.Text = DateTime.Now.ToString(
             "dddd, d 'de' MMMM 'de' yyyy - HH:mm",
@@ -38,5 +42,17 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         if (page is not null)
             RootFrame.Navigate(page);
+    }
+
+    private void CerrarSesion_Click(object sender, RoutedEventArgs e)
+    {
+        _sesionUsuarioService.CerrarSesion();
+
+        var authWindow =
+            App.Services.GetRequiredService<AuthWindow>();
+
+        authWindow.Show();
+
+        Close();
     }
 }

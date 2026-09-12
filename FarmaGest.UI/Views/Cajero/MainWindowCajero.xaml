@@ -68,40 +68,40 @@
                 <StackPanel DockPanel.Dock="Top">
 
                     <RadioButton
-                        x:Name="NavInicio"
-                        Style="{StaticResource SidebarNavItem}"
-                        Content="Inicio"
-                        Tag="Home24"
-                        IsChecked="True"
-                        Click="NavItem_Click" />
+        x:Name="NavInicio"
+        Style="{StaticResource SidebarNavItem}"
+        Content="Inicio"
+        Tag="Home24"
+        IsChecked="True"
+        Click="NavItem_Click" />
 
                     <RadioButton
-                        x:Name="NavCaja"
-                        Style="{StaticResource SidebarNavItem}"
-                        Content="Caja"
-                        Tag="Money24"
-                        Click="NavItem_Click" />
+        x:Name="NavPreventas"
+        Style="{StaticResource SidebarNavItem}"
+        Content="Preventas"
+        Tag="ClipboardTaskList24"
+        Click="NavItem_Click" />
 
                     <RadioButton
-                        x:Name="NavVentas"
-                        Style="{StaticResource SidebarNavItem}"
-                        Content="Ventas"
-                        Tag="Cart24"
-                        Click="NavItem_Click" />
+        x:Name="NavVentasCobradas"
+        Style="{StaticResource SidebarNavItem}"
+        Content="Ventas cobradas"
+        Tag="Receipt24"
+        Click="NavItem_Click" />
 
                     <RadioButton
-                        x:Name="NavPrecios"
-                        Style="{StaticResource SidebarNavItem}"
-                        Content="Consultar precios"
-                        Tag="Search24"
-                        Click="NavItem_Click" />
+        x:Name="NavCaja"
+        Style="{StaticResource SidebarNavItem}"
+        Content="Caja"
+        Tag="Money24"
+        Click="NavItem_Click" />
 
                     <RadioButton
-                        x:Name="NavResumen"
-                        Style="{StaticResource SidebarNavItem}"
-                        Content="Resumen de caja"
-                        Tag="DataHistogram24"
-                        Click="NavItem_Click" />
+        x:Name="NavResumen"
+        Style="{StaticResource SidebarNavItem}"
+        Content="Resumen de caja"
+        Tag="DataHistogram24"
+        Click="NavItem_Click" />
 
                 </StackPanel>
 

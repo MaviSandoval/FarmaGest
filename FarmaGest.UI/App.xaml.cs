@@ -85,6 +85,8 @@ public partial class App : Application
 
         // ---- Capa de UI - Cajero ----
         servicios.AddSingleton<MainWindowCajero>();
+        servicios.AddTransient<CajaPage>();
+        servicios.AddTransient<PreventasPage>();
 
         // ---- Compartido ----
         servicios.AddTransient<LoginViewModel>();

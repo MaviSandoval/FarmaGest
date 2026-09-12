@@ -61,16 +61,18 @@ namespace FarmaGest.UI.Views.Cajero
                     MostrarVistaPendiente("Inicio");
                     break;
 
+                case nameof(NavPreventas):
+                    RootFrame.Navigate(
+                        _serviceProvider.GetRequiredService<PreventasPage>());
+                    break;
+
+                case nameof(NavVentasCobradas):
+                    MostrarVistaPendiente("Ventas cobradas");
+                    break;
+
                 case nameof(NavCaja):
-                    MostrarVistaPendiente("Caja");
-                    break;
-
-                case nameof(NavVentas):
-                    MostrarVistaPendiente("Ventas");
-                    break;
-
-                case nameof(NavPrecios):
-                    MostrarVistaPendiente("Consulta de precios");
+                    RootFrame.Navigate(
+                        _serviceProvider.GetRequiredService<CajaPage>());
                     break;
 
                 case nameof(NavResumen):
