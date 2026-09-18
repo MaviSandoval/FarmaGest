@@ -24,5 +24,14 @@ namespace FarmaGest.UI.Views.Cajero
         {
             InitializeComponent();
         }
+
+        private void Cobrar_Click(object sender, RoutedEventArgs e)
+        {
+            MessageBox.Show(
+                "La facturación de la venta se implementará en el siguiente paso.",
+                "FarmaGest",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+        }
     }
 }

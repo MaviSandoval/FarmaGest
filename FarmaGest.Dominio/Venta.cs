@@ -13,9 +13,6 @@ public class Venta
     public int UsuarioId { get; set; }
     public Usuario Usuario { get; set; } = null!;
 
-    public int CajaId { get; set; }
-    public Caja Caja { get; set; } = null!;
-
     public List<DetalleVenta> Detalles { get; set; } = new();
 }
 

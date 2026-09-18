@@ -21,7 +21,8 @@ public class CajaService
             .AnyAsync(c => c.UsuarioId == usuarioId && c.Estado);
 
         if (cajaAbierta)
-            throw new InvalidOperationException("El usuario ya tiene una caja abierta.");
+            throw new InvalidOperationException(
+                "El usuario ya tiene una caja abierta.");
 
         var caja = new Caja
         {
@@ -42,7 +43,9 @@ public class CajaService
         await using var context = await _factory.CreateDbContextAsync();
 
         return await context.Cajas
-            .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId && c.Estado);
+            .FirstOrDefaultAsync(c =>
+                c.UsuarioId == usuarioId &&
+                c.Estado);
     }
 
     public async Task CerrarCajaAsync(int usuarioId, decimal montoFinal)
@@ -50,10 +53,13 @@ public class CajaService
         await using var context = await _factory.CreateDbContextAsync();
 
         var caja = await context.Cajas
-            .FirstOrDefaultAsync(c => c.UsuarioId == usuarioId && c.Estado);
+            .FirstOrDefaultAsync(c =>
+                c.UsuarioId == usuarioId &&
+                c.Estado);
 
         if (caja == null)
-            throw new InvalidOperationException("El usuario no tiene una caja abierta.");
+            throw new InvalidOperationException(
+                "El usuario no tiene una caja abierta.");
 
         caja.FechaCierre = DateTime.Now;
         caja.MontoFinal = montoFinal;
@@ -66,9 +72,11 @@ public class CajaService
     {
         await using var context = await _factory.CreateDbContextAsync();
 
-        return await context.DetallesVenta
-            .Where(d => d.Venta.CajaId == cajaId && d.Venta.Estado)
-            .SumAsync(d => (decimal?)((d.Cantidad * d.PrecioUnitario) - d.Descuento))
+        return await context.Facturaciones
+            .Where(f =>
+                f.CajaId == cajaId &&
+                f.Venta.Estado)
+            .SumAsync(f => (decimal?)f.Importe)
             ?? 0;
     }
 
@@ -80,11 +88,14 @@ public class CajaService
             .FirstOrDefaultAsync(c => c.Id == cajaId);
 
         if (caja == null)
-            throw new InvalidOperationException("Caja no encontrada.");
+            throw new InvalidOperationException(
+                "Caja no encontrada.");
 
-        var totalVentas = await context.DetallesVenta
-            .Where(d => d.Venta.CajaId == cajaId && d.Venta.Estado)
-            .SumAsync(d => (decimal?)((d.Cantidad * d.PrecioUnitario) - d.Descuento))
+        var totalVentas = await context.Facturaciones
+            .Where(f =>
+                f.CajaId == cajaId &&
+                f.Venta.Estado)
+            .SumAsync(f => (decimal?)f.Importe)
             ?? 0;
 
         return caja.MontoInicial + totalVentas;
