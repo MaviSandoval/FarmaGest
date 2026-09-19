@@ -1,0 +1,109 @@
+﻿<Window x:Class="FarmaGest.UI.Views.Cajero.CobrarVentaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cobrar venta"
+        Height="430"
+        Width="500"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F5F7F7">
+
+    <Grid Margin="30">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Título -->
+        <TextBlock Grid.Row="0"
+                   Text="Cobrar venta"
+                   FontSize="26"
+                   FontWeight="SemiBold"
+                   Foreground="#1F2D2D"/>
+
+        <!-- Número de venta -->
+        <TextBlock Grid.Row="1"
+                   x:Name="TxtNumeroVenta"
+                   Text="Venta N°"
+                   FontSize="14"
+                   Foreground="#6B7777"
+                   Margin="0,8,0,20"/>
+
+        <!-- Total -->
+        <Border Grid.Row="2"
+                Background="White"
+                CornerRadius="10"
+                Padding="20"
+                Margin="0,0,0,20">
+
+            <StackPanel>
+                <TextBlock Text="Total a cobrar"
+                           FontSize="14"
+                           Foreground="#6B7777"/>
+
+                <TextBlock x:Name="TxtTotal"
+                           Text="$ 0,00"
+                           FontSize="28"
+                           FontWeight="SemiBold"
+                           Margin="0,5,0,0"/>
+            </StackPanel>
+
+        </Border>
+
+        <!-- Método de pago -->
+        <StackPanel Grid.Row="3">
+
+            <TextBlock Text="Método de pago"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Margin="0,0,0,8"/>
+
+            <ComboBox x:Name="CmbMetodoPago"
+                      Height="38"
+                      FontSize="14"
+                      SelectedIndex="0">
+
+                <ComboBoxItem Content="Efectivo"/>
+                <ComboBoxItem Content="Débito"/>
+                <ComboBoxItem Content="Crédito"/>
+                <ComboBoxItem Content="Transferencia"/>
+
+            </ComboBox>
+
+        </StackPanel>
+
+        <!-- Botones -->
+        <Grid Grid.Row="5"
+              Margin="0,30,0,0">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="1"
+                    Content="Cancelar"
+                    Width="100"
+                    Height="38"
+                    Margin="0,0,10,0"
+                    Click="Cancelar_Click"/>
+
+            <Button Grid.Column="2"
+                    Content="Confirmar cobro"
+                    Width="140"
+                    Height="38"
+                    Background="#C5004B"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Click="Confirmar_Click"/>
+
+        </Grid>
+
+    </Grid>
+</Window>
