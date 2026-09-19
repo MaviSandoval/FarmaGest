@@ -67,7 +67,8 @@ namespace FarmaGest.UI.Views.Cajero
                     break;
 
                 case nameof(NavVentasCobradas):
-                    MostrarVistaPendiente("Ventas cobradas");
+                    RootFrame.Navigate(
+                        _serviceProvider.GetRequiredService<VentasCobradasPage>());
                     break;
 
                 case nameof(NavCaja):

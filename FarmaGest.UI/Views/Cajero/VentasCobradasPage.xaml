@@ -1,0 +1,96 @@
+﻿<Page x:Class="FarmaGest.UI.Views.Cajero.VentasCobradasPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#F5F7F7">
+
+    <Grid Margin="42,32">
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Encabezado -->
+        <StackPanel Grid.Row="0"
+                    Margin="0,0,0,24">
+
+            <TextBlock Text="Ventas cobradas"
+                       FontSize="26"
+                       FontWeight="SemiBold"
+                       Foreground="#1F2D2D"/>
+
+            <TextBlock Text="Ventas facturadas y cobradas por caja."
+                       FontSize="14"
+                       Foreground="#6B7777"
+                       Margin="0,6,0,0"/>
+
+        </StackPanel>
+
+        <!-- Resumen -->
+        <Border Grid.Row="1"
+                Background="White"
+                CornerRadius="12"
+                Padding="20"
+                Margin="0,0,0,20">
+
+            <TextBlock x:Name="TxtCantidadVentas"
+                       Text="Ventas cobradas: 0"
+                       FontSize="14"
+                       FontWeight="SemiBold"/>
+
+        </Border>
+
+        <!-- Tabla -->
+        <Border Grid.Row="2"
+                Background="White"
+                CornerRadius="12"
+                Padding="20">
+
+            <DataGrid x:Name="DgVentasCobradas"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      BorderThickness="0">
+
+                <DataGrid.Columns>
+
+                    <DataGridTextColumn Header="Fecha"
+                                        Binding="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy}}"
+                                        Width="110"/>
+
+                    <DataGridTextColumn Header="Hora"
+                                        Binding="{Binding Hora}"
+                                        Width="80"/>
+
+                    <DataGridTextColumn Header="N° Venta"
+                                        Binding="{Binding VentaId}"
+                                        Width="90"/>
+
+                    <DataGridTextColumn Header="Vendedor / Farmacéutico"
+                                        Binding="{Binding Responsable}"
+                                        Width="*"/>
+
+                    <DataGridTextColumn Header="Método de pago"
+                                        Binding="{Binding MetodoPago}"
+                                        Width="150"/>
+
+                    <DataGridTextColumn Header="Importe"
+                                        Binding="{Binding Importe, StringFormat={}{0:C2}}"
+                                        Width="120"/>
+
+                    <DataGridTextColumn Header="Cajero"
+                                        Binding="{Binding Cajero}"
+                                        Width="160"/>
+
+                </DataGrid.Columns>
+
+            </DataGrid>
+
+        </Border>
+
+    </Grid>
+</Page>

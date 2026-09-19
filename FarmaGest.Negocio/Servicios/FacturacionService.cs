@@ -50,6 +50,42 @@ public class FacturacionService
     }
 
     // =========================================================
+    // OBTENER VENTAS COBRADAS
+    // =========================================================
+    public async Task<List<VentaCobradaDto>>
+        ObtenerVentasCobradasAsync()
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        var ventas = await context.Facturaciones
+            .AsNoTracking()
+            .Where(f => f.Venta.Estado)
+            .Select(f => new VentaCobradaDto
+            {
+                VentaId = f.VentaId,
+
+                Fecha = f.Fecha,
+
+                Responsable =
+                    f.Venta.Usuario.Nombre + " " +
+                    f.Venta.Usuario.Apellido,
+
+                MetodoPago = f.MetodoPago,
+
+                Importe = f.Importe,
+
+                Cajero =
+                    f.Usuario.Nombre + " " +
+                    f.Usuario.Apellido
+            })
+            .OrderByDescending(f => f.Fecha)
+            .ToListAsync();
+
+        return ventas;
+    }
+
+    // =========================================================
     // FACTURAR / COBRAR UNA VENTA
     // =========================================================
     public async Task FacturarVentaAsync(
