@@ -1,0 +1,335 @@
+/* =====================================================================
+   FARMAGEST - SCRIPT DE CREACIÓN DE BASE DE DATOS
+   ---------------------------------------------------------------------
+   Taller de Programación II - FaCENA UNNE - 2026 - Grupo 23
+   Motor: SQL Server
+
+   Contenido:
+     1. Base de datos
+     2. Tablas
+        2.1 Seguridad ........ Rol, Usuario
+        2.2 Productos ........ CategoriasProductos, Producto
+        2.3 Obras sociales ... ObraSocial, Planes, Afiliados, CoberturaPlan
+        2.4 Recetas .......... Recetas, DetalleReceta
+        2.5 Caja y ventas .... Caja, Venta, DetalleVenta, Facturacion
+     3. Datos iniciales (roles, usuarios, categorías)
+     4. Datos de prueba (productos)
+   ===================================================================== */
+
+
+/* =====================================================================
+   1. BASE DE DATOS
+   ===================================================================== */
+
+IF DB_ID('FarmaGestDB') IS NULL
+    CREATE DATABASE FarmaGestDB;
+GO
+
+USE FarmaGestDB;
+GO
+
+
+/* =====================================================================
+   2.1 SEGURIDAD
+   ===================================================================== */
+
+-- Perfiles del sistema: Administrador, Cajero, Farmaceutico
+CREATE TABLE Rol (
+    id_rol       INT IDENTITY(1,1) PRIMARY KEY,
+    nombre       VARCHAR(50)  NOT NULL,
+    descripcion  VARCHAR(200) NULL,
+    estado       BIT          NOT NULL DEFAULT 1,
+
+    CONSTRAINT UQ_Rol_Nombre UNIQUE (nombre)
+);
+GO
+
+-- Usuarios que ingresan al sistema (la contraseña se guarda hasheada con BCrypt)
+CREATE TABLE Usuario (
+    id_usuario                  INT IDENTITY(1,1) PRIMARY KEY,
+    dni                         VARCHAR(15)  NOT NULL,
+    nombre                      VARCHAR(80)  NOT NULL,
+    apellido                    VARCHAR(80)  NOT NULL,
+    email                       VARCHAR(120) NULL,
+    contrasena                  VARCHAR(256) NOT NULL,
+    estado                      BIT          NOT NULL DEFAULT 1,
+    requiere_cambio_contrasena  BIT          NOT NULL DEFAULT 1,
+    id_rol                      INT          NOT NULL,
+
+    CONSTRAINT UQ_Usuario_Dni UNIQUE (dni),
+    CONSTRAINT FK_Usuario_Rol FOREIGN KEY (id_rol) REFERENCES Rol(id_rol)
+);
+GO
+
+-- Email único solo cuando está cargado (permite varios usuarios sin email)
+CREATE UNIQUE INDEX UQ_Usuario_Email
+    ON Usuario(email)
+    WHERE email IS NOT NULL;
+GO
+
+
+/* =====================================================================
+   2.2 PRODUCTOS
+   ===================================================================== */
+
+CREATE TABLE CategoriasProductos (
+    id_categoria  INT IDENTITY(1,1) PRIMARY KEY,
+    nombre        VARCHAR(80) NOT NULL,
+    estado        BIT         NOT NULL DEFAULT 1,
+
+    CONSTRAINT UQ_Categoria_Nombre UNIQUE (nombre)
+);
+GO
+
+CREATE TABLE Producto (
+    id_producto     INT IDENTITY(1,1) PRIMARY KEY,
+    descripcion     VARCHAR(150)  NOT NULL,
+    precioVenta     DECIMAL(10,2) NOT NULL,
+    stockVenta      INT           NOT NULL DEFAULT 0,
+    requiereReceta  BIT           NOT NULL DEFAULT 0,
+    esMedicamento   BIT           NOT NULL DEFAULT 0,
+    estado          BIT           NOT NULL DEFAULT 1,
+    id_categoria    INT           NOT NULL,
+
+    CONSTRAINT FK_Producto_Categoria FOREIGN KEY (id_categoria) REFERENCES CategoriasProductos(id_categoria)
+);
+GO
+
+
+/* =====================================================================
+   2.3 OBRAS SOCIALES
+   ===================================================================== */
+
+CREATE TABLE ObraSocial (
+    id_ObraSocial  INT IDENTITY(1,1) PRIMARY KEY,
+    nombre         VARCHAR(100) NOT NULL,
+    codigo         VARCHAR(20)  NOT NULL,
+    telefono       VARCHAR(30)  NULL,
+    estado         BIT          NOT NULL DEFAULT 1,
+
+    CONSTRAINT UQ_ObraSocial_Codigo UNIQUE (codigo)
+);
+GO
+
+CREATE TABLE Planes (
+    idPlan         INT IDENTITY(1,1) PRIMARY KEY,
+    nombrePlan     VARCHAR(100) NOT NULL,
+    descripcion    VARCHAR(200) NULL,
+    id_ObraSocial  INT          NOT NULL,
+
+    CONSTRAINT UQ_Planes_Nombre_ObraSocial UNIQUE (nombrePlan, id_ObraSocial),
+    CONSTRAINT FK_Planes_ObraSocial FOREIGN KEY (id_ObraSocial) REFERENCES ObraSocial(id_ObraSocial)
+);
+GO
+
+CREATE TABLE Afiliados (
+    id_afiliado  INT IDENTITY(1,1) PRIMARY KEY,
+    nombre       VARCHAR(80) NOT NULL,
+    apellido     VARCHAR(80) NOT NULL,
+    activo       BIT         NOT NULL DEFAULT 1,
+    idPlan       INT         NOT NULL,
+
+    CONSTRAINT FK_Afiliados_Planes FOREIGN KEY (idPlan) REFERENCES Planes(idPlan)
+);
+GO
+
+-- Porcentaje que cubre cada plan sobre cada producto
+CREATE TABLE CoberturaPlan (
+    id_cobertura         INT IDENTITY(1,1) PRIMARY KEY,
+    porcentajeCobertura  DECIMAL(5,2) NOT NULL,
+    idPlan               INT          NOT NULL,
+    id_producto          INT          NOT NULL,
+
+    CONSTRAINT UQ_Cobertura_Plan_Producto UNIQUE (idPlan, id_producto),
+    CONSTRAINT FK_Cobertura_Planes   FOREIGN KEY (idPlan)      REFERENCES Planes(idPlan),
+    CONSTRAINT FK_Cobertura_Producto FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
+GO
+
+
+/* =====================================================================
+   2.4 RECETAS
+   ===================================================================== */
+
+CREATE TABLE Recetas (
+    id_Receta         INT IDENTITY(1,1) PRIMARY KEY,
+    fechaEmision      DATE         NOT NULL,
+    fechaVencimiento  DATE         NOT NULL,
+    matriculaMedico   VARCHAR(30)  NOT NULL,
+    nombreMedico      VARCHAR(120) NOT NULL,
+    estado            BIT          NOT NULL DEFAULT 1,
+    id_afiliado       INT          NOT NULL,
+
+    CONSTRAINT FK_Recetas_Afiliados FOREIGN KEY (id_afiliado) REFERENCES Afiliados(id_afiliado)
+);
+GO
+
+CREATE TABLE DetalleReceta (
+    id_detalleReceta  INT IDENTITY(1,1) PRIMARY KEY,
+    Cantidad          INT NOT NULL,
+    id_Receta         INT NOT NULL,
+    id_producto       INT NOT NULL,
+
+    CONSTRAINT UQ_DetalleReceta_Receta_Producto UNIQUE (id_Receta, id_producto),
+    CONSTRAINT FK_DetalleReceta_Recetas  FOREIGN KEY (id_Receta)   REFERENCES Recetas(id_Receta),
+    CONSTRAINT FK_DetalleReceta_Producto FOREIGN KEY (id_producto) REFERENCES Producto(id_producto)
+);
+GO
+
+
+/* =====================================================================
+   2.5 CAJA Y VENTAS
+   ---------------------------------------------------------------------
+   Flujo:
+     1. El Farmacéutico arma la venta (Venta + DetalleVenta).
+     2. La venta queda pendiente de cobro (sin registro en Facturacion).
+     3. El Cajero la cobra con su caja abierta -> se crea la Facturacion.
+   ===================================================================== */
+
+-- Apertura y cierre de caja de cada cajero
+CREATE TABLE Caja (
+    id_caja         INT IDENTITY(1,1) PRIMARY KEY,
+    fecha_apertura  DATETIME      NOT NULL,
+    fecha_cierre    DATETIME      NULL,
+    monto_inicial   DECIMAL(10,2) NOT NULL,
+    monto_final     DECIMAL(10,2) NULL,
+    estado          BIT           NOT NULL DEFAULT 1,  -- 1 = abierta, 0 = cerrada
+    id_usuario      INT           NOT NULL,
+
+    CONSTRAINT FK_Caja_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+GO
+
+-- Venta armada por el Farmacéutico
+CREATE TABLE Venta (
+    id_venta    INT IDENTITY(1,1) PRIMARY KEY,
+    fecha       DATETIME    NOT NULL DEFAULT GETDATE(),
+    estado      BIT         NOT NULL DEFAULT 1,  -- 1 = activa, 0 = anulada
+    tipoVenta   VARCHAR(30) NOT NULL,
+    id_Receta   INT         NULL,                -- solo si la venta tiene receta
+    id_usuario  INT         NOT NULL,            -- quien armó la venta
+
+    CONSTRAINT FK_Venta_Recetas FOREIGN KEY (id_Receta)  REFERENCES Recetas(id_Receta),
+    CONSTRAINT FK_Venta_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario)
+);
+GO
+
+CREATE TABLE DetalleVenta (
+    idDetalleVenta  INT IDENTITY(1,1) PRIMARY KEY,
+    cantidad        INT           NOT NULL,
+    precioUnitario  DECIMAL(10,2) NOT NULL,
+    descuento       DECIMAL(10,2) NOT NULL DEFAULT 0,
+    id_producto     INT           NOT NULL,
+    id_venta        INT           NOT NULL,
+    id_cobertura    INT           NULL,  -- solo si se aplicó cobertura de obra social
+
+    CONSTRAINT FK_DetalleVenta_Producto  FOREIGN KEY (id_producto)  REFERENCES Producto(id_producto),
+    CONSTRAINT FK_DetalleVenta_Venta     FOREIGN KEY (id_venta)     REFERENCES Venta(id_venta),
+    CONSTRAINT FK_DetalleVenta_Cobertura FOREIGN KEY (id_cobertura) REFERENCES CoberturaPlan(id_cobertura)
+);
+GO
+
+-- Cobro de la venta realizado por el Cajero
+CREATE TABLE Facturacion (
+    id_facturacion  INT IDENTITY(1,1) PRIMARY KEY,
+    fecha           DATETIME      NOT NULL DEFAULT GETDATE(),
+    metodo_pago     VARCHAR(30)   NOT NULL,
+    importe         DECIMAL(10,2) NOT NULL,
+    id_venta        INT           NOT NULL,
+    id_usuario      INT           NOT NULL,  -- cajero que cobró
+    id_caja         INT           NOT NULL,  -- caja abierta al momento del cobro
+
+    CONSTRAINT UQ_Facturacion_Venta   UNIQUE (id_venta),  -- una venta se cobra una sola vez
+    CONSTRAINT FK_Facturacion_Venta   FOREIGN KEY (id_venta)   REFERENCES Venta(id_venta),
+    CONSTRAINT FK_Facturacion_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
+    CONSTRAINT FK_Facturacion_Caja    FOREIGN KEY (id_caja)    REFERENCES Caja(id_caja)
+);
+GO
+
+
+/* =====================================================================
+   3. DATOS INICIALES
+   ===================================================================== */
+
+-- Roles
+INSERT INTO Rol (nombre, descripcion) VALUES
+    ('Administrador', 'Acceso total al sistema'),
+    ('Cajero',        'Cobro de ventas y manejo de caja'),
+    ('Farmaceutico',  'Validación de recetas y armado de ventas');
+GO
+
+-- Usuarios iniciales, uno por perfil (contraseñas hasheadas con BCrypt)
+INSERT INTO Usuario (dni, nombre, apellido, email, contrasena, estado, requiere_cambio_contrasena, id_rol)
+VALUES
+    ('11222333', 'Admin', 'Sistema', 'admin@farmagest.com',
+     '$2b$11$NUx2GzObAp4oEjFtyLar/ONUU6snVUU1lTj8fX/peLV3RjxsNV7kW', 1, 0,
+     (SELECT id_rol FROM Rol WHERE nombre = 'Administrador')),
+
+    ('22333444', 'Cajero', 'Sistema', 'mape@farmagest.com',
+     '$2b$11$4Tef/0.hSd8OvEAizTvuQOFQRLiWyoEFHxoWXf6BnJk.jTPbD8nWy', 1, 0,
+     (SELECT id_rol FROM Rol WHERE nombre = 'Cajero')),
+
+    ('33444555', 'Farmacéutico', 'Sistema', 'LuSa@farmagest.com',
+     '$2b$11$oa9X74wR/aQ1PaIrkVF.Be36nCDcS.OJQm0.plZgFLlLmBuczFSTq', 1, 0,
+     (SELECT id_rol FROM Rol WHERE nombre = 'Farmaceutico'));
+GO
+
+-- Categorías de productos
+INSERT INTO CategoriasProductos (nombre) VALUES
+    ('Analgésicos y Antipiréticos'),
+    ('Antiinflamatorios'),
+    ('Antibióticos'),
+    ('Antialérgicos'),
+    ('Antigripales y Respiratorios'),
+    ('Cardiovasculares'),
+    ('Cuidado Personal');
+GO
+
+
+/* =====================================================================
+   4. DATOS DE PRUEBA - PRODUCTOS
+   ---------------------------------------------------------------------
+   La categoría se busca por nombre, así no dependemos de los id.
+   Incluye productos con stock bajo y sin stock para probar alertas.
+   ===================================================================== */
+
+INSERT INTO Producto (descripcion, precioVenta, stockVenta, requiereReceta, esMedicamento, id_categoria)
+SELECT p.descripcion, p.precio, p.stock, p.receta, p.medicamento, c.id_categoria
+FROM (VALUES
+    -- descripción                                         precio    stock  receta  medic.  categoría
+    ('Paracetamol 500 mg x 20 comp.',                     2150.00,   120,    0,      1,     'Analgésicos y Antipiréticos'),
+    ('Paracetamol 1 g x 10 comp.',                        2600.00,    60,    0,      1,     'Analgésicos y Antipiréticos'),
+    ('Ác. Acetilsalicílico 500 mg x 20 comp.',            2400.00,    45,    0,      1,     'Analgésicos y Antipiréticos'),
+    ('Dipirona 500 mg x 10 comp.',                        1950.00,    30,    0,      1,     'Analgésicos y Antipiréticos'),
+
+    ('Ibuprofeno 400 mg x 20 comp.',                      2800.00,    35,    0,      1,     'Antiinflamatorios'),
+    ('Ibuprofeno 600 mg x 20 comp.',                      3500.00,    25,    0,      1,     'Antiinflamatorios'),
+    ('Diclofenac 75 mg x 15 comp.',                       4200.00,    20,    1,      1,     'Antiinflamatorios'),
+    ('Naproxeno 500 mg x 10 comp.',                       3900.00,    15,    0,      1,     'Antiinflamatorios'),
+
+    ('Amoxicilina 500 mg x 16 comp.',                     8450.00,     8,    1,      1,     'Antibióticos'),
+    ('Amoxicilina + Ác. Clavulánico 875/125 mg x 14',    14200.00,    12,    1,      1,     'Antibióticos'),
+    ('Azitromicina 500 mg x 3 comp.',                     9800.00,    10,    1,      1,     'Antibióticos'),
+    ('Cefalexina 500 mg x 16 comp.',                     11300.00,     4,    1,      1,     'Antibióticos'),
+
+    ('Loratadina 10 mg x 10 comp.',                       2900.00,    40,    0,      1,     'Antialérgicos'),
+    ('Cetirizina 10 mg x 10 comp.',                       3100.00,     0,    0,      1,     'Antialérgicos'),
+    ('Desloratadina 5 mg x 10 comp.',                     5600.00,    18,    0,      1,     'Antialérgicos'),
+
+    ('Salbutamol aerosol 100 mcg x 200 dosis',           14850.00,     4,    1,      1,     'Antigripales y Respiratorios'),
+    ('Antigripal x 10 comp.',                             3300.00,    50,    0,      1,     'Antigripales y Respiratorios'),
+    ('Jarabe para la tos 120 ml',                         4500.00,    22,    0,      1,     'Antigripales y Respiratorios'),
+
+    ('Losartán 50 mg x 30 comp.',                         8860.00,    30,    1,      1,     'Cardiovasculares'),
+    ('Enalapril 10 mg x 30 comp.',                        5200.00,    25,    1,      1,     'Cardiovasculares'),
+    ('Atorvastatina 20 mg x 30 comp.',                   12400.00,     3,    1,      1,     'Cardiovasculares'),
+
+    ('Alcohol en gel 250 ml',                             1900.00,    40,    0,      0,     'Cuidado Personal'),
+    ('Protector solar FPS 50 200 ml',                    18500.00,    10,    0,      0,     'Cuidado Personal'),
+    ('Termómetro digital',                                7800.00,     0,    0,      0,     'Cuidado Personal')
+) AS p (descripcion, precio, stock, receta, medicamento, categoria)
+JOIN CategoriasProductos c ON c.nombre = p.categoria;
+GO
+
+
+
