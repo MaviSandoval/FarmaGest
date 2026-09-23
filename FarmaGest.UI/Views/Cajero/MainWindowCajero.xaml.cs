@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 using FarmaGest.Negocio.Servicios;
+using FarmaGest.UI.Views.Compartido;
 using Microsoft.Extensions.DependencyInjection;
 using Wpf.Ui.Controls;
 
@@ -24,6 +26,9 @@ namespace FarmaGest.UI.Views.Cajero
             _serviceProvider = serviceProvider;
             _sesionUsuarioService = sesionUsuarioService;
 
+            // ---- Vista inicial: Inicio del Cajero ----
+            RootFrame.Navigate(new DashboardCajeroPage());
+
             // ---- Reloj de la barra superior ----
             _relojTimer = new DispatcherTimer
             {
@@ -35,7 +40,35 @@ namespace FarmaGest.UI.Views.Cajero
 
             ActualizarFechaHora();
 
-            Closed += (_, _) => _relojTimer.Stop();
+            // ---- Encabezado con el nombre y la foto del usuario logueado ----
+            ActualizarEncabezado();
+            _sesionUsuarioService.UsuarioActualizado += ActualizarEncabezado;
+
+            Closed += (_, _) =>
+            {
+                _relojTimer.Stop();
+                _sesionUsuarioService.UsuarioActualizado -= ActualizarEncabezado;
+            };
+        }
+
+        private void ActualizarEncabezado()
+        {
+            var usuario = _sesionUsuarioService.UsuarioActual;
+            if (usuario == null)
+                return;
+
+            BienvenidaText.Text = $"Bienvenido/a, {usuario.Nombre}";
+            NombreUsuarioText.Text = $"{usuario.Nombre} {usuario.Apellido}";
+            AvatarEncabezado.Mostrar(usuario);
+        }
+
+        private void MiPerfil_Click(object sender, RoutedEventArgs e)
+        {
+            // Ninguna opción del menú queda marcada mientras se está en Mi perfil
+            foreach (var item in NavPanel.Children.OfType<RadioButton>())
+                item.IsChecked = false;
+
+            RootFrame.Navigate(_serviceProvider.GetRequiredService<MiPerfilPage>());
         }
 
         private void ActualizarFechaHora()
@@ -58,17 +91,19 @@ namespace FarmaGest.UI.Views.Cajero
             switch (radioButton.Name)
             {
                 case nameof(NavInicio):
-                    MostrarVistaPendiente("Inicio");
+                    RootFrame.Navigate(new DashboardCajeroPage());
                     break;
 
                 case nameof(NavPreventas):
-                    RootFrame.Navigate(
-                        _serviceProvider.GetRequiredService<PreventasPage>());
+                    // MAQUETA para la presentación. Para volver a la pantalla real (con la base de datos),
+                    // reemplazar por: RootFrame.Navigate(_serviceProvider.GetRequiredService<PreventasPage>());
+                    RootFrame.Navigate(new PreventasMaquetaPage());
                     break;
 
                 case nameof(NavVentasCobradas):
-                    RootFrame.Navigate(
-                        _serviceProvider.GetRequiredService<VentasCobradasPage>());
+                    // MAQUETA para la presentación. Para volver a la pantalla real (con la base de datos),
+                    // reemplazar por: RootFrame.Navigate(_serviceProvider.GetRequiredService<VentasCobradasPage>());
+                    RootFrame.Navigate(new VentasCobradasMaquetaPage());
                     break;
 
                 case nameof(NavCaja):
@@ -77,25 +112,22 @@ namespace FarmaGest.UI.Views.Cajero
                     break;
 
                 case nameof(NavResumen):
-                    MostrarVistaPendiente("Resumen de caja");
+                    RootFrame.Navigate(new ResumenCajaPage());
                     break;
             }
         }
 
-        private void MostrarVistaPendiente(string nombreModulo)
-        {
-            RootFrame.Content = new System.Windows.Controls.TextBlock
-            {
-                Text = $"Módulo '{nombreModulo}' — vista en construcción.",
-                FontSize = 16,
-                Margin = new Thickness(32),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                VerticalAlignment = VerticalAlignment.Top
-            };
-        }
-
         private void CerrarSesion_Click(object sender, RoutedEventArgs e)
         {
+            var respuesta = System.Windows.MessageBox.Show(
+                "¿Querés cerrar la sesión?",
+                "Cerrar sesión",
+                System.Windows.MessageBoxButton.YesNo,
+                System.Windows.MessageBoxImage.Question);
+
+            if (respuesta != System.Windows.MessageBoxResult.Yes)
+                return;
+
             _sesionUsuarioService.CerrarSesion();
 
             var authWindow =

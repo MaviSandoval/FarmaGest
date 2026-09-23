@@ -1,30 +1,112 @@
-<Page x:Class="FarmaGest.UI.Views.Administrador.RecetasPage"
+﻿<Page x:Class="FarmaGest.UI.Views.Administrador.RecetasPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
       Title="Recetas">
+
+	<!-- MAQUETA: consulta de recetas. La validación es exclusiva del Farmacéutico. -->
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
 	<Grid Margin="26,20">
 		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="*" />
 		</Grid.RowDefinitions>
 
-		<TextBlock Grid.Row="0" Text="Recetas" FontSize="20" FontWeight="Bold" Margin="0,0,0,16" />
+		<!-- ===================== ENCABEZADO ===================== -->
+		<StackPanel Grid.Row="0" Margin="0,0,0,16">
+			<TextBlock Text="Recetas" Style="{StaticResource PageTitleText}" />
+			<TextBlock Text="Consulta de las recetas registradas. La validación la realiza únicamente el Farmacéutico."
+                       Style="{StaticResource PageSubtitleText}" />
+		</StackPanel>
 
-		<Border Grid.Row="1" Style="{StaticResource CardStyle}">
+		<!-- ===================== KPIs ===================== -->
+		<UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
+			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0">
+				<StackPanel>
+					<TextBlock Text="Pendientes" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="2" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Validadas este mes" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="160" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Rechazadas este mes" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="7" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+				<StackPanel>
+					<TextBlock Text="Motivo de rechazo más frecuente" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="Receta vencida" FontSize="16" FontWeight="Bold" Margin="0,8,0,4" />
+				</StackPanel>
+			</Border>
+		</UniformGrid>
+
+		<!-- ===================== FILTROS ===================== -->
+		<Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="18,14">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*" />
+					<ColumnDefinition Width="180" />
+					<ColumnDefinition Width="200" />
+				</Grid.ColumnDefinitions>
+				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar por paciente, N° de afiliado o médico..."
+                            Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0"
+                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60" />
+				<ComboBox Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0">
+					<ComboBoxItem Content="Todos los estados" />
+					<ComboBoxItem Content="Pendientes" />
+					<ComboBoxItem Content="Validadas" />
+					<ComboBoxItem Content="Rechazadas" />
+				</ComboBox>
+				<ComboBox Grid.Column="2" SelectedIndex="0">
+					<ComboBoxItem Content="Todas las obras sociales" />
+					<ComboBoxItem Content="IOSCOR" />
+					<ComboBoxItem Content="OSDE" />
+					<ComboBoxItem Content="PAMI" />
+					<ComboBoxItem Content="Swiss Medical" />
+				</ComboBox>
+			</Grid>
+		</Border>
+
+		<!-- ===================== LISTADO ===================== -->
+		<Border Grid.Row="3" Style="{StaticResource CardStyle}">
 			<DataGrid x:Name="RecetasGrid" AutoGenerateColumns="False" IsReadOnly="True"
-                      HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="36"
+                      HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="40"
                       Background="Transparent" BorderThickness="0">
 				<DataGrid.Columns>
-					<DataGridTextColumn Header="Afiliado" Binding="{Binding Afiliado}" Width="1.2*" />
-					<DataGridTextColumn Header="Médico" Binding="{Binding Medico}" Width="1.2*" />
-					<DataGridTextColumn Header="Emisión" Binding="{Binding FechaEmision}" Width="*" />
-					<DataGridTextColumn Header="Vencimiento" Binding="{Binding FechaVencimiento}" Width="*" />
-					<DataGridTextColumn Header="Estado" Binding="{Binding Estado}" Width="*" />
-					<DataGridTemplateColumn Header="Acciones" Width="*">
+					<DataGridTextColumn Header="N°" Binding="{Binding Numero}" Width="60" />
+					<DataGridTextColumn Header="Afiliado" Binding="{Binding Afiliado}" Width="1.3*" />
+					<DataGridTextColumn Header="Obra social" Binding="{Binding ObraSocial}" Width="1.3*" />
+					<DataGridTextColumn Header="Médico" Binding="{Binding Medico}" Width="1.3*" />
+					<DataGridTextColumn Header="Emisión" Binding="{Binding FechaEmision}" Width="90" />
+					<DataGridTextColumn Header="Vence" Binding="{Binding FechaVencimiento}" Width="90" />
+					<DataGridTextColumn Header="Validó" Binding="{Binding Valido}" Width="1.2*" />
+					<DataGridTemplateColumn Header="Estado" Width="110">
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>
-								<ui:HyperlinkButton Content="Validar" Padding="0" />
+								<Border Style="{StaticResource EstadoBadge}">
+									<TextBlock Text="{Binding Estado}" />
+								</Border>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+					<DataGridTemplateColumn Header="Detalle" Width="70">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<ui:HyperlinkButton Content="Ver" Padding="0" Click="VerDetalle_Click" />
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>

@@ -1,0 +1,122 @@
+﻿<Page x:Class="FarmaGest.UI.Views.Farmaceutico.VentasFarmaceuticoPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Ventas">
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
+
+	<Grid Margin="26,20">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+
+		<!-- ===================== ENCABEZADO ===================== -->
+		<Grid Grid.Row="0" Margin="0,0,0,16">
+			<StackPanel>
+				<TextBlock Text="Mis ventas" Style="{StaticResource PageTitleText}" />
+				<TextBlock Text="Ventas que preparaste y enviaste a caja. El cajero las cobra y emite el ticket."
+                           Style="{StaticResource PageSubtitleText}" />
+			</StackPanel>
+			<ui:Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                       Appearance="Primary" Icon="{ui:SymbolIcon Cart24}"
+                       Content="Nueva venta" Click="NuevaVenta_Click" />
+		</Grid>
+
+		<!-- ===================== KPIs ===================== -->
+		<UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
+			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0">
+				<StackPanel>
+					<TextBlock Text="Enviadas a caja hoy" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="12" Style="{StaticResource KpiValueText}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Pendientes de cobro" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="2" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Facturadas hoy" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="9" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+				<StackPanel>
+					<TextBlock Text="Anuladas hoy" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="1" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
+				</StackPanel>
+			</Border>
+		</UniformGrid>
+
+		<!-- ===================== FILTROS ===================== -->
+		<Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="18,14">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*" />
+					<ColumnDefinition Width="200" />
+					<ColumnDefinition Width="170" />
+				</Grid.ColumnDefinitions>
+				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar por N° de venta o paciente..."
+                            Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0"
+                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60" />
+				<ComboBox Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0">
+					<ComboBoxItem Content="Todos los estados" />
+					<ComboBoxItem Content="Pendiente de cobro" />
+					<ComboBoxItem Content="Facturada" />
+					<ComboBoxItem Content="Anulada" />
+				</ComboBox>
+				<DatePicker x:Name="FechaFiltroPicker" Grid.Column="2" />
+			</Grid>
+		</Border>
+
+		<!-- ===================== LISTADO ===================== -->
+		<Border Grid.Row="3" Style="{StaticResource CardStyle}">
+			<DataGrid x:Name="VentasGrid"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Single" HeadersVisibility="Column"
+                      GridLinesVisibility="None" RowHeight="40"
+                      Background="Transparent" BorderThickness="0">
+				<DataGrid.Columns>
+					<DataGridTextColumn Header="N° venta" Binding="{Binding Numero}" Width="80" />
+					<DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat='HH:mm'}" Width="70" />
+					<DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="*" />
+					<DataGridTextColumn Header="Paciente / cliente" Binding="{Binding Cliente}" Width="1.4*" />
+					<DataGridTextColumn Header="Ítems" Binding="{Binding Items}" Width="60" />
+					<DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ {0:N2}'}" Width="110" />
+					<DataGridTemplateColumn Header="Estado" Width="150">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<Border Style="{StaticResource EstadoBadge}">
+									<TextBlock Text="{Binding Estado}" />
+								</Border>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+					<DataGridTemplateColumn Header="Acciones" Width="140">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<StackPanel Orientation="Horizontal">
+									<ui:HyperlinkButton Content="Ver" Padding="0" Margin="0,0,12,0" Click="VerDetalle_Click" />
+									<ui:HyperlinkButton Content="Anular" Padding="0"
+                                                        Foreground="{StaticResource FarmaDangerBrush}"
+                                                        Visibility="{Binding PuedeAnular, Converter={StaticResource BoolToVis}}"
+                                                        Click="Anular_Click" />
+								</StackPanel>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+				</DataGrid.Columns>
+			</DataGrid>
+		</Border>
+	</Grid>
+</Page>

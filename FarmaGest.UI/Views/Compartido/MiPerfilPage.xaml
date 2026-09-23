@@ -1,0 +1,125 @@
+﻿<Page x:Class="FarmaGest.UI.Views.Compartido.MiPerfilPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:compartido="clr-namespace:FarmaGest.UI.Views.Compartido"
+      Title="Mi perfil">
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
+	<ScrollViewer VerticalScrollBarVisibility="Auto">
+		<Grid Margin="26,20">
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto" />
+				<RowDefinition Height="*" />
+			</Grid.RowDefinitions>
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="300" />
+				<ColumnDefinition Width="*" />
+			</Grid.ColumnDefinitions>
+
+			<!-- ===================== ENCABEZADO ===================== -->
+			<StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,16">
+				<TextBlock Text="Mi perfil" Style="{StaticResource PageTitleText}" />
+				<TextBlock Text="Tu foto, tus datos personales y tu contraseña."
+                           Style="{StaticResource PageSubtitleText}" />
+			</StackPanel>
+
+			<!-- ===================== TARJETA DE FOTO ===================== -->
+			<Border Grid.Row="1" Grid.Column="0" Style="{StaticResource CardStyle}"
+                    VerticalAlignment="Top" Margin="0,0,16,0" Padding="24">
+				<StackPanel HorizontalAlignment="Center">
+					<compartido:AvatarUsuario x:Name="AvatarGrande" Width="120" Height="120" />
+
+					<TextBlock x:Name="NombreCompletoText" FontSize="16" FontWeight="SemiBold"
+                               HorizontalAlignment="Center" TextAlignment="Center"
+                               TextWrapping="Wrap" Margin="0,14,0,2" />
+					<Border HorizontalAlignment="Center" CornerRadius="10" Padding="10,3" Background="#E3F4EE">
+						<TextBlock x:Name="RolText" FontSize="11.5" FontWeight="SemiBold" Foreground="#1F7A6C" />
+					</Border>
+
+					<ui:Button Content="Cambiar foto" Appearance="Primary" Icon="{ui:SymbolIcon Image24}"
+                               HorizontalAlignment="Stretch" Margin="0,18,0,0" Click="CambiarFoto_Click" />
+					<ui:Button x:Name="QuitarFotoButton" Content="Quitar foto" Appearance="Transparent"
+                               Icon="{ui:SymbolIcon Delete24}" HorizontalAlignment="Stretch"
+                               Margin="0,6,0,0" Click="QuitarFoto_Click" />
+
+					<TextBlock Text="JPG o PNG. La imagen se ajusta automáticamente."
+                               FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}"
+                               TextWrapping="Wrap" TextAlignment="Center" Margin="0,10,0,0" />
+					<TextBlock x:Name="MensajeFotoText" FontSize="11.5" TextWrapping="Wrap"
+                               TextAlignment="Center" Margin="0,8,0,0" />
+				</StackPanel>
+			</Border>
+
+			<!-- ===================== COLUMNA DERECHA ===================== -->
+			<StackPanel Grid.Row="1" Grid.Column="1">
+
+				<!-- Datos personales -->
+				<Border Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+					<StackPanel>
+						<TextBlock Text="Datos personales" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+						<UniformGrid Columns="2">
+							<StackPanel Margin="0,0,8,12">
+								<TextBlock Text="Nombre" Style="{StaticResource FieldLabelText}" />
+								<ui:TextBox x:Name="NombreText" h:ValidacionEntrada.Tipo="SoloLetras" MaxLength="80" />
+							</StackPanel>
+							<StackPanel Margin="8,0,0,12">
+								<TextBlock Text="Apellido" Style="{StaticResource FieldLabelText}" />
+								<ui:TextBox x:Name="ApellidoText" h:ValidacionEntrada.Tipo="SoloLetras" MaxLength="80" />
+							</StackPanel>
+							<StackPanel Margin="0,0,8,12">
+								<TextBlock Text="Email" Style="{StaticResource FieldLabelText}" />
+								<ui:TextBox x:Name="EmailText" h:ValidacionEntrada.Tipo="Email" MaxLength="120" />
+							</StackPanel>
+							<StackPanel Margin="8,0,0,12">
+								<TextBlock Text="DNI (solo lo modifica el Administrador)" Style="{StaticResource FieldLabelText}" />
+								<ui:TextBox x:Name="DniText" IsEnabled="False" />
+							</StackPanel>
+						</UniformGrid>
+
+						<StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+							<ui:Button Content="Guardar cambios" Appearance="Primary"
+                                       Icon="{ui:SymbolIcon Save24}" Click="GuardarDatos_Click" />
+							<TextBlock x:Name="MensajeDatosText" VerticalAlignment="Center"
+                                       Margin="12,0,0,0" TextWrapping="Wrap" />
+						</StackPanel>
+					</StackPanel>
+				</Border>
+
+				<!-- Cambiar contraseña -->
+				<Border Style="{StaticResource CardStyle}">
+					<StackPanel>
+						<TextBlock Text="Cambiar contraseña" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+						<UniformGrid Columns="3">
+							<StackPanel Margin="0,0,8,12">
+								<TextBlock Text="Contraseña actual" Style="{StaticResource FieldLabelText}" />
+								<PasswordBox x:Name="ContrasenaActualBox" Height="34" />
+							</StackPanel>
+							<StackPanel Margin="4,0,4,12">
+								<TextBlock Text="Nueva contraseña" Style="{StaticResource FieldLabelText}" />
+								<PasswordBox x:Name="NuevaContrasenaBox" Height="34" />
+							</StackPanel>
+							<StackPanel Margin="8,0,0,12">
+								<TextBlock Text="Repetir nueva contraseña" Style="{StaticResource FieldLabelText}" />
+								<PasswordBox x:Name="ConfirmarContrasenaBox" Height="34" />
+							</StackPanel>
+						</UniformGrid>
+
+						<StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+							<ui:Button Content="Actualizar contraseña" Appearance="Secondary"
+                                       Icon="{ui:SymbolIcon LockClosed24}" Click="CambiarContrasena_Click" />
+							<TextBlock x:Name="MensajeContrasenaText" VerticalAlignment="Center"
+                                       Margin="12,0,0,0" TextWrapping="Wrap" />
+						</StackPanel>
+					</StackPanel>
+				</Border>
+			</StackPanel>
+		</Grid>
+	</ScrollViewer>
+</Page>

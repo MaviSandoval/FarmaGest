@@ -1,0 +1,126 @@
+﻿<Page x:Class="FarmaGest.UI.Views.Cajero.ResumenCajaPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Resumen de caja">
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
+	<Grid Margin="26,20">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+
+		<!-- ===================== ENCABEZADO ===================== -->
+		<Grid Grid.Row="0" Margin="0,0,0,16">
+			<StackPanel>
+				<TextBlock Text="Resumen de caja" Style="{StaticResource PageTitleText}" />
+				<TextBlock Text="Caja N° 12 · Abierta hoy a las 08:02 · Cajero Sistema"
+                           Style="{StaticResource PageSubtitleText}" />
+			</StackPanel>
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+				<ui:Button Content="Imprimir resumen" Appearance="Secondary" Icon="{ui:SymbolIcon Print24}"
+                           Margin="0,0,8,0" Click="Imprimir_Click" />
+				<ui:Button Content="Cerrar caja" Appearance="Primary" Icon="{ui:SymbolIcon LockClosed24}"
+                           Click="CerrarCaja_Click" />
+			</StackPanel>
+		</Grid>
+
+		<!-- ===================== KPIs ===================== -->
+		<UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
+			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0">
+				<StackPanel>
+					<TextBlock Text="Monto inicial" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="$ 20.000,00" Style="{StaticResource KpiValueText}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Total cobrado" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="$ 186.450,00" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Efectivo esperado en caja" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="$ 104.320,00" Style="{StaticResource KpiValueText}" />
+					<TextBlock Text="Monto inicial + cobros en efectivo" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+				<StackPanel>
+					<TextBlock Text="Cantidad de cobros" Style="{StaticResource KpiLabelText}" />
+					<TextBlock Text="18" Style="{StaticResource KpiValueText}" />
+				</StackPanel>
+			</Border>
+		</UniformGrid>
+
+		<!-- ===================== MEDIOS DE PAGO + MOVIMIENTOS ===================== -->
+		<Grid Grid.Row="2">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="320" />
+				<ColumnDefinition Width="*" />
+			</Grid.ColumnDefinitions>
+
+			<!-- Totales por medio de pago -->
+			<Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,16,0" VerticalAlignment="Top">
+				<StackPanel>
+					<TextBlock Text="Totales por medio de pago" FontWeight="SemiBold" Margin="0,0,0,10" />
+					<ItemsControl x:Name="MediosPagoList">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate>
+								<Border BorderBrush="#E7ECEB" BorderThickness="0,0,0,1" Padding="0,8">
+									<Grid>
+										<StackPanel>
+											<TextBlock Text="{Binding Medio}" FontSize="13" />
+											<TextBlock FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}">
+												<Run Text="{Binding Cantidad, Mode=OneWay}" />
+												<Run Text="cobros" />
+											</TextBlock>
+										</StackPanel>
+										<TextBlock Text="{Binding Importe, StringFormat='$ {0:N2}'}" HorizontalAlignment="Right"
+                                                   VerticalAlignment="Center" FontWeight="SemiBold" />
+									</Grid>
+								</Border>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+					<Grid Margin="0,10,0,0">
+						<TextBlock Text="Total" FontWeight="SemiBold" />
+						<TextBlock Text="$ 186.450,00" HorizontalAlignment="Right" FontSize="15" FontWeight="Bold" />
+					</Grid>
+				</StackPanel>
+			</Border>
+
+			<!-- Movimientos de la caja -->
+			<Border Grid.Column="1" Style="{StaticResource CardStyle}">
+				<DockPanel>
+					<TextBlock DockPanel.Dock="Top" Text="Cobros registrados en esta caja" FontWeight="SemiBold" Margin="0,0,0,10" />
+					<DataGrid x:Name="MovimientosGrid"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
+                              RowHeight="38" Background="Transparent" BorderThickness="0">
+						<DataGrid.Columns>
+							<DataGridTextColumn Header="Hora" Binding="{Binding Hora}" Width="70" />
+							<DataGridTextColumn Header="N° venta" Binding="{Binding Numero}" Width="80" />
+							<DataGridTextColumn Header="Preparada por" Binding="{Binding Responsable}" Width="*" />
+							<DataGridTextColumn Header="Medio de pago" Binding="{Binding Medio}" Width="120" />
+							<DataGridTextColumn Header="Importe" Binding="{Binding Importe, StringFormat='$ {0:N2}'}" Width="110" />
+							<DataGridTemplateColumn Header="Ticket" Width="70">
+								<DataGridTemplateColumn.CellTemplate>
+									<DataTemplate>
+										<ui:HyperlinkButton Content="Ver" Padding="0" Click="VerTicket_Click" />
+									</DataTemplate>
+								</DataGridTemplateColumn.CellTemplate>
+							</DataGridTemplateColumn>
+						</DataGrid.Columns>
+					</DataGrid>
+				</DockPanel>
+			</Border>
+		</Grid>
+	</Grid>
+</Page>

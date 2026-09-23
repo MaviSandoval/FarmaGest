@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using FarmaGest.Dominio;
 
 namespace FarmaGest.Datos.Contexto;
@@ -51,6 +51,7 @@ public class FarmaGestDbContext : DbContext
             e.Property(x => x.Contrasena).HasColumnName("contrasena").HasMaxLength(256).IsRequired();
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.RequiereCambioContrasena).HasColumnName("requiere_cambio_contrasena");
+            e.Property(x => x.Foto).HasColumnName("foto");
             e.Property(x => x.RolId).HasColumnName("id_rol");
 
             e.HasIndex(x => x.Dni).IsUnique();

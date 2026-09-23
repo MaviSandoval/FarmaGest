@@ -48,5 +48,12 @@ namespace FarmaGest.UI.Views.Cajero
                     MessageBoxImage.Error);
             }
         }
+
+        // MAQUETA: por ahora muestra un ticket de ejemplo
+        private void VerTicket_Click(object sender, RoutedEventArgs e)
+        {
+            var ventana = new TicketWindow { Owner = Window.GetWindow(this) };
+            ventana.ShowDialog();
+        }
     }
 }

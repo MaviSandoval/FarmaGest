@@ -1,0 +1,86 @@
+﻿<Page x:Class="FarmaGest.UI.Views.Cajero.PreventasMaquetaPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
+      Title="Preventas">
+
+	<!-- MAQUETA de PreventasPage con datos de ejemplo (la versión real lee la base de datos) -->
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
+	<Grid Margin="26,20">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+
+		<!-- ===================== ENCABEZADO ===================== -->
+		<StackPanel Grid.Row="0" Margin="0,0,0,16">
+			<TextBlock Text="Preventas" Style="{StaticResource PageTitleText}" />
+			<TextBlock Text="Ventas preparadas por el farmacéutico que esperan ser cobradas."
+                       Style="{StaticResource PageSubtitleText}" />
+		</StackPanel>
+
+		<!-- ===================== RESUMEN Y BÚSQUEDA ===================== -->
+		<Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="18,14">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="Auto" />
+					<ColumnDefinition Width="*" />
+					<ColumnDefinition Width="260" />
+				</Grid.ColumnDefinitions>
+
+				<StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+					<Border CornerRadius="10" Padding="10,3" Background="#FDF3E1">
+						<TextBlock Text="3 pendientes de cobro" FontSize="11.5" FontWeight="SemiBold" Foreground="#9A6B10" />
+					</Border>
+					<TextBlock Text="Total en espera: $ 25.880,40" FontWeight="SemiBold" Margin="14,0,0,0"
+                               VerticalAlignment="Center" />
+				</StackPanel>
+
+				<ui:TextBox Grid.Column="2" PlaceholderText="Buscar por N° de venta..."
+                            Icon="{ui:SymbolIcon Search24}"
+                            h:ValidacionEntrada.Tipo="Entero" MaxLength="10" />
+			</Grid>
+		</Border>
+
+		<!-- ===================== LISTADO ===================== -->
+		<Border Grid.Row="2" Style="{StaticResource CardStyle}">
+			<DataGrid x:Name="PreventasGrid"
+                      AutoGenerateColumns="False" IsReadOnly="True"
+                      SelectionMode="Single" HeadersVisibility="Column"
+                      GridLinesVisibility="None" RowHeight="44"
+                      Background="Transparent" BorderThickness="0">
+				<DataGrid.Columns>
+					<DataGridTextColumn Header="Hora" Binding="{Binding Hora}" Width="70" />
+					<DataGridTextColumn Header="N° venta" Binding="{Binding Numero}" Width="80" />
+					<DataGridTextColumn Header="Preparada por" Binding="{Binding Responsable}" Width="1.2*" />
+					<DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="*" />
+					<DataGridTextColumn Header="Ítems" Binding="{Binding Items}" Width="60" />
+					<DataGridTextColumn Header="Total" Binding="{Binding Total, StringFormat='$ {0:N2}'}" Width="110" />
+					<DataGridTemplateColumn Header="Estado" Width="150">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<Border Style="{StaticResource EstadoBadge}">
+									<TextBlock Text="{Binding Estado}" />
+								</Border>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+					<DataGridTemplateColumn Header="Acción" Width="110">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<ui:Button Content="Cobrar" Appearance="Primary" Padding="14,4"
+                                           Icon="{ui:SymbolIcon Money24}" Click="Cobrar_Click" />
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+				</DataGrid.Columns>
+			</DataGrid>
+		</Border>
+	</Grid>
+</Page>

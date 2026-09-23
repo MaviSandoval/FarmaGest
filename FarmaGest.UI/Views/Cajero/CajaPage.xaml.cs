@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using FarmaGest.Negocio.Servicios;
+using FarmaGest.UI.Helpers;
 
 namespace FarmaGest.UI.Views.Cajero
 {
@@ -81,16 +82,21 @@ namespace FarmaGest.UI.Views.Cajero
             if (usuario == null)
                 return;
 
-            if (!decimal.TryParse(TxtMontoInicial.Text, out decimal montoInicial))
+            // Validación de tipo de dato: acepta coma o punto como separador decimal
+            var montoLeido = ValidacionEntrada.LeerDecimal(TxtMontoInicial.Text);
+
+            if (montoLeido == null)
             {
                 MessageBox.Show(
-                    "Ingrese un monto inicial válido.",
+                    "Ingrese un monto inicial válido (solo números, con hasta 2 decimales).",
                     "FarmaGest",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
 
                 return;
             }
+
+            decimal montoInicial = montoLeido.Value;
 
             if (montoInicial < 0)
             {
@@ -121,15 +127,11 @@ namespace FarmaGest.UI.Views.Cajero
             }
         }
 
-        private async void CerrarCaja_Click(object sender, RoutedEventArgs e)
+        private void CerrarCaja_Click(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show(
-                "El cierre de caja se implementará en el siguiente paso.",
-                "FarmaGest",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
-
-            await Task.CompletedTask;
+            // MAQUETA: la ventana de arqueo todavía no llama a CajaService.CerrarCajaAsync
+            var ventana = new CierreCajaWindow { Owner = Window.GetWindow(this) };
+            ventana.ShowDialog();
         }
     }
 }

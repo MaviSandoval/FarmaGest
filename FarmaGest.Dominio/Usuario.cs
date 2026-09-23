@@ -10,6 +10,7 @@ public class Usuario
     public string Contrasena { get; set; } = string.Empty;
     public bool Estado { get; set; } = true;
     public bool RequiereCambioContrasena { get; set; } = true;
+    public byte[]? Foto { get; set; }
 
     public int RolId { get; set; }
     public Rol Rol { get; set; } = null!;

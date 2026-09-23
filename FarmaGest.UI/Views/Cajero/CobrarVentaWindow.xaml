@@ -98,7 +98,7 @@
                     Content="Confirmar cobro"
                     Width="140"
                     Height="38"
-                    Background="#C5004B"
+                    Background="{StaticResource FarmaPrimaryBrush}"
                     Foreground="White"
                     BorderThickness="0"
                     Click="Confirmar_Click"/>

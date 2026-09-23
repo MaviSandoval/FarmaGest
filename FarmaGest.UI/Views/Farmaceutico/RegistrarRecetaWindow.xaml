@@ -1,0 +1,142 @@
+﻿<ui:FluentWindow x:Class="FarmaGest.UI.Views.Farmaceutico.RegistrarRecetaWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Registrar receta"
+        Width="680" Height="760"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ExtendsContentIntoTitleBar="True"
+        Background="{StaticResource FarmaBackgroundBrush}">
+
+	<ui:FluentWindow.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</ui:FluentWindow.Resources>
+
+
+	<Grid>
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+			<RowDefinition Height="Auto" />
+		</Grid.RowDefinitions>
+
+		<ui:TitleBar Grid.Row="0" Title="Registrar receta" ShowMaximize="False" ShowMinimize="False" />
+
+		<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="26,8,26,0">
+			<StackPanel>
+				<TextBlock Text="Nueva receta" Style="{StaticResource PageTitleText}" />
+				<TextBlock Text="Cargá los datos de la receta tal como figuran en el papel o en la receta electrónica."
+                           Style="{StaticResource PageSubtitleText}" Margin="0,4,0,16" />
+
+				<!-- ===================== AFILIADO ===================== -->
+				<Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+					<StackPanel>
+						<TextBlock Text="1. Paciente / afiliado" FontWeight="SemiBold" Margin="0,0,0,10" />
+						<Grid>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<ui:TextBox Grid.Column="0" PlaceholderText="N° de afiliado o apellido"
+                                        Icon="{ui:SymbolIcon Search24}" Margin="0,0,8,0" Text="61-458921-02"
+                                        h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="30" />
+							<ui:Button Grid.Column="1" Content="Buscar" Appearance="Secondary" />
+						</Grid>
+
+						<!-- Resultado de la búsqueda -->
+						<Border Background="#F4F7F6" CornerRadius="8" Padding="14,10" Margin="0,10,0,0">
+							<Grid>
+								<StackPanel>
+									<TextBlock Text="Juan Pérez" FontWeight="SemiBold" FontSize="13" />
+									<TextBlock Text="OSDE · Plan 210 · N° 61-458921-02" FontSize="12"
+                                               Foreground="{StaticResource FarmaTextMutedBrush}" />
+								</StackPanel>
+								<Border HorizontalAlignment="Right" CornerRadius="10" Padding="10,3"
+                                        Background="#E3F4EE" VerticalAlignment="Center">
+									<TextBlock Text="Afiliado activo" FontSize="11.5" FontWeight="SemiBold" Foreground="#1F7A6C" />
+								</Border>
+							</Grid>
+						</Border>
+					</StackPanel>
+				</Border>
+
+				<!-- ===================== MÉDICO Y FECHAS ===================== -->
+				<Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+					<StackPanel>
+						<TextBlock Text="2. Médico y fechas" FontWeight="SemiBold" Margin="0,0,0,10" />
+						<UniformGrid Columns="2">
+							<StackPanel Margin="0,0,8,10">
+								<TextBlock Text="Nombre del médico" Style="{StaticResource FieldLabelText}" />
+								<ui:TextBox PlaceholderText="Ej.: Dr. Alfredo Gómez" h:ValidacionEntrada.Tipo="SoloLetras" MaxLength="120" />
+							</StackPanel>
+							<StackPanel Margin="8,0,0,10">
+								<TextBlock Text="Matrícula" Style="{StaticResource FieldLabelText}" />
+								<ui:TextBox PlaceholderText="Ej.: MP 4521" h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="30" />
+							</StackPanel>
+							<StackPanel Margin="0,0,8,0">
+								<TextBlock Text="Fecha de emisión" Style="{StaticResource FieldLabelText}" />
+								<DatePicker x:Name="FechaEmisionPicker" />
+							</StackPanel>
+							<StackPanel Margin="8,0,0,0">
+								<TextBlock Text="Fecha de vencimiento (30 días)" Style="{StaticResource FieldLabelText}" />
+								<DatePicker x:Name="FechaVencimientoPicker" />
+							</StackPanel>
+						</UniformGrid>
+					</StackPanel>
+				</Border>
+
+				<!-- ===================== MEDICAMENTOS ===================== -->
+				<Border Style="{StaticResource CardStyle}" Margin="0,0,0,12">
+					<StackPanel>
+						<TextBlock Text="3. Medicamentos recetados" FontWeight="SemiBold" Margin="0,0,0,10" />
+						<Grid>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="90" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<ComboBox Grid.Column="0" IsEditable="True" Text="Buscar medicamento..." Margin="0,0,8,0">
+								<ComboBoxItem Content="Amoxicilina 500 mg x 16" />
+								<ComboBoxItem Content="Losartán 50 mg x 30" />
+								<ComboBoxItem Content="Salbutamol 100 mcg x 200 dosis" />
+								<ComboBoxItem Content="Ibuprofeno 400 mg x 20" />
+							</ComboBox>
+							<ui:NumberBox Grid.Column="1" Value="1" Minimum="1" Maximum="99"
+ Margin="0,0,8,0" />
+							<ui:Button Grid.Column="2" Content="Agregar" Icon="{ui:SymbolIcon Add24}" Appearance="Secondary" />
+						</Grid>
+
+						<DataGrid x:Name="MedicamentosGrid" Margin="0,12,0,0"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="None"
+                                  RowHeight="36" Background="Transparent" BorderThickness="0">
+							<DataGrid.Columns>
+								<DataGridTextColumn Header="Medicamento" Binding="{Binding Producto}" Width="*" />
+								<DataGridTextColumn Header="Cant." Binding="{Binding Cantidad}" Width="60" />
+								<DataGridTextColumn Header="Cobertura plan" Binding="{Binding CoberturaTexto}" Width="120" />
+								<DataGridTemplateColumn Width="50">
+									<DataGridTemplateColumn.CellTemplate>
+										<DataTemplate>
+											<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Delete24}" Padding="6" />
+										</DataTemplate>
+									</DataGridTemplateColumn.CellTemplate>
+								</DataGridTemplateColumn>
+							</DataGrid.Columns>
+						</DataGrid>
+					</StackPanel>
+				</Border>
+			</StackPanel>
+		</ScrollViewer>
+
+		<!-- ===================== BOTONES ===================== -->
+		<Border Grid.Row="2" Background="White" BorderBrush="#E7ECEB" BorderThickness="0,1,0,0" Padding="26,14">
+			<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+				<ui:Button Content="Cancelar" Margin="0,0,8,0" Click="Cancelar_Click" />
+				<ui:Button Content="Guardar como pendiente" Appearance="Secondary" Margin="0,0,8,0" Click="Guardar_Click" />
+				<ui:Button Content="Guardar y validar" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}" Click="Guardar_Click" />
+			</StackPanel>
+		</Border>
+	</Grid>
+</ui:FluentWindow>

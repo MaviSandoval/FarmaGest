@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -186,11 +186,22 @@ public partial class GestionUsuariosPage : Page
                 .GetProperty("Usuario")!
                 .GetValue(item)!;
 
-        await _service.CambiarEstadoAsync(
-            usuario.Id,
-            !usuario.Estado);
+        try
+        {
+            // Baja lógica / reactivación con sp_Usuario_Modificacion
+            await _service.CambiarEstadoAsync(
+                usuario.Id,
+                !usuario.Estado);
 
-        await CargarDatosAsync();
+            MensajeText.Text = string.Empty;
+
+            await CargarDatosAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Ej.: "No se puede dar de baja ni cambiar el rol del último Administrador activo."
+            MensajeText.Text = ex.Message;
+        }
     }
 
     private void CancelarButton_Click(

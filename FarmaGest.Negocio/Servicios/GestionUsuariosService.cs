@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Mail;
 using System.Threading.Tasks;
 using FarmaGest.Datos.Contexto;
+using FarmaGest.Datos.Repositorios;
 using FarmaGest.Dominio;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,11 +13,14 @@ namespace FarmaGest.Negocio.Servicios;
 public class GestionUsuariosService
 {
     private readonly IDbContextFactory<FarmaGestDbContext> _factory;
+    private readonly UsuarioRepositorio _usuarioRepositorio;
 
     public GestionUsuariosService(
-        IDbContextFactory<FarmaGestDbContext> factory)
+        IDbContextFactory<FarmaGestDbContext> factory,
+        UsuarioRepositorio usuarioRepositorio)
     {
         _factory = factory;
+        _usuarioRepositorio = usuarioRepositorio;
     }
 
     public async Task<List<Usuario>> ObtenerTodosAsync()
@@ -73,22 +77,17 @@ public class GestionUsuariosService
         var contrasenaTemporal =
             GeneradorContrasena.Generar();
 
-        var usuario = new Usuario
-        {
-            Dni = dni,
-            Nombre = nombre,
-            Apellido = apellido,
-            Email = email,
-            RolId = rolId,
-            Estado = true,
-            RequiereCambioContrasena = true,
-            Contrasena =
-                BCrypt.Net.BCrypt.HashPassword(contrasenaTemporal)
-        };
+        // Alta mediante el procedimiento almacenado sp_Usuario_Alta
+        var resultado = await _usuarioRepositorio.AltaAsync(
+            dni,
+            nombre,
+            apellido,
+            email,
+            BCrypt.Net.BCrypt.HashPassword(contrasenaTemporal),
+            rolId);
 
-        context.Usuarios.Add(usuario);
-
-        await context.SaveChangesAsync();
+        if (!resultado.Exito)
+            throw new InvalidOperationException(resultado.MensajeError);
 
         return contrasenaTemporal;
     }
@@ -107,11 +106,6 @@ public class GestionUsuariosService
         await using var context =
             await _factory.CreateDbContextAsync();
 
-        var usuario =
-            await context.Usuarios.FindAsync(id)
-            ?? throw new KeyNotFoundException(
-                "Usuario no encontrado.");
-
         // Limpiar espacios
         dni = dni.Trim();
         nombre = nombre.Trim();
@@ -129,33 +123,33 @@ public class GestionUsuariosService
             rolId,
             id);
 
-        usuario.Dni = dni;
-        usuario.Nombre = nombre;
-        usuario.Apellido = apellido;
-        usuario.Email = email;
-        usuario.RolId = rolId;
+        // Modificación mediante el procedimiento almacenado sp_Usuario_Modificacion
+        var resultado = await _usuarioRepositorio.ModificacionAsync(
+            id,
+            dni: dni,
+            nombre: nombre,
+            apellido: apellido,
+            email: email,
+            idRol: rolId);
 
-        await context.SaveChangesAsync();
+        if (!resultado.Exito)
+            throw new InvalidOperationException(resultado.MensajeError);
     }
 
     // =========================================================
     // CAMBIAR ESTADO
     // =========================================================
+    // Baja lógica / reactivación: usa el mismo sp_Usuario_Modificacion
     public async Task CambiarEstadoAsync(
         int id,
         bool activo)
     {
-        await using var context =
-            await _factory.CreateDbContextAsync();
+        var resultado = await _usuarioRepositorio.ModificacionAsync(
+            id,
+            estado: activo);
 
-        var usuario =
-            await context.Usuarios.FindAsync(id)
-            ?? throw new KeyNotFoundException(
-                "Usuario no encontrado.");
-
-        usuario.Estado = activo;
-
-        await context.SaveChangesAsync();
+        if (!resultado.Exito)
+            throw new InvalidOperationException(resultado.MensajeError);
     }
 
     // =========================================================

@@ -1,25 +1,114 @@
-<Page x:Class="FarmaGest.UI.Views.Administrador.StockPage"
+﻿<Page x:Class="FarmaGest.UI.Views.Administrador.StockPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
       Title="Stock">
+
+	<!-- MAQUETA: control de stock con datos de ejemplo -->
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
 	<Grid Margin="26,20">
 		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
 			<RowDefinition Height="Auto" />
 			<RowDefinition Height="*" />
 		</Grid.RowDefinitions>
 
-		<TextBlock Grid.Row="0" Text="Control de stock" FontSize="20" FontWeight="Bold" Margin="0,0,0,16" />
+		<!-- ===================== ENCABEZADO ===================== -->
+		<StackPanel Grid.Row="0" Margin="0,0,0,16">
+			<TextBlock Text="Control de stock" Style="{StaticResource PageTitleText}" />
+			<TextBlock Text="Existencias actuales, stock mínimo y ajustes por ingreso de mercadería o roturas."
+                       Style="{StaticResource PageSubtitleText}" />
+		</StackPanel>
 
-		<Border Grid.Row="1" Style="{StaticResource CardStyle}">
+		<!-- ===================== KPIs ===================== -->
+		<UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
+			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0">
+				<StackPanel>
+					<TextBlock Text="Productos activos" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="ActivosText" Text="0" Style="{StaticResource KpiValueText}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Stock normal" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="NormalText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0">
+				<StackPanel>
+					<TextBlock Text="Stock bajo" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="BajoText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
+				<StackPanel>
+					<TextBlock Text="Sin stock" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="SinStockText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
+				</StackPanel>
+			</Border>
+		</UniformGrid>
+
+		<!-- ===================== FILTROS ===================== -->
+		<Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="18,14">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*" />
+					<ColumnDefinition Width="240" />
+					<ColumnDefinition Width="170" />
+				</Grid.ColumnDefinitions>
+				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar producto..."
+                            Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0" MaxLength="60" />
+				<ComboBox Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0">
+					<ComboBoxItem Content="Todas las categorías" />
+					<ComboBoxItem Content="Analgésicos y Antipiréticos" />
+					<ComboBoxItem Content="Antiinflamatorios" />
+					<ComboBoxItem Content="Antibióticos" />
+					<ComboBoxItem Content="Antialérgicos" />
+					<ComboBoxItem Content="Antigripales y Respiratorios" />
+					<ComboBoxItem Content="Cardiovasculares" />
+					<ComboBoxItem Content="Cuidado Personal" />
+				</ComboBox>
+				<ComboBox Grid.Column="2" SelectedIndex="0">
+					<ComboBoxItem Content="Todos" />
+					<ComboBoxItem Content="Normal" />
+					<ComboBoxItem Content="Bajo" />
+					<ComboBoxItem Content="Sin stock" />
+				</ComboBox>
+			</Grid>
+		</Border>
+
+		<!-- ===================== LISTADO ===================== -->
+		<Border Grid.Row="3" Style="{StaticResource CardStyle}">
 			<DataGrid x:Name="StockGrid" AutoGenerateColumns="False" IsReadOnly="True"
-                      HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="36"
+                      HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="40"
                       Background="Transparent" BorderThickness="0">
 				<DataGrid.Columns>
 					<DataGridTextColumn Header="Producto" Binding="{Binding Descripcion}" Width="2*" />
-					<DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="*" />
+					<DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="1.5*" />
 					<DataGridTextColumn Header="Stock actual" Binding="{Binding Stock}" Width="*" />
-					<DataGridTextColumn Header="Estado" Binding="{Binding EstadoStock}" Width="*" />
+					<DataGridTextColumn Header="Stock mínimo" Binding="{Binding StockMinimo}" Width="*" />
+					<DataGridTemplateColumn Header="Estado" Width="110">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<Border Style="{StaticResource EstadoBadge}">
+									<TextBlock Text="{Binding Estado}" />
+								</Border>
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
+					<DataGridTemplateColumn Header="Acciones" Width="120">
+						<DataGridTemplateColumn.CellTemplate>
+							<DataTemplate>
+								<ui:HyperlinkButton Content="Ajustar stock" Padding="0" Click="AjustarStock_Click" />
+							</DataTemplate>
+						</DataGridTemplateColumn.CellTemplate>
+					</DataGridTemplateColumn>
 				</DataGrid.Columns>
 			</DataGrid>
 		</Border>

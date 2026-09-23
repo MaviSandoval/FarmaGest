@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using FarmaGest.Dominio;
 using FarmaGest.Negocio.Servicios;
+using FarmaGest.UI.Helpers;
 
 namespace FarmaGest.UI.Views.Administrador;
 
@@ -43,14 +44,27 @@ public partial class ProductosPage : Page
     {
         MensajeText.Text = string.Empty;
 
+        // Validación de tipos de dato: precio decimal (coma o punto) y stock entero
+        var precioLeido = ValidacionEntrada.LeerDecimal(PrecioText.Text);
+        var stockLeido = ValidacionEntrada.LeerEntero(StockText.Text);
+
         if (string.IsNullOrWhiteSpace(DescripcionText.Text) ||
             CategoriaCombo.SelectedValue is null ||
-            !decimal.TryParse(PrecioText.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var precio) ||
-            !int.TryParse(StockText.Text, out var stock))
+            precioLeido is null ||
+            stockLeido is null)
         {
-            MensajeText.Text = "Completá Descripción, Categoría, Precio y Stock correctamente.";
+            MensajeText.Text = "Completá Descripción, Categoría, Precio (número con hasta 2 decimales) y Stock (número entero).";
             return;
         }
+
+        if (precioLeido <= 0)
+        {
+            MensajeText.Text = "El precio debe ser mayor a cero.";
+            return;
+        }
+
+        decimal precio = precioLeido.Value;
+        int stock = stockLeido.Value;
 
         var categoriaId = ((Categoria)CategoriaCombo.SelectedItem).Id;
 

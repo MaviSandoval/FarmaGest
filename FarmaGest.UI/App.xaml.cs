@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Windows;
 using FarmaGest.Datos.Conexion;
 using FarmaGest.Datos.Contexto;
+using FarmaGest.Datos.Repositorios;
 using FarmaGest.Negocio.Servicios;
 using FarmaGest.UI.Views.Administrador;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,7 @@ using FarmaGest.UI.ViewModels.Compartido;
 using FarmaGest.UI.Views.Farmaceutico;
 using FarmaGest.UI.ViewModels.Farmaceutico;
 using FarmaGest.UI.Views.Cajero;
+using FarmaGest.UI.Views.Compartido;
 
 namespace FarmaGest.UI;
 
@@ -58,6 +60,9 @@ public partial class App : Application
             opt.UseSqlServer(cadena));
 
 
+        // ---- Capa de Datos: procedimientos almacenados ----
+        servicios.AddSingleton<UsuarioRepositorio>();
+
         // ---- Capa de Negocio ----
         servicios.AddSingleton<UsuarioService>();
         servicios.AddSingleton<GestionUsuariosService>();
@@ -68,7 +73,9 @@ public partial class App : Application
         servicios.AddSingleton<FacturacionService>();
 
         // ---- Capa de UI - Administrador ----
-        servicios.AddSingleton<MainWindow>();
+        // Las ventanas principales son Transient: al cerrar sesión se cierran,
+        // y una ventana cerrada no se puede volver a mostrar.
+        servicios.AddTransient<MainWindow>();
         servicios.AddTransient<DashboardPage>();
         servicios.AddTransient<VentasPage>();
         servicios.AddTransient<RecetasPage>();
@@ -80,12 +87,12 @@ public partial class App : Application
         servicios.AddTransient<GestionUsuariosPage>();
 
         // ---- Capa de UI - Farmacéutico ----
-        servicios.AddSingleton<MainWindowFarmaceutico>();
+        servicios.AddTransient<MainWindowFarmaceutico>();
         servicios.AddTransient<DashboardFarmaceuticoPage>();
         servicios.AddTransient<DashboardFarmaceuticoViewModel>();
 
         // ---- Capa de UI - Cajero ----
-        servicios.AddSingleton<MainWindowCajero>();
+        servicios.AddTransient<MainWindowCajero>();
         servicios.AddTransient<CajaPage>();
         servicios.AddTransient<PreventasPage>();
         servicios.AddTransient<VentasCobradasPage>();
@@ -93,6 +100,7 @@ public partial class App : Application
         // ---- Compartido ----
         servicios.AddTransient<LoginViewModel>();
         servicios.AddTransient<AuthWindow>();
+        servicios.AddTransient<MiPerfilPage>();
 
 
 

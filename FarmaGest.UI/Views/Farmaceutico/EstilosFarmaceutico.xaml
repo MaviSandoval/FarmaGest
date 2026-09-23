@@ -1,0 +1,142 @@
+﻿<!--
+    Estilos compartidos por las vistas del Farmacéutico.
+    Usa la paleta y el CardStyle definidos en App.xaml.
+    Cada vista lo incluye en sus Resources con:
+      <ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+-->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+	<!-- Conversor bool -> Visibility -->
+	<BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+	<!-- Títulos de página y etiquetas de formulario -->
+	<Style x:Key="PageTitleText" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="20" />
+		<Setter Property="FontWeight" Value="Bold" />
+		<Setter Property="Foreground" Value="#1F2E2C" />
+	</Style>
+	<Style x:Key="PageSubtitleText" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="12.5" />
+		<Setter Property="Margin" Value="0,4,0,0" />
+		<Setter Property="Foreground" Value="#6B7B79" />
+	</Style>
+	<Style x:Key="FieldLabelText" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="11" />
+		<Setter Property="Margin" Value="0,0,0,4" />
+		<Setter Property="Foreground" Value="#6B7B79" />
+	</Style>
+
+	<!-- KPI chico (título + número) -->
+	<Style x:Key="KpiLabelText" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="12" />
+		<Setter Property="Foreground" Value="#6B7B79" />
+	</Style>
+	<Style x:Key="KpiValueText" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="22" />
+		<Setter Property="FontWeight" Value="Bold" />
+		<Setter Property="Margin" Value="0,6,0,4" />
+	</Style>
+
+	<!-- Badge para las grillas que exponen "EstadoTexto" (Productos y Usuarios del Administrador) -->
+	<Style x:Key="EstadoTextoBadge" TargetType="Border">
+		<Setter Property="CornerRadius" Value="10" />
+		<Setter Property="Padding" Value="10,3" />
+		<Setter Property="HorizontalAlignment" Value="Left" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+		<Setter Property="Background" Value="#EEF2F1" />
+		<Setter Property="TextElement.Foreground" Value="#4A5957" />
+		<Setter Property="TextElement.FontSize" Value="11.5" />
+		<Setter Property="TextElement.FontWeight" Value="SemiBold" />
+		<Style.Triggers>
+			<DataTrigger Binding="{Binding EstadoTexto}" Value="Activo">
+				<Setter Property="Background" Value="#E3F4EE" />
+				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding EstadoTexto}" Value="Inactivo">
+				<Setter Property="Background" Value="#FBE6E8" />
+				<Setter Property="TextElement.Foreground" Value="#B3303B" />
+			</DataTrigger>
+		</Style.Triggers>
+	</Style>
+
+	<!-- Pastilla neutra (rol, categoría, "Requiere receta", etc.) -->
+	<Style x:Key="EtiquetaNeutra" TargetType="Border">
+		<Setter Property="CornerRadius" Value="10" />
+		<Setter Property="Padding" Value="10,3" />
+		<Setter Property="HorizontalAlignment" Value="Left" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+		<Setter Property="Background" Value="#EEF2F1" />
+		<Setter Property="TextElement.Foreground" Value="#4A5957" />
+		<Setter Property="TextElement.FontSize" Value="11.5" />
+	</Style>
+
+	<!-- Badge de estado: el color depende de la propiedad "Estado" del item -->
+	<Style x:Key="EstadoBadge" TargetType="Border">
+		<Setter Property="CornerRadius" Value="10" />
+		<Setter Property="Padding" Value="10,3" />
+		<Setter Property="HorizontalAlignment" Value="Left" />
+		<Setter Property="VerticalAlignment" Value="Center" />
+		<Setter Property="Background" Value="#EEF2F1" />
+		<Setter Property="TextElement.Foreground" Value="#4A5957" />
+		<Setter Property="TextElement.FontSize" Value="11.5" />
+		<Setter Property="TextElement.FontWeight" Value="SemiBold" />
+		<Style.Triggers>
+			<!-- Verde: todo OK -->
+			<DataTrigger Binding="{Binding Estado}" Value="Validada">
+				<Setter Property="Background" Value="#E3F4EE" />
+				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Facturada">
+				<Setter Property="Background" Value="#E3F4EE" />
+				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Normal">
+				<Setter Property="Background" Value="#E3F4EE" />
+				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Activo">
+				<Setter Property="Background" Value="#E3F4EE" />
+				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Sin diferencia">
+				<Setter Property="Background" Value="#E3F4EE" />
+				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
+			</DataTrigger>
+			<!-- Amarillo: requiere atención -->
+			<DataTrigger Binding="{Binding Estado}" Value="Pendiente">
+				<Setter Property="Background" Value="#FDF3E1" />
+				<Setter Property="TextElement.Foreground" Value="#9A6B10" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Pendiente de cobro">
+				<Setter Property="Background" Value="#FDF3E1" />
+				<Setter Property="TextElement.Foreground" Value="#9A6B10" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Bajo">
+				<Setter Property="Background" Value="#FDF3E1" />
+				<Setter Property="TextElement.Foreground" Value="#9A6B10" />
+			</DataTrigger>
+			<!-- Rojo: rechazado / anulado / sin stock / inactivo -->
+			<DataTrigger Binding="{Binding Estado}" Value="Rechazada">
+				<Setter Property="Background" Value="#FBE6E8" />
+				<Setter Property="TextElement.Foreground" Value="#B3303B" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Anulada">
+				<Setter Property="Background" Value="#FBE6E8" />
+				<Setter Property="TextElement.Foreground" Value="#B3303B" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Sin stock">
+				<Setter Property="Background" Value="#FBE6E8" />
+				<Setter Property="TextElement.Foreground" Value="#B3303B" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Con diferencia">
+				<Setter Property="Background" Value="#FBE6E8" />
+				<Setter Property="TextElement.Foreground" Value="#B3303B" />
+			</DataTrigger>
+			<DataTrigger Binding="{Binding Estado}" Value="Inactivo">
+				<Setter Property="Background" Value="#FBE6E8" />
+				<Setter Property="TextElement.Foreground" Value="#B3303B" />
+			</DataTrigger>
+		</Style.Triggers>
+	</Style>
+</ResourceDictionary>
