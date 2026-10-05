@@ -1,139 +1,141 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using FarmaGest.Dominio;
+using FarmaGest.Negocio.Servicios;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FarmaGest.UI.Views.Farmaceutico;
 
-// MAQUETA: datos hardcodeados. Se reemplazan por RecetaService cuando se conecte el backend.
+/// <summary>
+/// Validación de recetas. Las recetas llegan desde las obras sociales
+/// (cargadas en la base de datos): el Farmacéutico las valida o las rechaza.
+/// </summary>
 public partial class ValidacionRecetasPage : Page
 {
-    public ValidacionRecetasPage()
+    private readonly RecetaService _recetaService;
+    private List<RecetaDto> _recetas = new();
+
+    public ValidacionRecetasPage(RecetaService recetaService)
     {
         InitializeComponent();
+        _recetaService = recetaService;
+        Loaded += async (_, _) => await CargarAsync();
+    }
 
-        RecetasGrid.ItemsSource = new List<RecetaFalsa>
+    private async Task CargarAsync(int? seleccionarNumero = null)
+    {
+        try
         {
-            new()
-            {
-                Numero = 1024, Paciente = "Juan Pérez", NumeroAfiliado = "61-458921-02",
-                ObraSocialPlan = "OSDE · Plan 210", Medico = "Dr. Alfredo Gómez", Matricula = "MP 4521",
-                FechaEmision = new DateTime(2026, 9, 23), FechaVencimiento = new DateTime(2026, 10, 23),
-                Estado = "Pendiente",
-                Medicamentos =
-                {
-                    new() { Producto = "Amoxicilina 500 mg x 16", Cantidad = 1, CoberturaTexto = "40 %" },
-                    new() { Producto = "Ibuprofeno 400 mg x 20", Cantidad = 1, CoberturaTexto = "Sin cobertura" },
-                },
-                Verificaciones =
-                {
-                    new() { Texto = "Receta vigente", Ok = true },
-                    new() { Texto = "Afiliado activo", Ok = true },
-                    new() { Texto = "Ibuprofeno sin cobertura en el plan", Ok = false },
-                    new() { Texto = "Stock disponible", Ok = true },
-                }
-            },
-            new()
-            {
-                Numero = 1023, Paciente = "María López", NumeroAfiliado = "15-332190-00",
-                ObraSocialPlan = "IOSCOR · Plan General", Medico = "Dra. Carla Ruiz", Matricula = "MP 3310",
-                FechaEmision = new DateTime(2026, 9, 22), FechaVencimiento = new DateTime(2026, 10, 22),
-                Estado = "Pendiente",
-                Medicamentos =
-                {
-                    new() { Producto = "Losartán 50 mg x 30", Cantidad = 2, CoberturaTexto = "70 %" },
-                },
-                Verificaciones =
-                {
-                    new() { Texto = "Receta vigente", Ok = true },
-                    new() { Texto = "Afiliado activo", Ok = true },
-                    new() { Texto = "Medicamentos con cobertura", Ok = true },
-                    new() { Texto = "Stock disponible", Ok = true },
-                }
-            },
-            new()
-            {
-                Numero = 1022, Paciente = "Carlos Benítez", NumeroAfiliado = "08-771204-01",
-                ObraSocialPlan = "Swiss Medical · SMG20", Medico = "Dr. Nicolás Paz", Matricula = "MP 5102",
-                FechaEmision = new DateTime(2026, 9, 21), FechaVencimiento = new DateTime(2026, 10, 21),
-                Estado = "Validada",
-                Medicamentos =
-                {
-                    new() { Producto = "Salbutamol 100 mcg x 200 dosis", Cantidad = 1, CoberturaTexto = "50 %" },
-                },
-                Verificaciones =
-                {
-                    new() { Texto = "Receta vigente", Ok = true },
-                    new() { Texto = "Afiliado activo", Ok = true },
-                    new() { Texto = "Medicamentos con cobertura", Ok = true },
-                    new() { Texto = "Stock disponible", Ok = true },
-                }
-            },
-            new()
-            {
-                Numero = 1019, Paciente = "Ana Romero", NumeroAfiliado = "22-104556-03",
-                ObraSocialPlan = "PAMI · Plan Único", Medico = "Dra. Laura Sosa", Matricula = "MP 2877",
-                FechaEmision = new DateTime(2026, 8, 10), FechaVencimiento = new DateTime(2026, 9, 9),
-                Estado = "Rechazada",
-                Medicamentos =
-                {
-                    new() { Producto = "Cetirizina 10 mg x 10", Cantidad = 1, CoberturaTexto = "30 %" },
-                },
-                Verificaciones =
-                {
-                    new() { Texto = "Receta vencida el 09/09/2026", Ok = false },
-                    new() { Texto = "Afiliado activo", Ok = true },
-                    new() { Texto = "Medicamentos con cobertura", Ok = true },
-                    new() { Texto = "Stock disponible", Ok = true },
-                }
-            },
+            _recetas = await _recetaService.ObtenerRecetasAsync();
+        }
+        catch (Exception ex)
+        {
+            Error("No se pudieron cargar las recetas", ex);
+            return;
+        }
+
+        AplicarFiltro(seleccionarNumero);
+    }
+
+    private void AplicarFiltro(int? seleccionarNumero = null)
+    {
+        string texto = BuscarText.Text.Trim();
+
+        string? estado = EstadoCombo.SelectedIndex switch
+        {
+            1 => Receta.Pendiente,
+            2 => Receta.Validada,
+            3 => Receta.Rechazada,
+            _ => null
         };
 
-        RecetasGrid.SelectedIndex = 0;
+        var lista = _recetas
+            .Where(r => estado == null || r.Estado == estado)
+            .Where(r => texto.Length == 0 ||
+                        r.Numero.ToString() == texto ||
+                        r.Paciente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                        r.NumeroAfiliado.ToString() == texto ||
+                        r.Medico.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        RecetasGrid.ItemsSource = lista;
+        VacioText.Visibility = lista.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        RecetasGrid.SelectedItem =
+            lista.FirstOrDefault(r => r.Numero == seleccionarNumero) ?? lista.FirstOrDefault();
     }
 
-    private void RegistrarReceta_Click(object sender, RoutedEventArgs e)
+    private void Filtro_Changed(object sender, RoutedEventArgs e)
     {
-        var ventana = new RegistrarRecetaWindow { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+        // Durante InitializeComponent los controles todavía no están listos
+        if (!IsLoaded)
+            return;
+
+        AplicarFiltro((RecetasGrid.SelectedItem as RecetaDto)?.Numero);
     }
 
-    private void Validar_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Receta validada (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private void Rechazar_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Receta rechazada (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private void IniciarVenta_Click(object sender, RoutedEventArgs e) =>
-        NavigationService?.Navigate(new NuevaVentaPage());
-
-    private class RecetaFalsa
+    private async void ActualizarRecetas_Click(object sender, RoutedEventArgs e)
     {
-        public int Numero { get; set; }
-        public string Paciente { get; set; } = "";
-        public string NumeroAfiliado { get; set; } = "";
-        public string ObraSocialPlan { get; set; } = "";
-        public string Medico { get; set; } = "";
-        public string Matricula { get; set; } = "";
-        public DateTime FechaEmision { get; set; }
-        public DateTime FechaVencimiento { get; set; }
-        public string Estado { get; set; } = "";
-        public List<MedicamentoFalso> Medicamentos { get; } = new();
-        public List<VerificacionFalsa> Verificaciones { get; } = new();
+        await CargarAsync((RecetasGrid.SelectedItem as RecetaDto)?.Numero);
     }
 
-    private class MedicamentoFalso
+    private async void Validar_Click(object sender, RoutedEventArgs e)
     {
-        public string Producto { get; set; } = "";
-        public int Cantidad { get; set; }
-        public string CoberturaTexto { get; set; } = "";
+        if (RecetasGrid.SelectedItem is not RecetaDto receta)
+            return;
+
+        try
+        {
+            await _recetaService.ValidarAsync(receta.Numero);
+            await CargarAsync(receta.Numero);
+            Aviso($"Receta N° {receta.Numero} validada. Ya se puede usar en una venta.");
+        }
+        catch (Exception ex)
+        {
+            Error("No se pudo validar la receta", ex);
+        }
     }
 
-    private class VerificacionFalsa
+    private async void Rechazar_Click(object sender, RoutedEventArgs e)
     {
-        public string Texto { get; set; } = "";
-        public bool Ok { get; set; }
+        if (RecetasGrid.SelectedItem is not RecetaDto receta)
+            return;
+
+        var respuesta = MessageBox.Show($"¿Rechazar la receta N° {receta.Numero} de {receta.Paciente}?",
+            "FarmaGest", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+        if (respuesta != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            await _recetaService.RechazarAsync(receta.Numero);
+            await CargarAsync(receta.Numero);
+            Aviso($"Receta N° {receta.Numero} rechazada.");
+        }
+        catch (Exception ex)
+        {
+            Error("No se pudo rechazar la receta", ex);
+        }
     }
+
+    private void IniciarVenta_Click(object sender, RoutedEventArgs e)
+    {
+        if (RecetasGrid.SelectedItem is not RecetaDto receta || !receta.PuedeIniciarVenta)
+            return;
+
+        var pagina = App.Services.GetRequiredService<NuevaVentaPage>();
+        pagina.PreseleccionarReceta(receta.Numero);
+        NavigationService?.Navigate(pagina);
+    }
+
+    private static void Aviso(string mensaje) =>
+        MessageBox.Show(mensaje, "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+
+    private static void Error(string titulo, Exception ex) =>
+        MessageBox.Show($"{titulo}.\n\n{ex.Message}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
 }

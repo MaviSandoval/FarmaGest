@@ -1,3 +1,5 @@
+﻿using System;
+using System.Windows;
 using System.Windows.Controls;
 using FarmaGest.UI.ViewModels.Farmaceutico;
 
@@ -9,6 +11,19 @@ namespace FarmaGest.UI.Views.Farmaceutico
         {
             InitializeComponent();
             DataContext = viewModel;
+
+            Loaded += async (_, _) =>
+            {
+                try
+                {
+                    await viewModel.CargarDatosAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"No se pudieron cargar los datos de inicio.\n\n{ex.Message}", "FarmaGest",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            };
         }
     }
 }

@@ -1,61 +1,142 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using FarmaGest.Negocio.Servicios;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FarmaGest.UI.Views.Farmaceutico;
 
-// MAQUETA: listado de ventas del farmacéutico con datos hardcodeados.
+/// <summary>Ventas que armó el Farmacéutico logueado y su estado en caja.</summary>
 public partial class VentasFarmaceuticoPage : Page
 {
-    public VentasFarmaceuticoPage()
+    private readonly VentaService _ventaService;
+    private readonly SesionUsuarioService _sesion;
+    private List<VentaResumenDto> _ventas = new();
+
+    public VentasFarmaceuticoPage(VentaService ventaService, SesionUsuarioService sesion)
     {
         InitializeComponent();
+        _ventaService = ventaService;
+        _sesion = sesion;
 
         FechaFiltroPicker.SelectedDate = DateTime.Today;
-        var hoy = DateTime.Today;
+        Loaded += async (_, _) => await CargarAsync();
+    }
 
-        VentasGrid.ItemsSource = new List<VentaFalsa>
+    private int UsuarioId =>
+        _sesion.UsuarioActual?.Id ?? throw new InvalidOperationException("No hay una sesión iniciada.");
+
+    private async Task CargarAsync()
+    {
+        try
         {
-            new() { Numero = 1045, Fecha = hoy.AddHours(11).AddMinutes(12), Tipo = "Con receta", Cliente = "Juan Pérez (OSDE 210)", Items = 2, Total = 9870.40m, Estado = "Pendiente de cobro" },
-            new() { Numero = 1044, Fecha = hoy.AddHours(11).AddMinutes(2),  Tipo = "Venta libre", Cliente = "Consumidor final", Items = 3, Total = 6240.00m, Estado = "Pendiente de cobro" },
-            new() { Numero = 1043, Fecha = hoy.AddHours(10).AddMinutes(41), Tipo = "Con receta", Cliente = "María López (IOSCOR)", Items = 1, Total = 5316.00m, Estado = "Facturada" },
-            new() { Numero = 1042, Fecha = hoy.AddHours(10).AddMinutes(15), Tipo = "Venta libre", Cliente = "Consumidor final", Items = 1, Total = 2150.00m, Estado = "Facturada" },
-            new() { Numero = 1041, Fecha = hoy.AddHours(9).AddMinutes(50),  Tipo = "Venta libre", Cliente = "Consumidor final", Items = 2, Total = 4380.00m, Estado = "Anulada" },
-            new() { Numero = 1040, Fecha = hoy.AddHours(9).AddMinutes(22),  Tipo = "Con receta", Cliente = "Carlos Benítez (Swiss Medical)", Items = 1, Total = 7425.00m, Estado = "Facturada" },
+            _ventas = await _ventaService.ObtenerVentasAsync(UsuarioId);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudieron cargar las ventas.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var hoy = _ventas.Where(v => v.Fecha.Date == DateTime.Today).ToList();
+        EnviadasHoyText.Text = hoy.Count.ToString();
+        PendientesText.Text = _ventas.Count(v => v.Estado == VentaService.EstadoPendiente).ToString();
+        FacturadasHoyText.Text = hoy.Count(v => v.Estado == VentaService.EstadoFacturada).ToString();
+        AnuladasHoyText.Text = hoy.Count(v => v.Estado == VentaService.EstadoAnulada).ToString();
+
+        AplicarFiltro();
+    }
+
+    private void AplicarFiltro()
+    {
+        string texto = BuscarText.Text.Trim();
+        DateTime? fecha = FechaFiltroPicker.SelectedDate;
+
+        string? estado = EstadoCombo.SelectedIndex switch
+        {
+            1 => VentaService.EstadoPendiente,
+            2 => VentaService.EstadoFacturada,
+            3 => VentaService.EstadoAnulada,
+            _ => null
         };
+
+        VentasGrid.ItemsSource = _ventas
+            .Where(v => fecha == null || v.Fecha.Date == fecha.Value.Date)
+            .Where(v => estado == null || v.Estado == estado)
+            .Where(v => texto.Length == 0 ||
+                        v.Numero.ToString() == texto ||
+                        v.Cliente.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void Filtro_Changed(object sender, RoutedEventArgs e)
+    {
+        if (IsLoaded)
+            AplicarFiltro();
     }
 
     private void NuevaVenta_Click(object sender, RoutedEventArgs e) =>
-        NavigationService?.Navigate(new NuevaVentaPage());
+        NavigationService?.Navigate(App.Services.GetRequiredService<NuevaVentaPage>());
 
-    private void VerDetalle_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Acá se abriría el detalle de la venta (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private void Anular_Click(object sender, RoutedEventArgs e)
+    private async void VerDetalle_Click(object sender, RoutedEventArgs e)
     {
-        var respuesta = MessageBox.Show("¿Anular esta venta pendiente de cobro?", "FarmaGest",
-            MessageBoxButton.YesNo, MessageBoxImage.Question);
+        if (sender is not FrameworkElement { Tag: VentaResumenDto venta })
+            return;
 
-        if (respuesta == MessageBoxResult.Yes)
+        try
         {
-            MessageBox.Show("Venta anulada (maqueta).", "FarmaGest",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            var detalle = await _ventaService.ObtenerDetalleAsync(venta.Numero);
+
+            var texto = new StringBuilder();
+            texto.AppendLine($"Venta N° {venta.Numero} · {venta.Fecha:dd/MM/yyyy HH:mm}");
+            texto.AppendLine($"{venta.Tipo} · {venta.Cliente}");
+            texto.AppendLine($"Estado: {venta.Estado}" + (venta.MedioPago != "—" ? $" ({venta.MedioPago}, cobró {venta.Cajero})" : ""));
+            texto.AppendLine();
+
+            foreach (var d in detalle)
+            {
+                texto.AppendLine($"• {d.Producto} x{d.Cantidad}  $ {d.Subtotal:N2}" +
+                                 (d.Descuento > 0 ? $"  (cobertura - $ {d.Descuento:N2})" : ""));
+            }
+
+            texto.AppendLine();
+            texto.AppendLine($"Total: $ {venta.Total:N2}");
+
+            MessageBox.Show(texto.ToString(), "Detalle de la venta", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo cargar el detalle.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
-    private class VentaFalsa
+    private async void Anular_Click(object sender, RoutedEventArgs e)
     {
-        public int Numero { get; set; }
-        public DateTime Fecha { get; set; }
-        public string Tipo { get; set; } = "";
-        public string Cliente { get; set; } = "";
-        public int Items { get; set; }
-        public decimal Total { get; set; }
-        public string Estado { get; set; } = "";
+        if (sender is not FrameworkElement { Tag: VentaResumenDto venta })
+            return;
 
-        // Solo se puede anular mientras el cajero no la cobró
-        public bool PuedeAnular => Estado == "Pendiente de cobro";
+        var respuesta = MessageBox.Show(
+            $"¿Anular la venta N° {venta.Numero}? La receta queda libre para usarla en otra venta.",
+            "FarmaGest", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+        if (respuesta != MessageBoxResult.Yes)
+            return;
+
+        try
+        {
+            await _ventaService.AnularVentaAsync(venta.Numero);
+            await CargarAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo anular la venta.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 }

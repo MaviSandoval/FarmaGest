@@ -1,98 +1,112 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using FarmaGest.Negocio.Servicios;
+using FarmaGest.UI.Helpers;
 
 namespace FarmaGest.UI.Views.Administrador;
 
-// MAQUETA: reportes cruzados con datos de ejemplo. Se conectan a la base más adelante.
+/// <summary>Reportes cruzados del período elegido. Las ventas anuladas no suman.</summary>
 public partial class ReportesPage : Page
 {
-    public ReportesPage()
+    private readonly ReporteService _reporteService;
+
+    private List<ReporteObraSocialDto> _obrasSociales = new();
+    private List<ReporteProductoDto> _productos = new();
+    private List<ReporteCierreDto> _cierres = new();
+    private List<ReporteFarmaceuticoDto> _farmaceuticos = new();
+
+    public ReportesPage(ReporteService reporteService)
     {
         InitializeComponent();
+        _reporteService = reporteService;
 
         DesdePicker.SelectedDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
         HastaPicker.SelectedDate = DateTime.Today;
 
-        ObraSocialGrid.ItemsSource = new List<ReporteObraSocial>
-        {
-            new() { ObraSocial = "PAMI",            Ventas = 64, TotalVendido = 612400m, TotalCubierto = 428680m },
-            new() { ObraSocial = "IOSCOR",          Ventas = 48, TotalVendido = 455200m, TotalCubierto = 227600m },
-            new() { ObraSocial = "OSDE",            Ventas = 31, TotalVendido = 318900m, TotalCubierto = 127560m },
-            new() { ObraSocial = "Swiss Medical",   Ventas = 17, TotalVendido = 172300m, TotalCubierto =  86150m },
-            new() { ObraSocial = "Sin obra social", Ventas = 92, TotalVendido = 298700m, TotalCubierto =      0m },
-        };
-
-        ProductosGrid.ItemsSource = new List<ReporteProducto>
-        {
-            new() { Puesto = 1, Producto = "Paracetamol 500 mg x 20 comp.",  Categoria = "Analgésicos y Antipiréticos",  Unidades = 142, Total = 305300m },
-            new() { Puesto = 2, Producto = "Ibuprofeno 400 mg x 20 comp.",   Categoria = "Antiinflamatorios",            Unidades = 118, Total = 330400m },
-            new() { Puesto = 3, Producto = "Losartán 50 mg x 30 comp.",      Categoria = "Cardiovasculares",             Unidades =  76, Total = 673360m },
-            new() { Puesto = 4, Producto = "Amoxicilina 500 mg x 16 comp.",  Categoria = "Antibióticos",                 Unidades =  54, Total = 456300m },
-            new() { Puesto = 5, Producto = "Loratadina 10 mg x 10 comp.",    Categoria = "Antialérgicos",                Unidades =  49, Total = 142100m },
-            new() { Puesto = 6, Producto = "Alcohol en gel 250 ml",          Categoria = "Cuidado Personal",             Unidades =  45, Total =  85500m },
-        };
-
-        CierresGrid.ItemsSource = new List<ReporteCierre>
-        {
-            new() { Fecha = "22/09/2026", Caja = 11, Cajero = "Cajero Sistema", Esperado = 98450m,  Contado = 98450m },
-            new() { Fecha = "21/09/2026", Caja = 10, Cajero = "Cajero Sistema", Esperado = 112300m, Contado = 111800m },
-            new() { Fecha = "20/09/2026", Caja =  9, Cajero = "Cajero Sistema", Esperado = 87650m,  Contado = 87650m },
-            new() { Fecha = "19/09/2026", Caja =  8, Cajero = "Cajero Sistema", Esperado = 103200m, Contado = 103400m },
-        };
-
-        FarmaceuticosGrid.ItemsSource = new List<ReporteFarmaceutico>
-        {
-            new() { Farmaceutico = "Farmacéutico Sistema", Ventas = 252, ConReceta = 160, Anuladas = 4, Total = 1857500m },
-        };
+        Loaded += async (_, _) => await GenerarAsync();
     }
 
-    private void Generar_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Acá se generarían los reportes del período elegido (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private void Exportar_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Acá se exportaría el reporte a Excel o PDF (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private class ReporteObraSocial
+    private async Task GenerarAsync()
     {
-        public string ObraSocial { get; set; } = "";
-        public int Ventas { get; set; }
-        public decimal TotalVendido { get; set; }
-        public decimal TotalCubierto { get; set; }
-        public decimal PagadoCliente => TotalVendido - TotalCubierto;
+        if (DesdePicker.SelectedDate is not DateTime desde || HastaPicker.SelectedDate is not DateTime hasta)
+        {
+            MessageBox.Show("Elegí las fechas Desde y Hasta.", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (desde > hasta)
+        {
+            MessageBox.Show("La fecha Desde no puede ser posterior a Hasta.", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            _obrasSociales = await _reporteService.VentasPorObraSocialAsync(desde, hasta);
+            _productos = await _reporteService.ProductosMasVendidosAsync(desde, hasta);
+            _cierres = await _reporteService.CierresDeCajaAsync(desde, hasta);
+            _farmaceuticos = await _reporteService.VentasPorFarmaceuticoAsync(desde, hasta);
+
+            ObraSocialGrid.ItemsSource = _obrasSociales;
+            ProductosGrid.ItemsSource = _productos;
+            CierresGrid.ItemsSource = _cierres;
+            FarmaceuticosGrid.ItemsSource = _farmaceuticos;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudieron generar los reportes.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
-    private class ReporteProducto
-    {
-        public int Puesto { get; set; }
-        public string Producto { get; set; } = "";
-        public string Categoria { get; set; } = "";
-        public int Unidades { get; set; }
-        public decimal Total { get; set; }
-    }
+    private async void Generar_Click(object sender, RoutedEventArgs e) => await GenerarAsync();
 
-    private class ReporteCierre
+    /// <summary>Exporta a CSV el reporte de la pestaña que se está viendo.</summary>
+    private void Exportar_Click(object sender, RoutedEventArgs e)
     {
-        public string Fecha { get; set; } = "";
-        public int Caja { get; set; }
-        public string Cajero { get; set; } = "";
-        public decimal Esperado { get; set; }
-        public decimal Contado { get; set; }
-        public decimal Diferencia => Contado - Esperado;
+        try
+        {
+            string? ruta = ReportesTabs.SelectedIndex switch
+            {
+                0 => ExportadorCsv.Exportar<ReporteObraSocialDto>("Ventas_por_obra_social", _obrasSociales,
+                    ("Obra social", r => r.ObraSocial),
+                    ("Ventas", r => r.Ventas),
+                    ("Total vendido", r => r.TotalVendido),
+                    ("Cubierto por la obra social", r => r.TotalCubierto),
+                    ("Pagado por el cliente", r => r.PagadoCliente)),
 
-        // Verde si el arqueo cerró justo, rojo si hubo sobrante o faltante
-        public string Estado => Diferencia == 0 ? "Sin diferencia" : "Con diferencia";
-    }
+                1 => ExportadorCsv.Exportar<ReporteProductoDto>("Productos_mas_vendidos", _productos,
+                    ("Puesto", r => r.Puesto),
+                    ("Producto", r => r.Producto),
+                    ("Categoría", r => r.Categoria),
+                    ("Unidades", r => r.Unidades),
+                    ("Total vendido", r => r.Total)),
 
-    private class ReporteFarmaceutico
-    {
-        public string Farmaceutico { get; set; } = "";
-        public int Ventas { get; set; }
-        public int ConReceta { get; set; }
-        public int Anuladas { get; set; }
-        public decimal Total { get; set; }
+                2 => ExportadorCsv.Exportar<ReporteCierreDto>("Cierres_de_caja", _cierres,
+                    ("Fecha", r => r.Fecha),
+                    ("Caja", r => r.Caja),
+                    ("Cajero", r => r.Cajero),
+                    ("Esperado", r => r.Esperado),
+                    ("Contado", r => r.Contado),
+                    ("Diferencia", r => r.Diferencia)),
+
+                _ => ExportadorCsv.Exportar<ReporteFarmaceuticoDto>("Ventas_por_farmaceutico", _farmaceuticos,
+                    ("Farmacéutico", r => r.Farmaceutico),
+                    ("Ventas", r => r.Ventas),
+                    ("Con receta", r => r.ConReceta),
+                    ("Anuladas", r => r.Anuladas),
+                    ("Total vendido", r => r.Total))
+            };
+
+            if (ruta != null)
+                MessageBox.Show($"Reporte exportado en:\n{ruta}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo exportar.\n\n{ex.Message}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 }

@@ -71,6 +71,34 @@
 		<Setter Property="TextElement.FontSize" Value="11.5" />
 	</Style>
 
+	<!-- Ítem de lista seleccionable (Obras sociales, Planes): la selección es verde claro
+	     con una barra a la izquierda, así el texto oscuro se sigue leyendo bien -->
+	<Style x:Key="ItemListaSeleccionable" TargetType="ListBoxItem">
+		<Setter Property="Foreground" Value="#1F2E2C" />
+		<Setter Property="Margin" Value="0,0,0,4" />
+		<Setter Property="Cursor" Value="Hand" />
+		<Setter Property="HorizontalContentAlignment" Value="Stretch" />
+		<Setter Property="Template">
+			<Setter.Value>
+				<ControlTemplate TargetType="ListBoxItem">
+					<Border x:Name="Fondo" CornerRadius="8" Padding="12,8"
+                            Background="Transparent" BorderBrush="Transparent" BorderThickness="3,0,0,0">
+						<ContentPresenter />
+					</Border>
+					<ControlTemplate.Triggers>
+						<Trigger Property="IsMouseOver" Value="True">
+							<Setter TargetName="Fondo" Property="Background" Value="#F4F7F6" />
+						</Trigger>
+						<Trigger Property="IsSelected" Value="True">
+							<Setter TargetName="Fondo" Property="Background" Value="#E3F4EE" />
+							<Setter TargetName="Fondo" Property="BorderBrush" Value="#1F7A6C" />
+						</Trigger>
+					</ControlTemplate.Triggers>
+				</ControlTemplate>
+			</Setter.Value>
+		</Setter>
+	</Style>
+
 	<!-- Badge de estado: el color depende de la propiedad "Estado" del item -->
 	<Style x:Key="EstadoBadge" TargetType="Border">
 		<Setter Property="CornerRadius" Value="10" />

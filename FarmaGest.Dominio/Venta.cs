@@ -1,7 +1,11 @@
-namespace FarmaGest.Dominio;
+﻿namespace FarmaGest.Dominio;
 
 public class Venta
 {
+    // Valores de tipoVenta
+    public const string TipoLibre = "Venta libre";
+    public const string TipoConReceta = "Con receta";
+
     public int Id { get; set; }
     public DateTime Fecha { get; set; } = DateTime.Now;
     public bool Estado { get; set; } = true;

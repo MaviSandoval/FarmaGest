@@ -1,39 +1,105 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using FarmaGest.Dominio;
+using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.Views.Administrador;
 
-// MAQUETA: consulta de recetas (solo lectura para el Administrador).
+/// <summary>Consulta de recetas (solo lectura para el Administrador).</summary>
 public partial class RecetasPage : Page
 {
-    public RecetasPage()
+    private const string TodasLasObras = "Todas las obras sociales";
+
+    private readonly RecetaService _recetaService;
+    private List<RecetaDto> _recetas = new();
+
+    public RecetasPage(RecetaService recetaService)
     {
         InitializeComponent();
-
-        RecetasGrid.ItemsSource = new List<RecetaFalsa>
-        {
-            new() { Numero = 1024, Afiliado = "Juan Pérez",     ObraSocial = "OSDE · Plan 210",       Medico = "Dr. Alfredo Gómez", FechaEmision = "23/09/2026", FechaVencimiento = "23/10/2026", Valido = "—",                    Estado = "Pendiente" },
-            new() { Numero = 1023, Afiliado = "María López",    ObraSocial = "IOSCOR · General",      Medico = "Dra. Carla Ruiz",   FechaEmision = "22/09/2026", FechaVencimiento = "22/10/2026", Valido = "—",                    Estado = "Pendiente" },
-            new() { Numero = 1022, Afiliado = "Carlos Benítez", ObraSocial = "Swiss Medical · SMG20", Medico = "Dr. Nicolás Paz",   FechaEmision = "21/09/2026", FechaVencimiento = "21/10/2026", Valido = "Farmacéutico Sistema", Estado = "Validada" },
-            new() { Numero = 1021, Afiliado = "Rosa Acosta",    ObraSocial = "PAMI · Único",          Medico = "Dra. Laura Sosa",   FechaEmision = "20/09/2026", FechaVencimiento = "20/10/2026", Valido = "Farmacéutico Sistema", Estado = "Validada" },
-            new() { Numero = 1019, Afiliado = "Ana Romero",     ObraSocial = "PAMI · Único",          Medico = "Dra. Laura Sosa",   FechaEmision = "10/08/2026", FechaVencimiento = "09/09/2026", Valido = "Farmacéutico Sistema", Estado = "Rechazada" },
-        };
+        _recetaService = recetaService;
+        Loaded += async (_, _) => await CargarAsync();
     }
 
-    private void VerDetalle_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Acá se abriría el detalle de la receta con sus medicamentos (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private class RecetaFalsa
+    private async Task CargarAsync()
     {
-        public int Numero { get; set; }
-        public string Afiliado { get; set; } = "";
-        public string ObraSocial { get; set; } = "";
-        public string Medico { get; set; } = "";
-        public string FechaEmision { get; set; } = "";
-        public string FechaVencimiento { get; set; } = "";
-        public string Valido { get; set; } = "";
-        public string Estado { get; set; } = "";
+        try
+        {
+            _recetas = await _recetaService.ObtenerRecetasAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudieron cargar las recetas.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        PendientesText.Text = _recetas.Count(r => r.Estado == Receta.Pendiente).ToString();
+        ValidadasMesText.Text = _recetas.Count(r => r.Estado == Receta.Validada).ToString();
+        RechazadasMesText.Text = _recetas.Count(r => r.Estado == Receta.Rechazada).ToString();
+        UsadasText.Text = _recetas.Count(r => r.VentaId != null).ToString();
+
+        var obras = new List<string> { TodasLasObras };
+        obras.AddRange(_recetas.Select(r => r.ObraSocial).Distinct().OrderBy(o => o));
+        ObraSocialCombo.ItemsSource = obras;
+        ObraSocialCombo.SelectedIndex = 0;
+
+        AplicarFiltro();
+    }
+
+    private void AplicarFiltro()
+    {
+        string texto = BuscarText.Text.Trim();
+        string obra = ObraSocialCombo.SelectedItem as string ?? TodasLasObras;
+
+        string? estado = EstadoCombo.SelectedIndex switch
+        {
+            1 => Receta.Pendiente,
+            2 => Receta.Validada,
+            3 => Receta.Rechazada,
+            _ => null
+        };
+
+        RecetasGrid.ItemsSource = _recetas
+            .Where(r => estado == null || r.Estado == estado)
+            .Where(r => obra == TodasLasObras || r.ObraSocial == obra)
+            .Where(r => texto.Length == 0 ||
+                        r.Numero.ToString() == texto ||
+                        r.Paciente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                        r.NumeroAfiliado.ToString() == texto ||
+                        r.Medico.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private void Filtro_Changed(object sender, RoutedEventArgs e)
+    {
+        if (IsLoaded)
+            AplicarFiltro();
+    }
+
+    private void VerDetalle_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { Tag: RecetaDto r })
+            return;
+
+        var texto = new StringBuilder();
+        texto.AppendLine($"Receta N° {r.Numero} · {r.Estado}");
+        texto.AppendLine($"Afiliado: {r.Paciente} (N° {r.NumeroAfiliado})");
+        texto.AppendLine($"Obra social: {r.ObraSocialPlan}");
+        texto.AppendLine($"Médico: {r.Medico} ({r.Matricula})");
+        texto.AppendLine($"Emisión: {r.FechaEmision:dd/MM/yyyy} · Vence: {r.FechaVencimiento:dd/MM/yyyy}");
+        texto.AppendLine();
+        texto.AppendLine("Medicamentos:");
+        foreach (var m in r.Medicamentos)
+            texto.AppendLine($"• {m.Producto} x{m.Cantidad} · cobertura {m.CoberturaTexto}");
+        texto.AppendLine();
+        if (r.VentaId != null)
+            texto.AppendLine($"Usada en la venta N° {r.VentaId}");
+
+        MessageBox.Show(texto.ToString(), "Detalle de la receta", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }

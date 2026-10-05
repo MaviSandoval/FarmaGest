@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -8,6 +8,7 @@ using FarmaGest.Negocio.Servicios;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using Microsoft.Extensions.DependencyInjection;
 using SkiaSharp;
 
 namespace FarmaGest.UI.Views.Administrador;
@@ -25,7 +26,17 @@ public partial class DashboardPage : Page
 
     private async Task CargarDatosAsync()
     {
-        var resumen = await _dashboardService.ObtenerResumenAsync();
+        Dominio.DashboardResumen resumen;
+        try
+        {
+            resumen = await _dashboardService.ObtenerResumenAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudieron cargar los datos de inicio.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
 
         VentasDiaText.Text = $"$ {resumen.VentasDelDia:N0}";
         VariacionDiaText.Text = $"{(resumen.VariacionVentasDelDiaPorcentaje >= 0 ? "+" : "")}{resumen.VariacionVentasDelDiaPorcentaje:N0}% respecto a ayer";
@@ -83,7 +94,12 @@ public partial class DashboardPage : Page
         VentasSemanaChart.YAxes = new[] { new Axis { Labeler = v => $"${v / 1000:N0}k" } };
     }
 
-    private void VerTodoStockBajo_Click(object sender, RoutedEventArgs e) { /* Navegar a Stock */ }
-    private void VerTodasVentas_Click(object sender, RoutedEventArgs e) { /* Navegar a Ventas */ }
-    private void VerTodosVencimientos_Click(object sender, RoutedEventArgs e) { /* Navegar a Stock (vencimientos) */ }
+    private void VerTodoStockBajo_Click(object sender, RoutedEventArgs e) =>
+        NavigationService?.Navigate(App.Services.GetRequiredService<StockPage>());
+
+    private void VerTodasVentas_Click(object sender, RoutedEventArgs e) =>
+        NavigationService?.Navigate(App.Services.GetRequiredService<VentasPage>());
+
+    private void VerTodosVencimientos_Click(object sender, RoutedEventArgs e) =>
+        NavigationService?.Navigate(App.Services.GetRequiredService<StockPage>());
 }

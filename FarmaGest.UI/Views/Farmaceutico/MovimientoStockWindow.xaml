@@ -1,0 +1,6 @@
+﻿<!-- Archivo sin uso: la ventana de ingresos/ajustes se quitó.
+     Se puede eliminar del proyecto junto con MovimientoStockWindow.xaml.cs -->
+<Window x:Class="FarmaGest.UI.Views.Farmaceutico.MovimientoStockWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Sin uso" />

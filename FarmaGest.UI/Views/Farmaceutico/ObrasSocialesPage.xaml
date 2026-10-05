@@ -33,13 +33,17 @@
 						<ColumnDefinition Width="*" />
 						<ColumnDefinition Width="Auto" />
 					</Grid.ColumnDefinitions>
-					<ui:TextBox Grid.Column="0" PlaceholderText="N° de afiliado o apellido"
-                                Icon="{ui:SymbolIcon Search24}" Margin="0,0,8,0" Text="Pérez"
-                                h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="30" />
-					<ui:Button Grid.Column="1" Content="Buscar" Appearance="Primary" />
+					<ui:TextBox x:Name="BuscarAfiliadoText" Grid.Column="0" PlaceholderText="N° de afiliado, nombre o apellido"
+                                Icon="{ui:SymbolIcon Search24}" Margin="0,0,8,0"
+                                h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="30"
+                                KeyDown="BuscarAfiliado_KeyDown" />
+					<ui:Button Grid.Column="1" Content="Buscar" Appearance="Primary" Click="BuscarAfiliado_Click" />
 				</Grid>
 
-				<DataGrid x:Name="AfiliadosGrid" Margin="0,10,0,0"
+				<TextBlock x:Name="AfiliadosVacioText" Margin="0,10,0,0"
+                               FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}"
+                               Text="Escribí el N° de afiliado, el nombre o el apellido y tocá Buscar." />
+				<DataGrid x:Name="AfiliadosGrid" Margin="0,10,0,0" MaxHeight="180" Visibility="Collapsed"
                           AutoGenerateColumns="False" IsReadOnly="True"
                           HeadersVisibility="Column" GridLinesVisibility="None"
                           RowHeight="36" Background="Transparent" BorderThickness="0">
@@ -48,6 +52,7 @@
 						<DataGridTextColumn Header="N° afiliado" Binding="{Binding NumeroAfiliado}" Width="*" />
 						<DataGridTextColumn Header="Obra social" Binding="{Binding ObraSocial}" Width="*" />
 						<DataGridTextColumn Header="Plan" Binding="{Binding Plan}" Width="*" />
+							
 						<DataGridTemplateColumn Header="Estado" Width="100">
 							<DataGridTemplateColumn.CellTemplate>
 								<DataTemplate>
@@ -74,7 +79,8 @@
 			<Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,8,0">
 				<DockPanel>
 					<TextBlock DockPanel.Dock="Top" Text="Obras sociales" FontWeight="SemiBold" Margin="0,0,0,10" />
-					<ListBox x:Name="ObrasSocialesList" BorderThickness="0" Background="Transparent">
+					<ListBox x:Name="ObrasSocialesList" BorderThickness="0" Background="Transparent"
+                             ItemContainerStyle="{StaticResource ItemListaSeleccionable}">
 						<ListBox.ItemTemplate>
 							<DataTemplate>
 								<StackPanel Margin="0,4">
@@ -100,7 +106,8 @@
 						<Run Text="{Binding SelectedItem.Nombre, ElementName=ObrasSocialesList, Mode=OneWay}" />
 					</TextBlock>
 					<ListBox x:Name="PlanesList" BorderThickness="0" Background="Transparent"
-                             ItemsSource="{Binding SelectedItem.Planes, ElementName=ObrasSocialesList}">
+                             ItemsSource="{Binding SelectedItem.Planes, ElementName=ObrasSocialesList}"
+                             ItemContainerStyle="{StaticResource ItemListaSeleccionable}">
 						<ListBox.ItemTemplate>
 							<DataTemplate>
 								<StackPanel Margin="0,4">

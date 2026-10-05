@@ -35,25 +35,25 @@
 			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0">
 				<StackPanel>
 					<TextBlock Text="Enviadas a caja hoy" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="12" Style="{StaticResource KpiValueText}" />
+					<TextBlock x:Name="EnviadasHoyText" Text="0" Style="{StaticResource KpiValueText}" />
 				</StackPanel>
 			</Border>
 			<Border Style="{StaticResource CardStyle}" Margin="4,0">
 				<StackPanel>
 					<TextBlock Text="Pendientes de cobro" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="2" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
+					<TextBlock x:Name="PendientesText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
 				</StackPanel>
 			</Border>
 			<Border Style="{StaticResource CardStyle}" Margin="4,0">
 				<StackPanel>
 					<TextBlock Text="Facturadas hoy" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="9" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
+					<TextBlock x:Name="FacturadasHoyText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
 				</StackPanel>
 			</Border>
 			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
 				<StackPanel>
 					<TextBlock Text="Anuladas hoy" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="1" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
+					<TextBlock x:Name="AnuladasHoyText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
 				</StackPanel>
 			</Border>
 		</UniformGrid>
@@ -66,16 +66,18 @@
 					<ColumnDefinition Width="200" />
 					<ColumnDefinition Width="170" />
 				</Grid.ColumnDefinitions>
-				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar por N° de venta o paciente..."
+				<ui:TextBox x:Name="BuscarText" Grid.Column="0" PlaceholderText="Buscar por N° de venta o paciente..."
                             Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0"
-                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60" />
-				<ComboBox Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0">
+                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60"
+                            TextChanged="Filtro_Changed" />
+				<ComboBox x:Name="EstadoCombo" Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0" SelectionChanged="Filtro_Changed">
 					<ComboBoxItem Content="Todos los estados" />
 					<ComboBoxItem Content="Pendiente de cobro" />
 					<ComboBoxItem Content="Facturada" />
 					<ComboBoxItem Content="Anulada" />
 				</ComboBox>
-				<DatePicker x:Name="FechaFiltroPicker" Grid.Column="2" />
+				<DatePicker x:Name="FechaFiltroPicker" Grid.Column="2" SelectedDateChanged="Filtro_Changed"
+                            ToolTip="Dejalo vacío para ver todas las fechas" />
 			</Grid>
 		</Border>
 
@@ -88,7 +90,7 @@
                       Background="Transparent" BorderThickness="0">
 				<DataGrid.Columns>
 					<DataGridTextColumn Header="N° venta" Binding="{Binding Numero}" Width="80" />
-					<DataGridTextColumn Header="Hora" Binding="{Binding Fecha, StringFormat='HH:mm'}" Width="70" />
+					<DataGridTextColumn Header="Fecha" Binding="{Binding Fecha, StringFormat='dd/MM HH:mm'}" Width="95" />
 					<DataGridTextColumn Header="Tipo" Binding="{Binding Tipo}" Width="*" />
 					<DataGridTextColumn Header="Paciente / cliente" Binding="{Binding Cliente}" Width="1.4*" />
 					<DataGridTextColumn Header="Ítems" Binding="{Binding Items}" Width="60" />
@@ -106,11 +108,11 @@
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>
 								<StackPanel Orientation="Horizontal">
-									<ui:HyperlinkButton Content="Ver" Padding="0" Margin="0,0,12,0" Click="VerDetalle_Click" />
+									<ui:HyperlinkButton Content="Ver" Padding="0" Margin="0,0,12,0" Click="VerDetalle_Click" Tag="{Binding}" />
 									<ui:HyperlinkButton Content="Anular" Padding="0"
                                                         Foreground="{StaticResource FarmaDangerBrush}"
                                                         Visibility="{Binding PuedeAnular, Converter={StaticResource BoolToVis}}"
-                                                        Click="Anular_Click" />
+                                                        Click="Anular_Click" Tag="{Binding}" />
 								</StackPanel>
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>

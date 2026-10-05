@@ -4,7 +4,7 @@
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Reportes">
 
-	<!-- MAQUETA: reportes con datos de ejemplo -->
+	<!-- Reportes del período elegido (datos de la base) -->
 
 	<Page.Resources>
 		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
@@ -47,7 +47,7 @@
 
 		<!-- ===================== REPORTES ===================== -->
 		<Border Grid.Row="2" Style="{StaticResource CardStyle}">
-			<TabControl>
+			<TabControl x:Name="ReportesTabs">
 
 				<!-- Ventas por obra social -->
 				<TabItem Header="Ventas por obra social">

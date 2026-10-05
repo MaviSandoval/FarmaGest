@@ -1,18 +1,27 @@
-using System;
+﻿using System;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
+using FarmaGest.Dominio;
+using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.ViewModels.Farmaceutico
 {
+	/// <summary>Inicio del Farmacéutico: indicadores y recetas pendientes, leídos de la base.</summary>
 	public partial class DashboardFarmaceuticoViewModel : ObservableObject
 	{
+		private readonly RecetaService _recetaService;
+		private readonly StockService _stockService;
+		private readonly VentaService _ventaService;
+		private readonly SesionUsuarioService _sesion;
+
 		// ---- Tarjetas de resumen ----
 		[ObservableProperty]
 		private int recetasPendientes;
 
 		[ObservableProperty]
-		private int consultasHoy;
+		private int ventasHoy;
 
 		[ObservableProperty]
 		private int ventasConRecetaHoy;
@@ -21,81 +30,52 @@ namespace FarmaGest.UI.ViewModels.Farmaceutico
 		private int stockCritico;
 
 		[ObservableProperty]
-		private int vencimientosProximos;
+		private int pendientesCobro;
+
+		[ObservableProperty]
+		private bool sinRecetasPendientes;
 
 		public ObservableCollection<RecetaPendienteVm> RecetasPendientesList { get; } = new();
 
-		public ObservableCollection<AlertaVm> Alertas { get; } = new();
+		
 
-		public ObservableCollection<VencimientoVm> Vencimientos { get; } = new();
-
-		public DashboardFarmaceuticoViewModel()
+		public DashboardFarmaceuticoViewModel(RecetaService recetaService, StockService stockService,
+			VentaService ventaService, SesionUsuarioService sesion)
 		{
-			CargarDatos();
+			_recetaService = recetaService;
+			_stockService = stockService;
+			_ventaService = ventaService;
+			_sesion = sesion;
 		}
 
-		// TODO: reemplazar por llamadas reales a RecetaService / ProductoService / VentaService
-		// (vía IDbContextFactory<FarmaGestDbContext>) apenas estén disponibles para este rol.
-		private void CargarDatos()
+		public async Task CargarDatosAsync()
 		{
+			var recetas = await _recetaService.ObtenerRecetasAsync();
+			var pendientes = recetas.Where(r => r.Estado == Receta.Pendiente).OrderBy(r => r.FechaVencimiento).ToList();
+
 			RecetasPendientesList.Clear();
-			RecetasPendientesList.Add(new RecetaPendienteVm("Juan Pérez", "Amoxicilina 500 mg x 16", "Dr. Alfredo Gómez", DateTime.Today));
-			RecetasPendientesList.Add(new RecetaPendienteVm("María López", "Losartán 50 mg x 30", "Dra. Carla Ruiz", DateTime.Today.AddDays(-1)));
-			RecetasPendientesList.Add(new RecetaPendienteVm("Consumidor Final", "Salbutamol 100 mcg x 200", "Dr. Nicolás Paz", DateTime.Today));
-
-			Alertas.Clear();
-			Alertas.Add(new AlertaVm("7 productos con stock crítico", "Revisar stock urgente", AlertaTipo.Critica));
-			Alertas.Add(new AlertaVm("3 recetas pendientes de validar", "Ver detalles", AlertaTipo.Advertencia));
-			Alertas.Add(new AlertaVm("12 productos por vencer en 30 días", "Revisar y gestionar", AlertaTipo.Advertencia));
-
-			Vencimientos.Clear();
-			Vencimientos.Add(new VencimientoVm("Loratadina 10 mg (x10)", new DateTime(2026, 9, 20), 15));
-			Vencimientos.Add(new VencimientoVm("Diclofenac 50 mg (x20)", new DateTime(2026, 9, 22), 8));
-			Vencimientos.Add(new VencimientoVm("Salbutamol 100 mcg (x200)", new DateTime(2026, 9, 28), 6));
-
-			RecetasPendientes = RecetasPendientesList.Count;
-			ConsultasHoy = 24;
-			VentasConRecetaHoy = 9;
-			StockCritico = 7;
-			VencimientosProximos = Vencimientos.Count;
-		}
-
-		[RelayCommand]
-		private void ValidarReceta(RecetaPendienteVm? receta)
-		{
-			if (receta is null)
+			foreach (var r in pendientes.Take(8))
 			{
-				return;
+				string medicamentos = string.Join(", ", r.Medicamentos.Select(m => m.Producto));
+				RecetasPendientesList.Add(new RecetaPendienteVm(r.Paciente, medicamentos, r.Medico, r.FechaEmision));
 			}
 
-			// TODO: abrir la vista de validación de receta / llamar a RecetaService.Validar(...)
-			RecetasPendientesList.Remove(receta);
-			RecetasPendientes = RecetasPendientesList.Count;
-		}
+			RecetasPendientes = pendientes.Count;
+			SinRecetasPendientes = pendientes.Count == 0;
 
-		[RelayCommand]
-		private void VerTodasLasRecetas()
-		{
-			// TODO: navegar a la vista completa de Recetas del Farmacéutico
-		}
+			var stock = await _stockService.ObtenerStockAsync();
+			StockCritico = stock.Count(p => p.Estado != EstadosStock.Normal);
 
-		[RelayCommand]
-		private void VerTodosLosVencimientos()
-		{
-			// TODO: navegar a la vista completa de Stock / Vencimientos
+			var usuarioId = _sesion.UsuarioActual?.Id;
+			var misVentas = await _ventaService.ObtenerVentasAsync(usuarioId);
+			var activasHoy = misVentas
+				.Where(v => v.Fecha.Date == DateTime.Today && v.Estado != VentaService.EstadoAnulada)
+				.ToList();
+			VentasHoy = activasHoy.Count;
+			VentasConRecetaHoy = activasHoy.Count(v => v.TieneReceta);
+			PendientesCobro = misVentas.Count(v => v.Estado == VentaService.EstadoPendiente);
 		}
 	}
 
 	public record RecetaPendienteVm(string Paciente, string Medicamento, string Medico, DateTime FechaEmision);
-
-	public record VencimientoVm(string Producto, DateTime FechaVencimiento, int Stock);
-
-	public enum AlertaTipo
-	{
-		Critica,
-		Advertencia,
-		Informativa
-	}
-
-	public record AlertaVm(string Titulo, string Subtitulo, AlertaTipo Tipo);
 }

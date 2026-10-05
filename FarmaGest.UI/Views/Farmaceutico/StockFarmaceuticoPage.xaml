@@ -18,11 +18,13 @@
 		</Grid.RowDefinitions>
 
 		<!-- ===================== ENCABEZADO ===================== -->
-		<StackPanel Grid.Row="0" Margin="0,0,0,16">
-			<TextBlock Text="Control de stock" Style="{StaticResource PageTitleText}" />
-			<TextBlock Text="Revisá qué productos están por debajo del mínimo para avisar al Administrador."
-                       Style="{StaticResource PageSubtitleText}" />
-		</StackPanel>
+		<Grid Grid.Row="0" Margin="0,0,0,16">
+			<StackPanel>
+				<TextBlock Text="Control de stock" Style="{StaticResource PageTitleText}" />
+				<TextBlock x:Name="SubtituloText" Style="{StaticResource PageSubtitleText}" />
+			</StackPanel>
+			
+		</Grid>
 
 		<!-- ===================== KPIs ===================== -->
 		<UniformGrid Grid.Row="1" Columns="4" Margin="0,0,0,16">
@@ -59,9 +61,10 @@
 					<ColumnDefinition Width="*" />
 					<ColumnDefinition Width="200" />
 				</Grid.ColumnDefinitions>
-				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar producto..."
-                            Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0" MaxLength="60" />
-				<ComboBox Grid.Column="1" SelectedIndex="0">
+				<ui:TextBox x:Name="BuscarText" Grid.Column="0" PlaceholderText="Buscar producto..."
+                            Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0" MaxLength="60"
+                            TextChanged="Filtro_Changed" />
+				<ComboBox x:Name="EstadoCombo" Grid.Column="1" SelectedIndex="0" SelectionChanged="Filtro_Changed">
 					<ComboBoxItem Content="Todos" />
 					<ComboBoxItem Content="Normal" />
 					<ComboBoxItem Content="Bajo" />
@@ -73,14 +76,13 @@
 		<!-- ===================== LISTADO ===================== -->
 		<Border Grid.Row="3" Style="{StaticResource CardStyle}">
 			<DataGrid x:Name="StockGrid"
-                      AutoGenerateColumns="False" IsReadOnly="True"
+                      AutoGenerateColumns="False" IsReadOnly="True" SelectionMode="Single"
                       HeadersVisibility="Column" GridLinesVisibility="None"
                       RowHeight="38" Background="Transparent" BorderThickness="0">
 				<DataGrid.Columns>
 					<DataGridTextColumn Header="Producto" Binding="{Binding Descripcion}" Width="2*" />
 					<DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="1.5*" />
 					<DataGridTextColumn Header="Stock actual" Binding="{Binding Stock}" Width="*" />
-					<DataGridTextColumn Header="Stock mínimo" Binding="{Binding StockMinimo}" Width="*" />
 					<DataGridTemplateColumn Header="Estado" Width="120">
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>

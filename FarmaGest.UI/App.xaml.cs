@@ -25,6 +25,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Color de acento de la marca (verde FarmaGest) para botones, links, casillas y selección.
+        // Sin esto WPF-UI toma el color de acento de Windows (por ejemplo morado).
+        Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(
+            System.Windows.Media.Color.FromRgb(0x1F, 0x7A, 0x6C),
+            Wpf.Ui.Appearance.ApplicationTheme.Light);
+
         var servicios = new ServiceCollection();
         ConfigurarServicios(servicios);
         Services = servicios.BuildServiceProvider();
@@ -62,6 +68,7 @@ public partial class App : Application
 
         // ---- Capa de Datos: procedimientos almacenados ----
         servicios.AddSingleton<UsuarioRepositorio>();
+        servicios.AddSingleton<BackupRepositorio>();
 
         // ---- Capa de Negocio ----
         servicios.AddSingleton<UsuarioService>();
@@ -71,6 +78,12 @@ public partial class App : Application
         servicios.AddSingleton<SesionUsuarioService>();
         servicios.AddSingleton<CajaService>();
         servicios.AddSingleton<FacturacionService>();
+        servicios.AddSingleton<StockService>();
+        servicios.AddSingleton<RecetaService>();
+        servicios.AddSingleton<VentaService>();
+        servicios.AddSingleton<ObraSocialService>();
+        servicios.AddSingleton<ReporteService>();
+        servicios.AddSingleton<BackupService>();
 
         // ---- Capa de UI - Administrador ----
         // Las ventanas principales son Transient: al cerrar sesión se cierran,
@@ -90,6 +103,12 @@ public partial class App : Application
         servicios.AddTransient<MainWindowFarmaceutico>();
         servicios.AddTransient<DashboardFarmaceuticoPage>();
         servicios.AddTransient<DashboardFarmaceuticoViewModel>();
+        servicios.AddTransient<ValidacionRecetasPage>();
+        servicios.AddTransient<NuevaVentaPage>();
+        servicios.AddTransient<VentasFarmaceuticoPage>();
+        servicios.AddTransient<ProductosFarmaceuticoPage>();
+        servicios.AddTransient<StockFarmaceuticoPage>();
+        servicios.AddTransient<ObrasSocialesPage>();
 
         // ---- Capa de UI - Cajero ----
         servicios.AddTransient<MainWindowCajero>();

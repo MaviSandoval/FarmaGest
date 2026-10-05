@@ -168,6 +168,7 @@ public class FarmaGestDbContext : DbContext
             e.Property(x => x.FechaVencimiento).HasColumnName("fechaVencimiento");
             e.Property(x => x.MatriculaMedico).HasColumnName("matriculaMedico").HasMaxLength(30).IsRequired();
             e.Property(x => x.NombreMedico).HasColumnName("nombreMedico").HasMaxLength(120).IsRequired();
+            // NULL = Pendiente, 1 = Validada, 0 = Rechazada
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.AfiliadoId).HasColumnName("id_afiliado");
 

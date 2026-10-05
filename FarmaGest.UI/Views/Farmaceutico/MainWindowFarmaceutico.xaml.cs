@@ -75,23 +75,23 @@ namespace FarmaGest.UI.Views.Farmaceutico
                     break;
 
                 case nameof(NavRecetas):
-                    RootFrame.Navigate(new ValidacionRecetasPage());
+                    RootFrame.Navigate(_serviceProvider.GetRequiredService<ValidacionRecetasPage>());
                     break;
 
                 case nameof(NavVentas):
-                    RootFrame.Navigate(new VentasFarmaceuticoPage());
+                    RootFrame.Navigate(_serviceProvider.GetRequiredService<VentasFarmaceuticoPage>());
                     break;
 
                 case nameof(NavProductos):
-                    RootFrame.Navigate(new ProductosFarmaceuticoPage());
+                    RootFrame.Navigate(_serviceProvider.GetRequiredService<ProductosFarmaceuticoPage>());
                     break;
 
                 case nameof(NavStock):
-                    RootFrame.Navigate(new StockFarmaceuticoPage());
+                    RootFrame.Navigate(_serviceProvider.GetRequiredService<StockFarmaceuticoPage>());
                     break;
 
                 case nameof(NavObrasSociales):
-                    RootFrame.Navigate(new ObrasSocialesPage());
+                    RootFrame.Navigate(_serviceProvider.GetRequiredService<ObrasSocialesPage>());
                     break;
             }
         }

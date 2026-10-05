@@ -1,6 +1,7 @@
 ﻿<Page x:Class="FarmaGest.UI.Views.Farmaceutico.NuevaVentaPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
       Title="Nueva venta">
 
@@ -23,7 +24,7 @@
 		<StackPanel Grid.Row="0" Grid.ColumnSpan="2" Margin="0,0,0,16">
 			<ui:HyperlinkButton Content="← Volver a mis ventas" Padding="0" Margin="0,0,0,6" Click="Volver_Click" />
 			<TextBlock Text="Nueva venta" Style="{StaticResource PageTitleText}" />
-			<TextBlock Text="Cargá los productos y, si corresponde, la receta y la cobertura. Al terminar, la venta se envía a caja para su cobro."
+			<TextBlock Text="Cargá los productos y, si corresponde, la receta validada. Al terminar, la venta se envía a caja para su cobro."
                        Style="{StaticResource PageSubtitleText}" />
 		</StackPanel>
 
@@ -36,8 +37,10 @@
 					<StackPanel>
 						<TextBlock Text="1. Tipo de venta" FontWeight="SemiBold" Margin="0,0,0,10" />
 						<StackPanel Orientation="Horizontal">
-							<RadioButton x:Name="TipoLibreRadio" GroupName="TipoVenta" Content="Venta libre" Margin="0,0,24,0" />
-							<RadioButton x:Name="TipoRecetaRadio" GroupName="TipoVenta" Content="Con receta / obra social" IsChecked="True" />
+							<RadioButton x:Name="TipoLibreRadio" GroupName="TipoVenta" Content="Venta libre" Margin="0,0,24,0"
+                                         Checked="Tipo_Changed" />
+							<RadioButton x:Name="TipoRecetaRadio" GroupName="TipoVenta" Content="Con receta / obra social" IsChecked="True"
+                                         Checked="Tipo_Changed" />
 						</StackPanel>
 					</StackPanel>
 				</Border>
@@ -48,45 +51,36 @@
 					<StackPanel>
 						<TextBlock Text="2. Receta y cobertura" FontWeight="SemiBold" Margin="0,0,0,10" />
 
-						<Grid>
-							<Grid.ColumnDefinitions>
-								<ColumnDefinition Width="*" />
-								<ColumnDefinition Width="Auto" />
-							</Grid.ColumnDefinitions>
-							<StackPanel Grid.Column="0" Margin="0,0,8,0">
-								<TextBlock Text="Receta validada" Style="{StaticResource FieldLabelText}" />
-								<ComboBox SelectedIndex="0">
-									<ComboBoxItem Content="N° 1024 — Juan Pérez (OSDE · Plan 210)" />
-									<ComboBoxItem Content="N° 1022 — Carlos Benítez (Swiss Medical · SMG20)" />
-								</ComboBox>
-							</StackPanel>
-							<ui:Button Grid.Column="1" VerticalAlignment="Bottom" Appearance="Secondary"
-                                       Icon="{ui:SymbolIcon DocumentAdd24}" Content="Registrar receta"
-                                       Click="RegistrarReceta_Click" />
-						</Grid>
+						<TextBlock Text="Receta validada" Style="{StaticResource FieldLabelText}" />
+						<ComboBox x:Name="RecetaCombo" DisplayMemberPath="TextoCombo" SelectionChanged="Receta_Changed" />
+
+						<TextBlock x:Name="SinRecetasText" Visibility="Collapsed" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   FontSize="11.5" Foreground="{StaticResource FarmaWarningBrush}"
+                                   Text="No hay recetas validadas disponibles. Validá una receta en «Validación de recetas» o hacé una venta libre." />
 
 						<!-- Datos de la receta seleccionada -->
-						<Border Background="#F4F7F6" CornerRadius="8" Padding="14,12" Margin="0,12,0,0">
+						<Border Background="#F4F7F6" CornerRadius="8" Padding="14,12" Margin="0,12,0,0"
+                                DataContext="{Binding SelectedItem, ElementName=RecetaCombo}">
 							<UniformGrid Columns="4">
 								<StackPanel>
 									<TextBlock Text="Afiliado" Style="{StaticResource FieldLabelText}" />
-									<TextBlock Text="Juan Pérez" FontSize="12.5" FontWeight="SemiBold" />
-									<TextBlock Text="N° 61-458921-02" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+									<TextBlock Text="{Binding Paciente, FallbackValue='—'}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+									<TextBlock Text="{Binding NumeroAfiliado, StringFormat='N° {0}', FallbackValue=''}" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
 								</StackPanel>
 								<StackPanel>
 									<TextBlock Text="Obra social / plan" Style="{StaticResource FieldLabelText}" />
-									<TextBlock Text="OSDE" FontSize="12.5" FontWeight="SemiBold" />
-									<TextBlock Text="Plan 210" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+									<TextBlock Text="{Binding ObraSocial, FallbackValue='—'}" FontSize="12.5" FontWeight="SemiBold" />
+									<TextBlock Text="{Binding Plan, FallbackValue=''}" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
 								</StackPanel>
 								<StackPanel>
 									<TextBlock Text="Médico" Style="{StaticResource FieldLabelText}" />
-									<TextBlock Text="Dr. Alfredo Gómez" FontSize="12.5" FontWeight="SemiBold" />
-									<TextBlock Text="MP 4521" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
+									<TextBlock Text="{Binding Medico, FallbackValue='—'}" FontSize="12.5" FontWeight="SemiBold" TextWrapping="Wrap" />
+									<TextBlock Text="{Binding Matricula, FallbackValue=''}" FontSize="11" Foreground="{StaticResource FarmaTextMutedBrush}" />
 								</StackPanel>
 								<StackPanel>
 									<TextBlock Text="Vigencia" Style="{StaticResource FieldLabelText}" />
-									<TextBlock Text="Hasta 23/10/2026" FontSize="12.5" FontWeight="SemiBold" />
-									<TextBlock Text="Receta validada" FontSize="11" Foreground="{StaticResource FarmaSuccessBrush}" />
+									<TextBlock Text="{Binding FechaVencimiento, StringFormat='Hasta {0:dd/MM/yyyy}', FallbackValue='—'}" FontSize="12.5" FontWeight="SemiBold" />
+									<TextBlock Text="{Binding Estado, FallbackValue=''}" FontSize="11" Foreground="{StaticResource FarmaSuccessBrush}" />
 								</StackPanel>
 							</UniformGrid>
 						</Border>
@@ -110,24 +104,35 @@
 								<ColumnDefinition Width="90" />
 								<ColumnDefinition Width="Auto" />
 							</Grid.ColumnDefinitions>
-							<ComboBox Grid.Column="0" IsEditable="True" Text="Buscar producto por nombre..." Margin="0,0,8,0">
-								<ComboBoxItem Content="Alcohol en gel 250 ml — $ 1.900,00 (stock 40)" />
-								<ComboBoxItem Content="Paracetamol 500 mg x 20 — $ 2.150,00 (stock 120)" />
-								<ComboBoxItem Content="Ibuprofeno 400 mg x 20 — $ 2.800,00 (stock 35)" />
-								<ComboBoxItem Content="Cetirizina 10 mg x 10 — $ 3.100,00 (stock 18)" />
-							</ComboBox>
-							<ui:NumberBox Grid.Column="1" Value="1" Minimum="1" Maximum="99"
- Margin="0,0,8,0" />
-							<ui:Button Grid.Column="2" Content="Agregar" Appearance="Primary" Icon="{ui:SymbolIcon Add24}" />
+							<StackPanel Grid.Column="0" Margin="0,0,8,0">
+								<TextBlock Text="Producto (escribí para buscar)" Style="{StaticResource FieldLabelText}" />
+								<ComboBox x:Name="ProductoCombo" IsEditable="True" IsTextSearchEnabled="True"
+                                          TextSearch.TextPath="Descripcion">
+									<ComboBox.ItemTemplate>
+										<DataTemplate>
+											<TextBlock Text="{Binding TextoCombo}" />
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</StackPanel>
+							<StackPanel Grid.Column="1" Margin="0,0,8,0">
+								<TextBlock Text="Cantidad" Style="{StaticResource FieldLabelText}" />
+								<TextBox x:Name="CantidadText" Text="1" h:ValidacionEntrada.Tipo="Entero" MaxLength="3" />
+							</StackPanel>
+							<ui:Button Grid.Column="2" Content="Agregar" Appearance="Primary" Icon="{ui:SymbolIcon Add24}"
+                                       VerticalAlignment="Bottom" Click="Agregar_Click" />
 						</Grid>
 
-						<DataGrid x:Name="DetalleGrid" Margin="0,12,0,0"
+						<TextBlock x:Name="MensajeText" Foreground="{StaticResource FarmaDangerBrush}" FontSize="12"
+                                   TextWrapping="Wrap" Margin="0,8,0,0" />
+
+						<DataGrid x:Name="DetalleGrid" Margin="0,8,0,0"
                                   AutoGenerateColumns="False" IsReadOnly="True"
                                   HeadersVisibility="Column" GridLinesVisibility="None"
                                   RowHeight="40" Background="Transparent" BorderThickness="0">
 							<DataGrid.Columns>
 								<DataGridTextColumn Header="Producto" Binding="{Binding Producto}" Width="2*" />
-								<DataGridTextColumn Header="Origen" Binding="{Binding Origen}" Width="90" />
+								<DataGridTextColumn Header="Origen" Binding="{Binding Origen}" Width="80" />
 								<DataGridTextColumn Header="Cant." Binding="{Binding Cantidad}" Width="55" />
 								<DataGridTextColumn Header="P. unit." Binding="{Binding PrecioUnitario, StringFormat='$ {0:N2}'}" Width="*" />
 								<DataGridTextColumn Header="Cobertura" Binding="{Binding CoberturaTexto}" Width="80" />
@@ -137,7 +142,7 @@
 									<DataGridTemplateColumn.CellTemplate>
 										<DataTemplate>
 											<ui:Button Appearance="Transparent" Icon="{ui:SymbolIcon Delete24}" Padding="6"
-                                                       ToolTip="Quitar producto" />
+                                                       ToolTip="Quitar producto" Tag="{Binding}" Click="Quitar_Click" />
 										</DataTemplate>
 									</DataGridTemplateColumn.CellTemplate>
 								</DataGridTemplateColumn>
@@ -149,7 +154,7 @@
                                 Visibility="{Binding IsChecked, ElementName=TipoLibreRadio, Converter={StaticResource BoolToVis}}">
 							<StackPanel Orientation="Horizontal">
 								<ui:SymbolIcon Symbol="Warning24" FontSize="15" Foreground="#9A6B10" />
-								<TextBlock Text="En venta libre no se pueden agregar productos que requieren receta."
+								<TextBlock Text="En venta libre solo se muestran los productos que no requieren receta."
                                            FontSize="11.5" Foreground="#9A6B10" Margin="6,0,0,0" />
 							</StackPanel>
 						</Border>
@@ -186,10 +191,10 @@
 
 				<Border Background="#F4F7F6" CornerRadius="8" Padding="12,10" Margin="0,16,0,16">
 					<TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource FarmaTextMutedBrush}"
-                               Text="Al enviar, la venta queda como «Pendiente de cobro» y aparece en Preventas del cajero. El stock se descuenta cuando se cobra." />
+                               Text="Al enviar, la venta queda como «Pendiente de cobro» y aparece en Preventas del cajero. El stock se descuenta cuando el cajero la cobra." />
 				</Border>
 
-				<ui:Button Content="Enviar a caja" Appearance="Primary" Icon="{ui:SymbolIcon Send24}"
+				<ui:Button x:Name="EnviarButton" Content="Enviar a caja" Appearance="Primary" Icon="{ui:SymbolIcon Send24}"
                            HorizontalAlignment="Stretch" Height="40" Click="EnviarACaja_Click" />
 				<ui:Button Content="Cancelar venta" Appearance="Secondary"
                            HorizontalAlignment="Stretch" Margin="0,8,0,0" Click="Volver_Click" />

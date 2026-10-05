@@ -1,64 +1,42 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.Views.Farmaceutico;
 
-// MAQUETA: consulta de obras sociales, planes, coberturas y afiliados (solo lectura).
+/// <summary>Consulta de obras sociales, planes, coberturas y afiliados (solo lectura).</summary>
 public partial class ObrasSocialesPage : Page
 {
-    public ObrasSocialesPage()
+    private readonly ObraSocialService _obraSocialService;
+
+    public ObrasSocialesPage(ObraSocialService obraSocialService)
     {
         InitializeComponent();
+        _obraSocialService = obraSocialService;
 
-        AfiliadosGrid.ItemsSource = new List<AfiliadoFalso>
-        {
-            new() { Nombre = "Juan Pérez", NumeroAfiliado = "61-458921-02", ObraSocial = "OSDE", Plan = "Plan 210", Estado = "Activo" },
-            new() { Nombre = "Laura Pérez", NumeroAfiliado = "15-907311-01", ObraSocial = "IOSCOR", Plan = "General", Estado = "Inactivo" },
-        };
-
-        ObrasSocialesList.ItemsSource = new List<ObraSocialFalsa>
-        {
-            new()
-            {
-                Nombre = "OSDE", Codigo = "OSDE01", Telefono = "0810-555-6733",
-                Planes =
-                {
-                    new() { Nombre = "Plan 210", Descripcion = "Plan básico", Coberturas = { new() { Producto = "Amoxicilina 500 mg x 16", Porcentaje = 40 }, new() { Producto = "Losartán 50 mg x 30", Porcentaje = 40 } } },
-                    new() { Nombre = "Plan 310", Descripcion = "Plan intermedio", Coberturas = { new() { Producto = "Amoxicilina 500 mg x 16", Porcentaje = 60 } } },
-                }
-            },
-            new()
-            {
-                Nombre = "IOSCOR", Codigo = "IOS001", Telefono = "0379-442-0000",
-                Planes =
-                {
-                    new() { Nombre = "General", Descripcion = "Afiliados obligatorios de la provincia", Coberturas = { new() { Producto = "Amoxicilina 500 mg x 16", Porcentaje = 50 }, new() { Producto = "Losartán 50 mg x 30", Porcentaje = 70 } } },
-                }
-            },
-            new()
-            {
-                Nombre = "PAMI", Codigo = "PAMI01", Telefono = "138",
-                Planes =
-                {
-                    new() { Nombre = "Único", Descripcion = "Jubilados y pensionados", Coberturas = { new() { Producto = "Losartán 50 mg x 30", Porcentaje = 100 }, new() { Producto = "Amoxicilina 500 mg x 16", Porcentaje = 80 }, new() { Producto = "Cetirizina 10 mg x 10", Porcentaje = 30 } } },
-                }
-            },
-            new()
-            {
-                Nombre = "Swiss Medical", Codigo = "SMG001", Telefono = "0810-333-8876",
-                Planes =
-                {
-                    new() { Nombre = "SMG20", Descripcion = "Plan joven", Coberturas = { new() { Producto = "Salbutamol 100 mcg x 200 dosis", Porcentaje = 50 } } },
-                }
-            },
-        };
-
-        ObrasSocialesList.SelectedIndex = 0;
+        Loaded += async (_, _) => await CargarAsync();
 
         // Al cambiar de obra social, seleccionar su primer plan
         // (se hace en el Dispatcher para que primero se actualice la lista de planes)
-        Loaded += (_, _) => SeleccionarPrimerPlan();
         ObrasSocialesList.SelectionChanged += (_, _) => SeleccionarPrimerPlan();
+    }
+
+    private async Task CargarAsync()
+    {
+        try
+        {
+            ObrasSocialesList.ItemsSource = await _obraSocialService.ObtenerObrasSocialesAsync();
+            ObrasSocialesList.SelectedIndex = 0;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudieron cargar las obras sociales.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void SeleccionarPrimerPlan()
@@ -66,33 +44,39 @@ public partial class ObrasSocialesPage : Page
         Dispatcher.InvokeAsync(() => { PlanesList.SelectedIndex = 0; });
     }
 
-    private class AfiliadoFalso
+    private async void BuscarAfiliado_Click(object sender, RoutedEventArgs e) => await BuscarAfiliadosAsync();
+
+    private async void BuscarAfiliado_KeyDown(object sender, KeyEventArgs e)
     {
-        public string Nombre { get; set; } = "";
-        public string NumeroAfiliado { get; set; } = "";
-        public string ObraSocial { get; set; } = "";
-        public string Plan { get; set; } = "";
-        public string Estado { get; set; } = "";
+        if (e.Key == Key.Enter)
+            await BuscarAfiliadosAsync();
     }
 
-    private class ObraSocialFalsa
+    private async Task BuscarAfiliadosAsync()
     {
-        public string Nombre { get; set; } = "";
-        public string Codigo { get; set; } = "";
-        public string Telefono { get; set; } = "";
-        public List<PlanFalso> Planes { get; } = new();
-    }
+        string texto = BuscarAfiliadoText.Text.Trim();
+        // Un N° de afiliado puede tener un solo dígito; un nombre necesita al menos 2 letras
+        if (texto.Length == 0 || (texto.Length < 2 && !texto.All(char.IsDigit)))
+        {
+            AfiliadosVacioText.Text = "Escribí al menos 2 caracteres para buscar.";
+            AfiliadosVacioText.Visibility = Visibility.Visible;
+            AfiliadosGrid.ItemsSource = null;
+            AfiliadosGrid.Visibility = Visibility.Collapsed;
+            return;
+        }
 
-    private class PlanFalso
-    {
-        public string Nombre { get; set; } = "";
-        public string Descripcion { get; set; } = "";
-        public List<CoberturaFalsa> Coberturas { get; } = new();
-    }
-
-    private class CoberturaFalsa
-    {
-        public string Producto { get; set; } = "";
-        public decimal Porcentaje { get; set; }
+        try
+        {
+            var afiliados = await _obraSocialService.BuscarAfiliadosAsync(texto);
+            AfiliadosGrid.ItemsSource = afiliados;
+            AfiliadosVacioText.Text = "No se encontraron afiliados con ese dato.";
+            AfiliadosVacioText.Visibility = afiliados.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            AfiliadosGrid.Visibility = afiliados.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo buscar el afiliado.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 }

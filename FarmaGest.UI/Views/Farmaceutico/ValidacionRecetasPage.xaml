@@ -21,12 +21,13 @@
 		<Grid Grid.Row="0" Margin="0,0,0,16">
 			<StackPanel>
 				<TextBlock Text="Validación de recetas" Style="{StaticResource PageTitleText}" />
-				<TextBlock Text="Registrá la receta que trae el paciente, verificá vigencia y cobertura, y validala para usarla en una venta."
+				<TextBlock Text="Recetas recibidas desde las obras sociales. Verificá vigencia, afiliado y cobertura, y validala para usarla en una venta."
                            Style="{StaticResource PageSubtitleText}" />
 			</StackPanel>
+			<!-- Las recetas no se cargan en la farmacia: llegan desde la obra social (se cargan en la base de datos) -->
 			<ui:Button HorizontalAlignment="Right" VerticalAlignment="Center"
-                       Appearance="Primary" Icon="{ui:SymbolIcon Add24}"
-                       Content="Registrar receta" Click="RegistrarReceta_Click" />
+                       Appearance="Secondary" Icon="{ui:SymbolIcon ArrowSync24}"
+                       Content="Actualizar recetas" Click="ActualizarRecetas_Click" />
 		</Grid>
 
 		<!-- ===================== FILTROS ===================== -->
@@ -36,10 +37,11 @@
 					<ColumnDefinition Width="*" />
 					<ColumnDefinition Width="200" />
 				</Grid.ColumnDefinitions>
-				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar por paciente, N° de afiliado o médico..."
+				<ui:TextBox x:Name="BuscarText" Grid.Column="0" PlaceholderText="Buscar por N° de receta, paciente, N° de afiliado o médico..."
                             Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0"
-                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60" />
-				<ComboBox Grid.Column="1" SelectedIndex="1">
+                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60"
+                            TextChanged="Filtro_Changed" />
+				<ComboBox x:Name="EstadoCombo" Grid.Column="1" SelectedIndex="1" SelectionChanged="Filtro_Changed">
 					<ComboBoxItem Content="Todas" />
 					<ComboBoxItem Content="Pendientes" />
 					<ComboBoxItem Content="Validadas" />
@@ -57,7 +59,11 @@
 
 			<!-- Listado de recetas -->
 			<Border Grid.Column="0" Style="{StaticResource CardStyle}" Margin="0,0,16,0">
-				<DataGrid x:Name="RecetasGrid"
+					<DockPanel>
+					<TextBlock x:Name="VacioText" DockPanel.Dock="Top" Visibility="Collapsed" Margin="0,0,0,10"
+                               Text="No hay recetas para mostrar con este filtro."
+                               FontSize="12.5" Foreground="{StaticResource FarmaTextMutedBrush}" />
+					<DataGrid x:Name="RecetasGrid"
                           AutoGenerateColumns="False" IsReadOnly="True"
                           SelectionMode="Single" HeadersVisibility="Column"
                           GridLinesVisibility="None" RowHeight="40"
@@ -79,9 +85,10 @@
 						</DataGridTemplateColumn>
 					</DataGrid.Columns>
 				</DataGrid>
-			</Border>
+					</DockPanel>
+				</Border>
 
-			<!-- Detalle de la receta seleccionada -->
+				<!-- Detalle de la receta seleccionada -->
 			<Border Grid.Column="1" Style="{StaticResource CardStyle}"
                     DataContext="{Binding SelectedItem, ElementName=RecetasGrid}">
 				<DockPanel LastChildFill="True">
@@ -99,17 +106,18 @@
 
 					<!-- Botones de acción -->
 					<StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
-						<TextBlock Text="Observación (obligatoria si se rechaza)" Style="{StaticResource FieldLabelText}" />
-						<ui:TextBox PlaceholderText="Ej.: receta vencida, falta firma del médico..." MaxLength="200" Margin="0,0,0,12" />
 						<UniformGrid Columns="2">
-							<ui:Button Content="Rechazar" Appearance="Danger" Icon="{ui:SymbolIcon Dismiss24}"
-                                       HorizontalAlignment="Stretch" Margin="0,0,6,0" Click="Rechazar_Click" />
-							<ui:Button Content="Validar" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}"
-                                       HorizontalAlignment="Stretch" Margin="6,0,0,0" Click="Validar_Click" />
-						</UniformGrid>
-						<ui:Button Content="Iniciar venta con esta receta" Appearance="Secondary"
+								<ui:Button Content="Rechazar" Appearance="Danger" Icon="{ui:SymbolIcon Dismiss24}"
+                                       HorizontalAlignment="Stretch" Margin="0,0,6,0" Click="Rechazar_Click"
+                                       IsEnabled="{Binding PuedeRechazar, FallbackValue=False}" />
+								<ui:Button Content="Validar" Appearance="Primary" Icon="{ui:SymbolIcon Checkmark24}"
+                                       HorizontalAlignment="Stretch" Margin="6,0,0,0" Click="Validar_Click"
+                                       IsEnabled="{Binding EsPendiente, FallbackValue=False}" />
+							</UniformGrid>
+							<ui:Button Content="Iniciar venta con esta receta" Appearance="Secondary"
                                    Icon="{ui:SymbolIcon Cart24}" HorizontalAlignment="Stretch"
-                                   Margin="0,8,0,0" Click="IniciarVenta_Click" />
+                                   Margin="0,8,0,0" Click="IniciarVenta_Click"
+                                   IsEnabled="{Binding PuedeIniciarVenta, FallbackValue=False}" />
 					</StackPanel>
 
 					<!-- Contenido -->
@@ -195,8 +203,14 @@
 									</DataTemplate>
 								</ItemsControl.ItemTemplate>
 							</ItemsControl>
-						</StackPanel>
-					</ScrollViewer>
+
+								<!-- Venta en la que se usó la receta -->
+								<TextBlock FontSize="12" Margin="0,14,0,0">
+									<Run Text="Usada en:" />
+									<Run Text="{Binding UsoTexto, Mode=OneWay}" />
+								</TextBlock>
+							</StackPanel>
+						</ScrollViewer>
 				</DockPanel>
 			</Border>
 		</Grid>

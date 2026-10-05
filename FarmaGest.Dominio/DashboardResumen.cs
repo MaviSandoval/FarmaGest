@@ -1,4 +1,4 @@
-namespace FarmaGest.Dominio;
+﻿namespace FarmaGest.Dominio;
 
 /// <summary>
 /// Datos agregados que necesita la pantalla de Inicio. No es una entidad
@@ -15,13 +15,37 @@ public class DashboardResumen
     public int ProductosStockBajo { get; set; }
 
     public List<PuntoVentaDiaria> VentasUltimos7Dias { get; set; } = new();
-    public List<Producto> ProductosConStockBajo { get; set; } = new();
-    public List<Venta> UltimasVentas { get; set; } = new();
-    public List<Producto> ProximosVencimientos { get; set; } = new();
+    public List<ProductoStockBajoResumen> ProductosConStockBajo { get; set; } = new();
+    public List<UltimaVentaResumen> UltimasVentas { get; set; } = new();
+    // La base no guarda vencimientos por lote: la lista queda vacía
+    public List<VencimientoResumen> ProximosVencimientos { get; set; } = new();
 }
 
 public class PuntoVentaDiaria
 {
     public string Dia { get; set; } = string.Empty;
     public decimal Total { get; set; }
+}
+
+public class ProductoStockBajoResumen
+{
+    public string Descripcion { get; set; } = string.Empty;
+    public int Stock { get; set; }
+    public int StockMinimo { get; set; }
+}
+
+public class UltimaVentaResumen
+{
+    public int NumeroVenta { get; set; }
+    public string ClienteNombre { get; set; } = string.Empty;
+    public decimal Total { get; set; }
+    public DateTime Fecha { get; set; }
+}
+
+public class VencimientoResumen
+{
+    public string Descripcion { get; set; } = string.Empty;
+    public string NumeroLote { get; set; } = string.Empty;
+    public DateTime FechaVencimiento { get; set; }
+    public int Cantidad { get; set; }
 }

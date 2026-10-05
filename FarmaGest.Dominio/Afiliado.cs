@@ -1,4 +1,4 @@
-namespace FarmaGest.Dominio;
+﻿namespace FarmaGest.Dominio;
 
 public class Afiliado
 {

@@ -1,54 +1,151 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using FarmaGest.UI.Views.Cajero;
+using FarmaGest.Negocio.Servicios;
+using FarmaGest.UI.Helpers;
 
 namespace FarmaGest.UI.Views.Administrador;
 
-// MAQUETA: historial de ventas con datos de ejemplo.
+/// <summary>Historial de ventas: quién la armó, quién la cobró y cómo se pagó.</summary>
 public partial class VentasPage : Page
 {
-    public VentasPage()
+    private readonly VentaService _ventaService;
+    private List<VentaResumenDto> _ventas = new();
+
+    public VentasPage(VentaService ventaService)
     {
         InitializeComponent();
+        _ventaService = ventaService;
 
         FechaPicker.SelectedDate = DateTime.Today;
+        Loaded += async (_, _) => await CargarAsync();
+    }
 
-        VentasGrid.ItemsSource = new List<VentaFalsa>
+    private async Task CargarAsync()
+    {
+        try
         {
-            new() { Numero = 1046, Hora = "11:24", Tipo = "Con receta",  Cliente = "Juan Pérez (OSDE 210)",          MedioPago = "—",             Total = 9770.00m,  Estado = "Pendiente de cobro" },
-            new() { Numero = 1045, Hora = "11:12", Tipo = "Con receta",  Cliente = "María López (IOSCOR)",           MedioPago = "—",             Total = 9870.40m,  Estado = "Pendiente de cobro" },
-            new() { Numero = 1044, Hora = "11:02", Tipo = "Venta libre", Cliente = "Consumidor final",               MedioPago = "—",             Total = 6240.00m,  Estado = "Pendiente de cobro" },
-            new() { Numero = 1043, Hora = "10:41", Tipo = "Con receta",  Cliente = "María López (IOSCOR)",           MedioPago = "Efectivo",      Total = 5316.00m,  Estado = "Facturada" },
-            new() { Numero = 1042, Hora = "10:15", Tipo = "Venta libre", Cliente = "Consumidor final",               MedioPago = "Débito",        Total = 2150.00m,  Estado = "Facturada" },
-            new() { Numero = 1041, Hora = "09:50", Tipo = "Venta libre", Cliente = "Consumidor final",               MedioPago = "—",             Total = 4380.00m,  Estado = "Anulada" },
-            new() { Numero = 1040, Hora = "09:22", Tipo = "Con receta",  Cliente = "Carlos Benítez (Swiss Medical)", MedioPago = "Crédito",       Total = 7425.00m,  Estado = "Facturada" },
-            new() { Numero = 1039, Hora = "09:05", Tipo = "Venta libre", Cliente = "Consumidor final",               MedioPago = "Efectivo",      Total = 12900.00m, Estado = "Facturada" },
+            _ventas = await _ventaService.ObtenerVentasAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudieron cargar las ventas.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        var hoy = _ventas.Where(v => v.Fecha.Date == DateTime.Today).ToList();
+        VentasHoyText.Text = hoy.Count(v => v.Estado != VentaService.EstadoAnulada).ToString();
+        FacturadoHoyText.Text = $"$ {hoy.Where(v => v.Estado == VentaService.EstadoFacturada).Sum(v => v.Total):N2}";
+        PendientesText.Text = _ventas.Count(v => v.Estado == VentaService.EstadoPendiente).ToString();
+        AnuladasHoyText.Text = hoy.Count(v => v.Estado == VentaService.EstadoAnulada).ToString();
+
+        AplicarFiltro();
+    }
+
+    private List<VentaResumenDto> VentasFiltradas()
+    {
+        string texto = BuscarText.Text.Trim();
+        DateTime? fecha = FechaPicker.SelectedDate;
+
+        string? estado = EstadoCombo.SelectedIndex switch
+        {
+            1 => VentaService.EstadoPendiente,
+            2 => VentaService.EstadoFacturada,
+            3 => VentaService.EstadoAnulada,
+            _ => null
         };
+
+        bool? conReceta = TipoCombo.SelectedIndex switch
+        {
+            1 => true,
+            2 => false,
+            _ => null
+        };
+
+        return _ventas
+            .Where(v => fecha == null || v.Fecha.Date == fecha.Value.Date)
+            .Where(v => estado == null || v.Estado == estado)
+            .Where(v => conReceta == null || v.TieneReceta == conReceta)
+            .Where(v => texto.Length == 0 ||
+                        v.Numero.ToString() == texto ||
+                        v.Cliente.Contains(texto, StringComparison.OrdinalIgnoreCase) ||
+                        v.Responsable.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
-    private void VerTicket_Click(object sender, RoutedEventArgs e)
+    private void AplicarFiltro() => VentasGrid.ItemsSource = VentasFiltradas();
+
+    private void Filtro_Changed(object sender, RoutedEventArgs e)
     {
-        var ticket = new TicketWindow { Owner = Window.GetWindow(this) };
-        ticket.ShowDialog();
+        if (IsLoaded)
+            AplicarFiltro();
     }
 
-    private void Exportar_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Acá se exportaría el listado de ventas (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
-
-    private class VentaFalsa
+    private async void VerDetalle_Click(object sender, RoutedEventArgs e)
     {
-        public int Numero { get; set; }
-        public string Hora { get; set; } = "";
-        public string Tipo { get; set; } = "";
-        public string Cliente { get; set; } = "";
-        public string MedioPago { get; set; } = "";
-        public decimal Total { get; set; }
-        public string Estado { get; set; } = "";
+        if (sender is not FrameworkElement { Tag: VentaResumenDto venta })
+            return;
 
-        // Solo las ventas cobradas tienen ticket
-        public bool TieneTicket => Estado == "Facturada";
+        try
+        {
+            var detalle = await _ventaService.ObtenerDetalleAsync(venta.Numero);
+
+            var texto = new StringBuilder();
+            texto.AppendLine($"Venta N° {venta.Numero} · {venta.Fecha:dd/MM/yyyy HH:mm}");
+            texto.AppendLine($"{venta.Tipo} · {venta.Cliente}");
+            texto.AppendLine($"Armó: {venta.Responsable}");
+            texto.AppendLine($"Estado: {venta.Estado}" +
+                             (venta.Estado == VentaService.EstadoFacturada ? $" · {venta.MedioPago} · cobró {venta.Cajero}" : ""));
+            texto.AppendLine();
+
+            foreach (var d in detalle)
+            {
+                texto.AppendLine($"• {d.Producto} x{d.Cantidad}  $ {d.Subtotal:N2}" +
+                                 (d.Descuento > 0 ? $"  (cobertura - $ {d.Descuento:N2})" : ""));
+            }
+
+            texto.AppendLine();
+            texto.AppendLine($"Subtotal: $ {venta.Subtotal:N2}");
+            texto.AppendLine($"Cobertura obra social: - $ {venta.Descuento:N2}");
+            texto.AppendLine($"Total: $ {venta.Total:N2}");
+
+            MessageBox.Show(texto.ToString(), "Detalle de la venta", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo cargar el detalle.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private void Exportar_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var ruta = ExportadorCsv.Exportar<VentaResumenDto>("Ventas", VentasFiltradas(),
+                ("N° venta", v => v.Numero),
+                ("Fecha", v => v.Fecha),
+                ("Tipo", v => v.Tipo),
+                ("Paciente / cliente", v => v.Cliente),
+                ("Armó", v => v.Responsable),
+                ("Estado", v => v.Estado),
+                ("Medio de pago", v => v.MedioPago),
+                ("Cobró", v => v.Cajero),
+                ("Subtotal", v => v.Subtotal),
+                ("Cobertura", v => v.Descuento),
+                ("Total", v => v.Total));
+
+            if (ruta != null)
+                MessageBox.Show($"Listado exportado en:\n{ruta}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo exportar.\n\n{ex.Message}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 }

@@ -5,7 +5,7 @@
       xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
       Title="Recetas">
 
-	<!-- MAQUETA: consulta de recetas. La validación es exclusiva del Farmacéutico. -->
+	<!-- Consulta de recetas. La validación es exclusiva del Farmacéutico. -->
 
 	<Page.Resources>
 		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
@@ -31,25 +31,25 @@
 			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0">
 				<StackPanel>
 					<TextBlock Text="Pendientes" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="2" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
+					<TextBlock x:Name="PendientesText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaWarningBrush}" />
 				</StackPanel>
 			</Border>
 			<Border Style="{StaticResource CardStyle}" Margin="4,0">
 				<StackPanel>
-					<TextBlock Text="Validadas este mes" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="160" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
+					<TextBlock Text="Validadas" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="ValidadasMesText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaSuccessBrush}" />
 				</StackPanel>
 			</Border>
 			<Border Style="{StaticResource CardStyle}" Margin="4,0">
 				<StackPanel>
-					<TextBlock Text="Rechazadas este mes" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="7" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
+					<TextBlock Text="Rechazadas" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="RechazadasMesText" Text="0" Style="{StaticResource KpiValueText}" Foreground="{StaticResource FarmaDangerBrush}" />
 				</StackPanel>
 			</Border>
 			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0">
 				<StackPanel>
-					<TextBlock Text="Motivo de rechazo más frecuente" Style="{StaticResource KpiLabelText}" />
-					<TextBlock Text="Receta vencida" FontSize="16" FontWeight="Bold" Margin="0,8,0,4" />
+					<TextBlock Text="Usadas en ventas" Style="{StaticResource KpiLabelText}" />
+					<TextBlock x:Name="UsadasText" Text="0" Style="{StaticResource KpiValueText}" />
 				</StackPanel>
 			</Border>
 		</UniformGrid>
@@ -62,22 +62,17 @@
 					<ColumnDefinition Width="180" />
 					<ColumnDefinition Width="200" />
 				</Grid.ColumnDefinitions>
-				<ui:TextBox Grid.Column="0" PlaceholderText="Buscar por paciente, N° de afiliado o médico..."
+				<ui:TextBox x:Name="BuscarText" Grid.Column="0" PlaceholderText="Buscar por N° de receta, paciente, N° de afiliado o médico..."
                             Icon="{ui:SymbolIcon Search24}" Margin="0,0,12,0"
-                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60" />
-				<ComboBox Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0">
+                            h:ValidacionEntrada.Tipo="Alfanumerico" MaxLength="60"
+                            TextChanged="Filtro_Changed" />
+				<ComboBox x:Name="EstadoCombo" Grid.Column="1" SelectedIndex="0" Margin="0,0,12,0" SelectionChanged="Filtro_Changed">
 					<ComboBoxItem Content="Todos los estados" />
 					<ComboBoxItem Content="Pendientes" />
 					<ComboBoxItem Content="Validadas" />
 					<ComboBoxItem Content="Rechazadas" />
 				</ComboBox>
-				<ComboBox Grid.Column="2" SelectedIndex="0">
-					<ComboBoxItem Content="Todas las obras sociales" />
-					<ComboBoxItem Content="IOSCOR" />
-					<ComboBoxItem Content="OSDE" />
-					<ComboBoxItem Content="PAMI" />
-					<ComboBoxItem Content="Swiss Medical" />
-				</ComboBox>
+				<ComboBox x:Name="ObraSocialCombo" Grid.Column="2" SelectionChanged="Filtro_Changed" />
 			</Grid>
 		</Border>
 
@@ -88,12 +83,13 @@
                       Background="Transparent" BorderThickness="0">
 				<DataGrid.Columns>
 					<DataGridTextColumn Header="N°" Binding="{Binding Numero}" Width="60" />
-					<DataGridTextColumn Header="Afiliado" Binding="{Binding Afiliado}" Width="1.3*" />
-					<DataGridTextColumn Header="Obra social" Binding="{Binding ObraSocial}" Width="1.3*" />
+					<DataGridTextColumn Header="Afiliado" Binding="{Binding Paciente}" Width="1.3*" />
+					<DataGridTextColumn Header="Obra social" Binding="{Binding ObraSocialPlan}" Width="1.3*" />
 					<DataGridTextColumn Header="Médico" Binding="{Binding Medico}" Width="1.3*" />
-					<DataGridTextColumn Header="Emisión" Binding="{Binding FechaEmision}" Width="90" />
-					<DataGridTextColumn Header="Vence" Binding="{Binding FechaVencimiento}" Width="90" />
-					<DataGridTextColumn Header="Validó" Binding="{Binding Valido}" Width="1.2*" />
+					<DataGridTextColumn Header="Emisión" Binding="{Binding FechaEmision, StringFormat='dd/MM/yyyy'}" Width="90" />
+					<DataGridTextColumn Header="Vence" Binding="{Binding FechaVencimiento, StringFormat='dd/MM/yyyy'}" Width="90" />
+					
+					<DataGridTextColumn Header="Uso" Binding="{Binding UsoTexto}" Width="90" />
 					<DataGridTemplateColumn Header="Estado" Width="110">
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>
@@ -106,7 +102,7 @@
 					<DataGridTemplateColumn Header="Detalle" Width="70">
 						<DataGridTemplateColumn.CellTemplate>
 							<DataTemplate>
-								<ui:HyperlinkButton Content="Ver" Padding="0" Click="VerDetalle_Click" />
+								<ui:HyperlinkButton Content="Ver" Padding="0" Click="VerDetalle_Click" Tag="{Binding}" />
 							</DataTemplate>
 						</DataGridTemplateColumn.CellTemplate>
 					</DataGridTemplateColumn>

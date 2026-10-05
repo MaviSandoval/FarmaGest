@@ -5,7 +5,7 @@
       xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
       Title="Configuración">
 
-	<!-- MAQUETA: configuración general y copia de seguridad -->
+	<!-- Datos y parámetros: maqueta (todavía no hay tabla de configuración). Copia de seguridad: real (BACKUP / RESTORE de SQL Server). -->
 
 	<Page.Resources>
 		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
@@ -110,7 +110,7 @@
 						</Grid.ColumnDefinitions>
 						<StackPanel Grid.Column="0" Margin="0,0,12,0">
 							<TextBlock Text="Carpeta de destino" Style="{StaticResource FieldLabelText}" />
-							<ui:TextBox x:Name="CarpetaBackupText" Text="C:\FarmaGest\Backups" IsReadOnly="True" />
+							<ui:TextBox x:Name="CarpetaBackupText" IsReadOnly="True" />
 						</StackPanel>
 						<ui:Button Grid.Column="1" Content="Elegir carpeta..." VerticalAlignment="Bottom"
                                    Icon="{ui:SymbolIcon Folder24}" Click="ElegirCarpeta_Click" />
@@ -123,15 +123,18 @@
                                    Click="RestaurarBackup_Click" />
 					</StackPanel>
 
+					<TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,0,0,14"
+                               Text="El archivo .bak lo escribe el servicio de SQL Server: por defecto se usa su carpeta de copias. Si elegís otra carpeta, el servicio tiene que tener permiso de escritura. Para restaurar, elegí una copia de la lista (o buscá un archivo .bak si no hay ninguna seleccionada)." />
+
 					<TextBlock Text="Últimas copias" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,6" />
 					<DataGrid x:Name="BackupsGrid" AutoGenerateColumns="False" IsReadOnly="True"
                               HeadersVisibility="Column" GridLinesVisibility="None" RowHeight="36"
                               Background="Transparent" BorderThickness="0" MaxHeight="190">
 						<DataGrid.Columns>
-							<DataGridTextColumn Header="Fecha" Binding="{Binding Fecha}" Width="*" />
-							<DataGridTextColumn Header="Archivo" Binding="{Binding Archivo}" Width="2*" />
+							<DataGridTextColumn Header="Fecha" Binding="{Binding FechaTexto}" Width="*" />
+							<DataGridTextColumn Header="Archivo" Binding="{Binding Archivo}" Width="2.5*" />
 							<DataGridTextColumn Header="Tamaño" Binding="{Binding Tamano}" Width="*" />
-							<DataGridTextColumn Header="Generada por" Binding="{Binding Usuario}" Width="*" />
+							<DataGridTextColumn Header="Generada por" Binding="{Binding GeneradaPor}" Width="*" />
 						</DataGrid.Columns>
 					</DataGrid>
 				</StackPanel>

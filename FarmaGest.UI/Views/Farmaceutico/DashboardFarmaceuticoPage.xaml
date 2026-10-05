@@ -1,4 +1,4 @@
-<Page x:Class="FarmaGest.UI.Views.Farmaceutico.DashboardFarmaceuticoPage"
+﻿<Page x:Class="FarmaGest.UI.Views.Farmaceutico.DashboardFarmaceuticoPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
       xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -17,8 +17,8 @@
 				</Border>
 				<Border Style="{StaticResource CardStyle}" Margin="5,0">
 					<StackPanel>
-						<TextBlock Text="Consultas hoy" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
-						<TextBlock Text="{Binding ConsultasHoy}" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
+						<TextBlock Text="Ventas enviadas hoy" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+						<TextBlock Text="{Binding VentasHoy}" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
 					</StackPanel>
 				</Border>
 				<Border Style="{StaticResource CardStyle}" Margin="5,0">
@@ -29,14 +29,14 @@
 				</Border>
 				<Border Style="{StaticResource CardStyle}" Margin="5,0">
 					<StackPanel>
-						<TextBlock Text="Stock crítico" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+						<TextBlock Text="Stock bajo o sin stock" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
 						<TextBlock Text="{Binding StockCritico}" FontSize="22" FontWeight="Bold" Foreground="{StaticResource FarmaDangerBrush}" Margin="0,6,0,4" />
 					</StackPanel>
 				</Border>
 				<Border Style="{StaticResource CardStyle}" Margin="10,0,0,0">
 					<StackPanel>
-						<TextBlock Text="Vencimientos próximos" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
-						<TextBlock Text="{Binding VencimientosProximos}" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
+						<TextBlock Text="Mis ventas pendientes de cobro" FontSize="12" Foreground="{StaticResource FarmaTextMutedBrush}" />
+						<TextBlock Text="{Binding PendientesCobro}" FontSize="22" FontWeight="Bold" Margin="0,6,0,4" />
 					</StackPanel>
 				</Border>
 			</UniformGrid>
@@ -49,7 +49,18 @@
 					<TextBlock Text="No hay recetas pendientes por ahora."
                                FontSize="12.5" Foreground="{StaticResource FarmaTextMutedBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,10"
-                               Visibility="Collapsed" x:Name="RecetasVacioText" />
+                               x:Name="RecetasVacioText">
+						<TextBlock.Style>
+							<Style TargetType="TextBlock">
+								<Setter Property="Visibility" Value="Collapsed" />
+								<Style.Triggers>
+									<DataTrigger Binding="{Binding SinRecetasPendientes}" Value="True">
+										<Setter Property="Visibility" Value="Visible" />
+									</DataTrigger>
+								</Style.Triggers>
+							</Style>
+						</TextBlock.Style>
+					</TextBlock>
 
 					<ItemsControl ItemsSource="{Binding RecetasPendientesList}">
 						<ItemsControl.ItemTemplate>
@@ -69,8 +80,8 @@
 										</StackPanel>
 
 										<StackPanel Grid.Column="1">
-											<TextBlock Text="{Binding Medicamento}" FontSize="12.5"/>
-											<TextBlock Text="Medicamento" FontSize="10.5" Foreground="{StaticResource FarmaTextMutedBrush}"/>
+											<TextBlock Text="{Binding Medicamento}" FontSize="12.5" TextWrapping="Wrap" Margin="0,0,10,0"/>
+											<TextBlock Text="Medicamentos" FontSize="10.5" Foreground="{StaticResource FarmaTextMutedBrush}"/>
 										</StackPanel>
 
 										<StackPanel Grid.Column="2">

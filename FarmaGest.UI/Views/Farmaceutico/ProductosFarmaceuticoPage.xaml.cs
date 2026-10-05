@@ -1,72 +1,162 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Controls;
+using FarmaGest.Dominio;
+using FarmaGest.Negocio.Servicios;
+using FarmaGest.UI.Helpers;
 
 namespace FarmaGest.UI.Views.Farmaceutico;
 
-// MAQUETA: catálogo de solo lectura para el farmacéutico.
+/// <summary>
+/// Gestión de productos del Farmacéutico. Es el mismo formulario que antes tenía
+/// el Administrador: Descripción, Categoría, Precio, Stock, Requiere receta y Es medicamento.
+/// </summary>
 public partial class ProductosFarmaceuticoPage : Page
 {
-    public ProductosFarmaceuticoPage()
+    private readonly ProductoService _service;
+    private List<Producto> _productos = new();
+    private int? _idEnEdicion;
+
+    public ProductosFarmaceuticoPage(ProductoService service)
     {
         InitializeComponent();
+        _service = service;
+        Loaded += async (_, _) => await CargarDatosAsync();
+    }
 
-        ProductosGrid.ItemsSource = new List<ProductoFalso>
+    private async Task CargarDatosAsync()
+    {
+        try
         {
-            new()
-            {
-                Descripcion = "Amoxicilina 500 mg x 16", Categoria = "Antibióticos", Precio = 8450m, Stock = 8,
-                RequiereReceta = true, Estado = "Activo",
-                Coberturas = { new() { Plan = "OSDE · Plan 210", Porcentaje = 40 }, new() { Plan = "IOSCOR · General", Porcentaje = 50 }, new() { Plan = "PAMI · Único", Porcentaje = 80 } }
-            },
-            new()
-            {
-                Descripcion = "Losartán 50 mg x 30", Categoria = "Cardiovasculares", Precio = 8860m, Stock = 30,
-                RequiereReceta = true, Estado = "Activo",
-                Coberturas = { new() { Plan = "IOSCOR · General", Porcentaje = 70 }, new() { Plan = "PAMI · Único", Porcentaje = 100 } }
-            },
-            new()
-            {
-                Descripcion = "Salbutamol 100 mcg x 200 dosis", Categoria = "Antigripales y Respiratorios", Precio = 14850m, Stock = 12,
-                RequiereReceta = true, Estado = "Activo",
-                Coberturas = { new() { Plan = "Swiss Medical · SMG20", Porcentaje = 50 } }
-            },
-            new()
-            {
-                Descripcion = "Paracetamol 500 mg x 20", Categoria = "Analgésicos y Antipiréticos", Precio = 2150m, Stock = 120,
-                RequiereReceta = false, Estado = "Activo"
-            },
-            new()
-            {
-                Descripcion = "Ibuprofeno 400 mg x 20", Categoria = "Antiinflamatorios", Precio = 2800m, Stock = 35,
-                RequiereReceta = false, Estado = "Activo"
-            },
-            new()
-            {
-                Descripcion = "Cetirizina 10 mg x 10", Categoria = "Antialérgicos", Precio = 3100m, Stock = 0,
-                RequiereReceta = false, Estado = "Inactivo",
-                Coberturas = { new() { Plan = "PAMI · Único", Porcentaje = 30 } }
-            },
-        };
+            CategoriaCombo.ItemsSource = await _service.ObtenerCategoriasAsync();
+            _productos = await _service.ObtenerTodosAsync();
+        }
+        catch (Exception ex)
+        {
+            MensajeText.Text = $"No se pudieron cargar los productos: {ex.Message}";
+            return;
+        }
 
-        ProductosGrid.SelectedIndex = 0;
+        MostrarProductos();
     }
 
-    private class ProductoFalso
+    private void MostrarProductos()
     {
-        public string Descripcion { get; set; } = "";
-        public string Categoria { get; set; } = "";
-        public decimal Precio { get; set; }
-        public int Stock { get; set; }
-        public bool RequiereReceta { get; set; }
-        public string Estado { get; set; } = "";
-        public List<CoberturaFalsa> Coberturas { get; } = new();
+        string texto = BuscarText.Text.Trim();
 
-        public string RequiereRecetaTexto => RequiereReceta ? "Sí" : "No";
+        ProductosGrid.ItemsSource = _productos
+            .Where(p => texto.Length == 0 || p.Descripcion.Contains(texto, StringComparison.OrdinalIgnoreCase))
+            .Select(p => new
+            {
+                Producto = p,
+                p.Descripcion,
+                p.Categoria,
+                p.PrecioVenta,
+                p.StockVenta,
+                RequiereRecetaTexto = p.RequiereReceta ? "Sí" : "No",
+                EstadoTexto = p.Estado ? "Activo" : "Inactivo",
+                TextoAccionEstado = p.Estado ? "Dar de baja" : "Reactivar"
+            })
+            .ToList();
     }
 
-    private class CoberturaFalsa
+    private void BuscarText_TextChanged(object sender, TextChangedEventArgs e)
     {
-        public string Plan { get; set; } = "";
-        public decimal Porcentaje { get; set; }
+        if (IsLoaded)
+            MostrarProductos();
+    }
+
+    private async void GuardarButton_Click(object sender, RoutedEventArgs e)
+    {
+        MensajeText.Text = string.Empty;
+
+        // Validación de tipos de dato: precio decimal (coma o punto) y stock entero
+        var precioLeido = ValidacionEntrada.LeerDecimal(PrecioText.Text);
+        var stockLeido = ValidacionEntrada.LeerEntero(StockText.Text);
+
+        if (string.IsNullOrWhiteSpace(DescripcionText.Text) ||
+            CategoriaCombo.SelectedItem is not Categoria categoria ||
+            precioLeido is null ||
+            stockLeido is null)
+        {
+            MensajeText.Text = "Completá Descripción, Categoría, Precio (número con hasta 2 decimales) y Stock (número entero).";
+            return;
+        }
+
+        try
+        {
+            if (_idEnEdicion is null)
+            {
+                await _service.CrearAsync(
+                    DescripcionText.Text, precioLeido.Value, stockLeido.Value,
+                    RequiereRecetaCheck.IsChecked == true, EsMedicamentoCheck.IsChecked == true, categoria.Id);
+            }
+            else
+            {
+                await _service.EditarAsync(
+                    _idEnEdicion.Value, DescripcionText.Text, precioLeido.Value, stockLeido.Value,
+                    RequiereRecetaCheck.IsChecked == true, EsMedicamentoCheck.IsChecked == true, categoria.Id);
+            }
+
+            LimpiarFormulario();
+            await CargarDatosAsync();
+        }
+        catch (Exception ex)
+        {
+            MensajeText.Text = $"Error al guardar: {ex.Message}";
+        }
+    }
+
+    private void EditarProducto_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not { } item) return;
+
+        var producto = (Producto)item.GetType().GetProperty("Producto")!.GetValue(item)!;
+
+        _idEnEdicion = producto.Id;
+        TituloFormularioText.Text = $"Editando: {producto.Descripcion}";
+        DescripcionText.Text = producto.Descripcion;
+        PrecioText.Text = producto.PrecioVenta.ToString("0.##", CultureInfo.InvariantCulture);
+        StockText.Text = producto.StockVenta.ToString();
+        RequiereRecetaCheck.IsChecked = producto.RequiereReceta;
+        EsMedicamentoCheck.IsChecked = producto.EsMedicamento;
+        CategoriaCombo.SelectedValue = producto.CategoriaId;
+        CancelarButton.Visibility = Visibility.Visible;
+        MensajeText.Text = string.Empty;
+    }
+
+    private async void CambiarEstadoProducto_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement fe || fe.Tag is not { } item) return;
+
+        var producto = (Producto)item.GetType().GetProperty("Producto")!.GetValue(item)!;
+
+        try
+        {
+            await _service.CambiarEstadoAsync(producto.Id, !producto.Estado);
+            await CargarDatosAsync();
+        }
+        catch (Exception ex)
+        {
+            MensajeText.Text = $"Error al cambiar el estado: {ex.Message}";
+        }
+    }
+
+    private void CancelarButton_Click(object sender, RoutedEventArgs e) => LimpiarFormulario();
+
+    private void LimpiarFormulario()
+    {
+        _idEnEdicion = null;
+        TituloFormularioText.Text = "Nuevo producto";
+        DescripcionText.Text = PrecioText.Text = StockText.Text = string.Empty;
+        RequiereRecetaCheck.IsChecked = false;
+        EsMedicamentoCheck.IsChecked = false;
+        CategoriaCombo.SelectedItem = null;
+        CancelarButton.Visibility = Visibility.Collapsed;
+        MensajeText.Text = string.Empty;
     }
 }
