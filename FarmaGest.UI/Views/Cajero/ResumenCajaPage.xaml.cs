@@ -1,65 +1,287 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 
+using FarmaGest.Negocio.Servicios;
+
 namespace FarmaGest.UI.Views.Cajero;
 
-// MAQUETA: resumen de la caja abierta con datos de ejemplo.
 public partial class ResumenCajaPage : Page
 {
-    public ResumenCajaPage()
+    private readonly FacturacionService _facturacionService;
+    private readonly SesionUsuarioService _sesionUsuarioService;
+
+    // =========================================================
+    // CONSTRUCTOR
+    // =========================================================
+
+    public ResumenCajaPage(
+        FacturacionService facturacionService,
+        SesionUsuarioService sesionUsuarioService)
     {
         InitializeComponent();
 
-        MediosPagoList.ItemsSource = new List<MedioPagoFalso>
-        {
-            new() { Medio = "Efectivo",      Cantidad = 8, Importe = 84320.00m },
-            new() { Medio = "Débito",        Cantidad = 5, Importe = 52180.00m },
-            new() { Medio = "Crédito",       Cantidad = 3, Importe = 36950.00m },
-            new() { Medio = "Transferencia", Cantidad = 2, Importe = 13000.00m },
-        };
+        _facturacionService = facturacionService;
+        _sesionUsuarioService = sesionUsuarioService;
 
-        MovimientosGrid.ItemsSource = new List<MovimientoFalso>
-        {
-            new() { Hora = "11:08", Numero = 1043, Responsable = "Farmacéutico Sistema", Medio = "Efectivo",      Importe = 5316.00m },
-            new() { Hora = "10:52", Numero = 1042, Responsable = "Farmacéutico Sistema", Medio = "Débito",        Importe = 2150.00m },
-            new() { Hora = "10:31", Numero = 1040, Responsable = "Farmacéutico Sistema", Medio = "Crédito",       Importe = 7425.00m },
-            new() { Hora = "10:05", Numero = 1039, Responsable = "Farmacéutico Sistema", Medio = "Efectivo",      Importe = 12900.00m },
-            new() { Hora = "09:40", Numero = 1037, Responsable = "Farmacéutico Sistema", Medio = "Transferencia", Importe = 8500.00m },
-            new() { Hora = "09:12", Numero = 1035, Responsable = "Farmacéutico Sistema", Medio = "Débito",        Importe = 14360.00m },
-            new() { Hora = "08:25", Numero = 1033, Responsable = "Farmacéutico Sistema", Medio = "Efectivo",      Importe = 3100.00m },
-        };
+        Loaded += ResumenCajaPage_Loaded;
     }
 
-    private void CerrarCaja_Click(object sender, RoutedEventArgs e)
+    // =========================================================
+    // AL CARGAR LA PÁGINA
+    // =========================================================
+
+    private async void ResumenCajaPage_Loaded(
+        object sender,
+        RoutedEventArgs e)
     {
-        var ventana = new CierreCajaWindow { Owner = Window.GetWindow(this) };
+        await CargarResumenCajaAsync();
+    }
+
+    // =========================================================
+    // CARGAR RESUMEN DE CAJA
+    // =========================================================
+
+    private async Task CargarResumenCajaAsync()
+    {
+        try
+        {
+            // -------------------------------------------------
+            // 1. Obtener usuario logueado
+            // -------------------------------------------------
+
+            var usuario =
+                _sesionUsuarioService.UsuarioActual;
+
+            if (usuario == null)
+            {
+                MessageBox.Show(
+                    "No hay un usuario autenticado.",
+                    "FarmaGest",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+
+            // -------------------------------------------------
+            // 2. Obtener resumen real de la caja abierta
+            // -------------------------------------------------
+
+            var resumen =
+                await _facturacionService
+                    .ObtenerResumenCajaAbiertaAsync(
+                        usuario.Id);
+
+            // -------------------------------------------------
+            // 3. Verificar que exista una caja abierta
+            // -------------------------------------------------
+
+            if (resumen == null)
+            {
+                TxtInfoCaja.Text =
+                    "No hay una caja abierta.";
+
+                TxtMontoInicial.Text =
+                    "$ 0,00";
+
+                TxtTotalCobrado.Text =
+                    "$ 0,00";
+
+                TxtEfectivoEsperado.Text =
+                    "$ 0,00";
+
+                TxtCantidadCobros.Text =
+                    "0";
+
+                TxtTotalMediosPago.Text =
+                    "$ 0,00";
+
+                MediosPagoList.ItemsSource =
+                    null;
+
+                MovimientosGrid.ItemsSource =
+                    null;
+
+                return;
+            }
+
+            // -------------------------------------------------
+            // 4. Encabezado
+            // -------------------------------------------------
+
+            TxtInfoCaja.Text =
+                $"Caja N° {resumen.CajaId} · " +
+                $"Abierta hoy a las " +
+                $"{resumen.FechaApertura:HH:mm} · " +
+                $"{resumen.Cajero}";
+
+            // -------------------------------------------------
+            // 5. KPIs
+            // -------------------------------------------------
+
+            TxtMontoInicial.Text =
+                resumen.MontoInicial.ToString(
+                    "$ #,##0.00");
+
+            TxtTotalCobrado.Text =
+                resumen.TotalCobrado.ToString(
+                    "$ #,##0.00");
+
+            TxtEfectivoEsperado.Text =
+                resumen.EfectivoEsperado.ToString(
+                    "$ #,##0.00");
+
+            TxtCantidadCobros.Text =
+                resumen.CantidadCobros.ToString();
+
+            // -------------------------------------------------
+            // 6. TOTALES POR MEDIO DE PAGO
+            // -------------------------------------------------
+
+            MediosPagoList.ItemsSource =
+                resumen.MediosPago;
+
+            TxtTotalMediosPago.Text =
+                resumen.TotalCobrado.ToString(
+                    "$ #,##0.00");
+
+            // -------------------------------------------------
+            // 7. MOVIMIENTOS / COBROS
+            // -------------------------------------------------
+
+            MovimientosGrid.ItemsSource =
+                resumen.Movimientos
+                    .Select(m => new MovimientoVista
+                    {
+                        FacturacionId =
+                            m.FacturacionId,
+
+                        Hora =
+                            m.Fecha.ToString("HH:mm"),
+
+                        Numero =
+                            m.VentaId,
+
+                        // Farmacéutico/vendedor que
+                        // realizó la venta.
+                        Responsable =
+                            m.Responsable,
+
+                        Medio =
+                            m.MetodoPago,
+
+                        Importe =
+                            m.Importe
+                    })
+                    .ToList();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "No se pudo cargar el resumen de caja.\n\n" +
+                ex.Message,
+                "FarmaGest",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+        }
+    }
+
+    // =========================================================
+    // CERRAR CAJA
+    // =========================================================
+
+    private void CerrarCaja_Click(
+        object sender,
+        RoutedEventArgs e)
+    {
+        var ventana =
+            new CierreCajaWindow
+            {
+                Owner =
+                    Window.GetWindow(this)
+            };
+
         ventana.ShowDialog();
     }
 
-    private void VerTicket_Click(object sender, RoutedEventArgs e)
+    // =========================================================
+    // VER TICKET
+    // =========================================================
+
+    private void VerTicket_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        var ventana = new TicketWindow { Owner = Window.GetWindow(this) };
-        ventana.ShowDialog();
+        // Obtenemos la fila seleccionada.
+        if (sender is FrameworkElement elemento &&
+            elemento.DataContext is MovimientoVista movimiento)
+        {
+            // Por ahora mantenemos la ventana actual
+            // de ticket.
+            //
+            // Más adelante podemos pasarle
+            // movimiento.FacturacionId o movimiento.Numero
+            // para mostrar el ticket exacto.
+
+            var ventana =
+                new TicketWindow
+                {
+                    Owner =
+                        Window.GetWindow(this)
+                };
+
+            ventana.ShowDialog();
+
+            return;
+        }
+
+        var ticket =
+            new TicketWindow
+            {
+                Owner =
+                    Window.GetWindow(this)
+            };
+
+        ticket.ShowDialog();
     }
 
-    private void Imprimir_Click(object sender, RoutedEventArgs e) =>
-        MessageBox.Show("Acá se imprimiría el resumen de caja (maqueta).", "FarmaGest",
-            MessageBoxButton.OK, MessageBoxImage.Information);
+    // =========================================================
+    // IMPRIMIR
+    // =========================================================
 
-    private class MedioPagoFalso
+    private void Imprimir_Click(
+        object sender,
+        RoutedEventArgs e)
     {
-        public string Medio { get; set; } = "";
-        public int Cantidad { get; set; }
-        public decimal Importe { get; set; }
+        MessageBox.Show(
+            "La impresión del resumen de caja todavía no está implementada.",
+            "FarmaGest",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
-    private class MovimientoFalso
+    // =========================================================
+    // MODELO UTILIZADO POR EL DATAGRID
+    // =========================================================
+
+    private class MovimientoVista
     {
-        public string Hora { get; set; } = "";
+        public int FacturacionId { get; set; }
+
+        public string Hora { get; set; } =
+            string.Empty;
+
         public int Numero { get; set; }
-        public string Responsable { get; set; } = "";
-        public string Medio { get; set; } = "";
+
+        public string Responsable { get; set; } =
+            string.Empty;
+
+        public string Medio { get; set; } =
+            string.Empty;
+
         public decimal Importe { get; set; }
     }
 }

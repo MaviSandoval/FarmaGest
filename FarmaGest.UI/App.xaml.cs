@@ -9,7 +9,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using FarmaGest.UI.ViewModels.Compartido;
 
-
 using FarmaGest.UI.Views.Farmaceutico;
 using FarmaGest.UI.ViewModels.Farmaceutico;
 using FarmaGest.UI.Views.Cajero;
@@ -25,8 +24,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Color de acento de la marca (verde FarmaGest) para botones, links, casillas y selección.
-        // Sin esto WPF-UI toma el color de acento de Windows (por ejemplo morado).
+        // Color de acento de la marca (verde FarmaGest)
         Wpf.Ui.Appearance.ApplicationAccentColorManager.Apply(
             System.Windows.Media.Color.FromRgb(0x1F, 0x7A, 0x6C),
             Wpf.Ui.Appearance.ApplicationTheme.Light);
@@ -38,15 +36,21 @@ public partial class App : Application
         // ---- Verificación de conexión a la BD ----
         using (var scope = Services.CreateScope())
         {
-            var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<FarmaGestDbContext>>();
+            var factory = scope.ServiceProvider
+                .GetRequiredService<IDbContextFactory<FarmaGestDbContext>>();
+
             await using var db = await factory.CreateDbContextAsync();
+
             bool conecta = await db.Database.CanConnectAsync();
 
             if (!conecta)
             {
                 MessageBox.Show(
                     "No se pudo conectar a la base de datos FarmaGestDB.",
-                    "Error de conexión", MessageBoxButton.OK, MessageBoxImage.Error);
+                    "Error de conexión",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+
                 Shutdown();
                 return;
             }
@@ -58,19 +62,24 @@ public partial class App : Application
 
     private static void ConfigurarServicios(IServiceCollection servicios)
     {
-        // ---- Cadena de conexión centralizada (Singleton) ----
+        // ---- Cadena de conexión centralizada ----
         string cadena = ConexionSingleton.Instancia.CadenaConexion;
 
-        // ---- Base de datos (EF Core) ----
+        // ---- Base de datos ----
         servicios.AddDbContextFactory<FarmaGestDbContext>(opt =>
             opt.UseSqlServer(cadena));
 
+        // =====================================================
+        // CAPA DE DATOS
+        // =====================================================
 
-        // ---- Capa de Datos: procedimientos almacenados ----
         servicios.AddSingleton<UsuarioRepositorio>();
         servicios.AddSingleton<BackupRepositorio>();
 
-        // ---- Capa de Negocio ----
+        // =====================================================
+        // CAPA DE NEGOCIO
+        // =====================================================
+
         servicios.AddSingleton<UsuarioService>();
         servicios.AddSingleton<GestionUsuariosService>();
         servicios.AddSingleton<IDashboardService, DashboardServiceEnMemoria>();
@@ -78,6 +87,8 @@ public partial class App : Application
         servicios.AddSingleton<SesionUsuarioService>();
         servicios.AddSingleton<CajaService>();
         servicios.AddSingleton<FacturacionService>();
+
+        // Servicios agregados por los cambios nuevos
         servicios.AddSingleton<StockService>();
         servicios.AddSingleton<RecetaService>();
         servicios.AddSingleton<VentaService>();
@@ -85,9 +96,10 @@ public partial class App : Application
         servicios.AddSingleton<ReporteService>();
         servicios.AddSingleton<BackupService>();
 
-        // ---- Capa de UI - Administrador ----
-        // Las ventanas principales son Transient: al cerrar sesión se cierran,
-        // y una ventana cerrada no se puede volver a mostrar.
+        // =====================================================
+        // UI - ADMINISTRADOR
+        // =====================================================
+
         servicios.AddTransient<MainWindow>();
         servicios.AddTransient<DashboardPage>();
         servicios.AddTransient<VentasPage>();
@@ -99,10 +111,14 @@ public partial class App : Application
         servicios.AddTransient<ConfiguracionPage>();
         servicios.AddTransient<GestionUsuariosPage>();
 
-        // ---- Capa de UI - Farmacéutico ----
+        // =====================================================
+        // UI - FARMACÉUTICO
+        // =====================================================
+
         servicios.AddTransient<MainWindowFarmaceutico>();
         servicios.AddTransient<DashboardFarmaceuticoPage>();
         servicios.AddTransient<DashboardFarmaceuticoViewModel>();
+
         servicios.AddTransient<ValidacionRecetasPage>();
         servicios.AddTransient<NuevaVentaPage>();
         servicios.AddTransient<VentasFarmaceuticoPage>();
@@ -111,20 +127,29 @@ public partial class App : Application
         servicios.AddTransient<ObrasSocialesPage>();
         servicios.AddTransient<ReportesFarmaceuticoPage>();
 
-        // ---- Capa de UI - Cajero ----
+        // =====================================================
+        // UI - CAJERO
+        // =====================================================
+
         servicios.AddTransient<MainWindowCajero>();
+
+        // Inicio del cajero conectado a datos reales
+        servicios.AddTransient<DashboardCajeroPage>();
+
         servicios.AddTransient<CajaPage>();
         servicios.AddTransient<PreventasPage>();
         servicios.AddTransient<VentasCobradasPage>();
 
-        // ---- Compartido ----
+        // Resumen de caja conectado a datos reales
+        servicios.AddTransient<ResumenCajaPage>();
+
+        // =====================================================
+        // UI - COMPARTIDO
+        // =====================================================
+
         servicios.AddTransient<LoginViewModel>();
         servicios.AddTransient<AuthWindow>();
         servicios.AddTransient<MiPerfilPage>();
-
-
-
-
         servicios.AddTransient<CambiarContrasenaViewModel>();
     }
 }
