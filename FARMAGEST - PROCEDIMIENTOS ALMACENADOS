@@ -1,0 +1,345 @@
+/* =====================================================================
+   FARMAGEST - PROCEDIMIENTOS ALMACENADOS
+   ---------------------------------------------------------------------
+   Taller de Programación II - FaCENA UNNE - 2026 - Grupo 23
+
+   Contenido:
+     1. CRUD de Usuario
+        1.1 sp_Usuario_Alta
+        1.2 sp_Usuario_Modificacion (incluye la baja lógica)
+     2. Pruebas
+
+   Convención de todos los procedimientos:
+     - Devuelven @codigo_error (0 = OK) y @mensaje_error.
+     - Manejan las excepciones con TRY/CATCH y transacción.
+   ===================================================================== */
+
+USE FarmaGestDB;
+GO
+
+
+/* =====================================================================
+   1.1 sp_Usuario_Alta
+   ---------------------------------------------------------------------
+   Registra un nuevo usuario y devuelve el id generado.
+
+   Parámetros de salida:
+     @id_usuario     -> id del usuario creado (0 si hubo error)
+     @codigo_error   -> 0 = OK, distinto de 0 = error
+     @mensaje_error  -> descripción del resultado
+
+   Códigos de error:
+     0  = Operación exitosa
+     1  = Faltan datos obligatorios
+     2  = El rol no existe o está inactivo
+     3  = El DNI ya está registrado
+     4  = El email ya está registrado
+     99 = Error inesperado
+
+   La contraseña llega ya hasheada (BCrypt) desde la capa de Negocio.
+   ===================================================================== */
+
+CREATE OR ALTER PROCEDURE sp_Usuario_Alta
+    @dni            VARCHAR(15),
+    @nombre         VARCHAR(80),
+    @apellido       VARCHAR(80),
+    @email          VARCHAR(120),
+    @contrasena     VARCHAR(256),
+    @id_rol         INT,
+    @id_usuario     INT          OUTPUT,
+    @codigo_error   INT          OUTPUT,
+    @mensaje_error  VARCHAR(500) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SET @id_usuario    = 0;
+    SET @codigo_error  = 0;
+    SET @mensaje_error = 'Usuario registrado correctamente.';
+
+    BEGIN TRY
+        -- Limpieza de datos
+        SET @dni      = LTRIM(RTRIM(@dni));
+        SET @nombre   = LTRIM(RTRIM(@nombre));
+        SET @apellido = LTRIM(RTRIM(@apellido));
+        SET @email    = NULLIF(LTRIM(RTRIM(@email)), '');
+
+        -- 1. Datos obligatorios
+        IF ISNULL(@dni, '') = '' OR ISNULL(@nombre, '') = '' OR ISNULL(@apellido, '') = ''
+           OR ISNULL(@contrasena, '') = '' OR @id_rol IS NULL
+        BEGIN
+            SET @codigo_error  = 1;
+            SET @mensaje_error = 'Faltan datos obligatorios (DNI, nombre, apellido, contraseña o rol).';
+            RETURN;
+        END
+
+        -- 2. Rol válido
+        IF NOT EXISTS (SELECT 1 FROM Rol WHERE id_rol = @id_rol AND estado = 1)
+        BEGIN
+            SET @codigo_error  = 2;
+            SET @mensaje_error = 'El rol indicado no existe o está inactivo.';
+            RETURN;
+        END
+
+        -- 3. DNI único
+        IF EXISTS (SELECT 1 FROM Usuario WHERE dni = @dni)
+        BEGIN
+            SET @codigo_error  = 3;
+            SET @mensaje_error = 'Ya existe un usuario con el DNI ' + @dni + '.';
+            RETURN;
+        END
+
+        -- 4. Email único (solo si se informó)
+        IF @email IS NOT NULL AND EXISTS (SELECT 1 FROM Usuario WHERE email = @email)
+        BEGIN
+            SET @codigo_error  = 4;
+            SET @mensaje_error = 'Ya existe un usuario con el email ' + @email + '.';
+            RETURN;
+        END
+
+        -- Alta: el usuario nace activo y obligado a cambiar la contraseña
+        BEGIN TRANSACTION;
+
+            INSERT INTO Usuario (dni, nombre, apellido, email, contrasena, estado, id_rol, requiere_cambio_contrasena)
+            VALUES (@dni, @nombre, @apellido, @email, @contrasena, 1, @id_rol, 1);
+
+            SET @id_usuario = CAST(SCOPE_IDENTITY() AS INT);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SET @id_usuario    = 0;
+        SET @codigo_error  = 99;
+        SET @mensaje_error = 'Error inesperado al registrar el usuario: ' + ERROR_MESSAGE();
+    END CATCH
+END
+GO
+
+
+/* =====================================================================
+   1.2 sp_Usuario_Modificacion
+   ---------------------------------------------------------------------
+   Modifica los datos de un usuario existente.
+   También se usa para la BAJA LÓGICA (@estado = 0) y la reactivación
+   (@estado = 1): no hay un SP de baja aparte.
+
+   Los parámetros que se envían en NULL conservan el valor actual.
+   Ejemplo de baja:
+     EXEC sp_Usuario_Modificacion @id_usuario = 5, @estado = 0,
+          @codigo_error = @cod OUTPUT, @mensaje_error = @msg OUTPUT;
+
+   Cambio de contraseña (@contrasena = hash BCrypt):
+     - Reseteo hecho por el Administrador: se envía solo @contrasena
+       -> el usuario deberá cambiarla en su próximo ingreso.
+     - Cambio hecho por el propio usuario al iniciar sesión: se envía
+       @contrasena y @requiere_cambio_contrasena = 0.
+
+   Parámetros de salida:
+     @codigo_error   -> 0 = OK, distinto de 0 = error
+     @mensaje_error  -> descripción del resultado
+
+   Códigos de error:
+     0  = Operación exitosa
+     1  = No se indicó el usuario
+     2  = El rol no existe o está inactivo
+     3  = El DNI ya está registrado por otro usuario
+     4  = El email ya está registrado por otro usuario
+     5  = El usuario no existe
+     6  = No se puede dar de baja ni cambiar el rol del último Administrador activo
+     99 = Error inesperado
+   ===================================================================== */
+
+CREATE OR ALTER PROCEDURE sp_Usuario_Modificacion
+    @id_usuario     INT,
+    @dni            VARCHAR(15)  = NULL,
+    @nombre         VARCHAR(80)  = NULL,
+    @apellido       VARCHAR(80)  = NULL,
+    @email          VARCHAR(120) = NULL,
+    @id_rol         INT          = NULL,
+    @estado         BIT          = NULL,
+    @contrasena     VARCHAR(256) = NULL,
+    @requiere_cambio_contrasena BIT = NULL,
+    @foto           VARBINARY(MAX) = NULL,
+    @quitar_foto    BIT          = 0,
+    @codigo_error   INT          OUTPUT,
+    @mensaje_error  VARCHAR(500) OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SET @codigo_error  = 0;
+    SET @mensaje_error = 'Usuario modificado correctamente.';
+
+    BEGIN TRY
+        -- Limpieza de datos (cadena vacía = no se modifica)
+        SET @dni        = NULLIF(LTRIM(RTRIM(@dni)), '');
+        SET @nombre     = NULLIF(LTRIM(RTRIM(@nombre)), '');
+        SET @apellido   = NULLIF(LTRIM(RTRIM(@apellido)), '');
+        SET @email      = NULLIF(LTRIM(RTRIM(@email)), '');
+        SET @contrasena = NULLIF(@contrasena, '');
+
+        -- 1. Usuario indicado
+        IF @id_usuario IS NULL
+        BEGIN
+            SET @codigo_error  = 1;
+            SET @mensaje_error = 'Debe indicar el usuario a modificar.';
+            RETURN;
+        END
+
+        -- 2. Rol válido (si se cambia)
+        IF @id_rol IS NOT NULL
+           AND NOT EXISTS (SELECT 1 FROM Rol WHERE id_rol = @id_rol AND estado = 1)
+        BEGIN
+            SET @codigo_error  = 2;
+            SET @mensaje_error = 'El rol indicado no existe o está inactivo.';
+            RETURN;
+        END
+
+        -- 3. DNI único (sin contar al propio usuario)
+        IF @dni IS NOT NULL
+           AND EXISTS (SELECT 1 FROM Usuario WHERE dni = @dni AND id_usuario <> @id_usuario)
+        BEGIN
+            SET @codigo_error  = 3;
+            SET @mensaje_error = 'Ya existe otro usuario con el DNI ' + @dni + '.';
+            RETURN;
+        END
+
+        -- 4. Email único (sin contar al propio usuario)
+        IF @email IS NOT NULL
+           AND EXISTS (SELECT 1 FROM Usuario WHERE email = @email AND id_usuario <> @id_usuario)
+        BEGIN
+            SET @codigo_error  = 4;
+            SET @mensaje_error = 'Ya existe otro usuario con el email ' + @email + '.';
+            RETURN;
+        END
+
+        -- 5. El usuario debe existir
+        IF NOT EXISTS (SELECT 1 FROM Usuario WHERE id_usuario = @id_usuario)
+        BEGIN
+            SET @codigo_error  = 5;
+            SET @mensaje_error = 'El usuario indicado no existe.';
+            RETURN;
+        END
+
+        -- 6. Siempre debe quedar al menos un Administrador activo
+        DECLARE @id_rol_admin INT = (SELECT id_rol FROM Rol WHERE nombre = 'Administrador');
+
+        DECLARE @es_admin_activo BIT =
+            CASE WHEN EXISTS (SELECT 1 FROM Usuario
+                              WHERE id_usuario = @id_usuario
+                                AND id_rol = @id_rol_admin
+                                AND estado = 1)
+                 THEN 1 ELSE 0 END;
+
+        DECLARE @deja_de_ser_admin BIT =
+            CASE WHEN @estado = 0 OR (@id_rol IS NOT NULL AND @id_rol <> @id_rol_admin)
+                 THEN 1 ELSE 0 END;
+
+        DECLARE @admins_activos INT =
+            (SELECT COUNT(*) FROM Usuario WHERE id_rol = @id_rol_admin AND estado = 1);
+
+        IF @es_admin_activo = 1 AND @deja_de_ser_admin = 1 AND @admins_activos = 1
+        BEGIN
+            SET @codigo_error  = 6;
+            SET @mensaje_error = 'No se puede dar de baja ni cambiar el rol del último Administrador activo.';
+            RETURN;
+        END
+
+        -- Modificación
+        BEGIN TRANSACTION;
+
+            UPDATE Usuario
+            SET dni        = ISNULL(@dni, dni),
+                nombre     = ISNULL(@nombre, nombre),
+                apellido   = ISNULL(@apellido, apellido),
+                email      = ISNULL(@email, email),
+                id_rol     = ISNULL(@id_rol, id_rol),
+                estado     = ISNULL(@estado, estado),
+                contrasena = ISNULL(@contrasena, contrasena),
+                foto       = CASE WHEN @quitar_foto = 1 THEN NULL
+                                  ELSE ISNULL(@foto, foto) END,
+                requiere_cambio_contrasena =
+                    CASE WHEN @requiere_cambio_contrasena IS NOT NULL THEN @requiere_cambio_contrasena
+                         WHEN @contrasena IS NOT NULL THEN 1   -- reseteo del Administrador
+                         ELSE requiere_cambio_contrasena END
+            WHERE id_usuario = @id_usuario;
+
+        COMMIT TRANSACTION;
+
+        IF @estado = 0
+            SET @mensaje_error = 'Usuario dado de baja correctamente.';
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+        SET @codigo_error  = 99;
+        SET @mensaje_error = 'Error inesperado al modificar el usuario: ' + ERROR_MESSAGE();
+    END CATCH
+END
+GO
+
+
+/* =====================================================================
+   2. PRUEBAS
+   ---------------------------------------------------------------------
+   Roles del script de creación: 1 = Administrador, 2 = Cajero, 3 = Farmaceutico
+   Usuario de prueba: DNI 30111222 (se crea en la prueba 2.1)
+   ===================================================================== */
+
+-- 2.1 Alta correcta -> codigo_error = 0 y devuelve el id generado
+DECLARE @id INT, @cod INT, @msg VARCHAR(500);
+EXEC sp_Usuario_Alta
+    @dni = '30111222', @nombre = 'Lucía', @apellido = 'Gómez',
+    @email = 'lucia@farmagest.com',
+    @contrasena = '$2b$11$XPYnHhH.lmEmv01FLDsuZuGE52JeBVxweTiNNHpu3Z96vHNKeOkwC',
+    @id_rol = 3,
+    @id_usuario = @id OUTPUT, @codigo_error = @cod OUTPUT, @mensaje_error = @msg OUTPUT;
+SELECT @id AS id_usuario, @cod AS codigo_error, @msg AS mensaje_error;
+GO
+
+-- 2.2 Alta con DNI repetido -> codigo_error = 3
+DECLARE @id INT, @cod INT, @msg VARCHAR(500);
+EXEC sp_Usuario_Alta
+    @dni = '30111222', @nombre = 'Otra', @apellido = 'Persona', @email = NULL,
+    @contrasena = '$2b$11$XPYnHhH.lmEmv01FLDsuZuGE52JeBVxweTiNNHpu3Z96vHNKeOkwC',
+    @id_rol = 2,
+    @id_usuario = @id OUTPUT, @codigo_error = @cod OUTPUT, @mensaje_error = @msg OUTPUT;
+SELECT @id AS id_usuario, @cod AS codigo_error, @msg AS mensaje_error;
+GO
+
+-- 2.3 Modificación (cambia apellido y rol) -> codigo_error = 0
+DECLARE @cod INT, @msg VARCHAR(500);
+DECLARE @id INT = (SELECT id_usuario FROM Usuario WHERE dni = '30111222');
+EXEC sp_Usuario_Modificacion
+    @id_usuario = @id, @apellido = 'Gómez Ruiz', @id_rol = 2,
+    @codigo_error = @cod OUTPUT, @mensaje_error = @msg OUTPUT;
+SELECT @cod AS codigo_error, @msg AS mensaje_error;
+GO
+
+-- 2.4 Baja lógica (mismo SP con @estado = 0) -> codigo_error = 0
+DECLARE @cod INT, @msg VARCHAR(500);
+DECLARE @id INT = (SELECT id_usuario FROM Usuario WHERE dni = '30111222');
+EXEC sp_Usuario_Modificacion
+    @id_usuario = @id, @estado = 0,
+    @codigo_error = @cod OUTPUT, @mensaje_error = @msg OUTPUT;
+SELECT @cod AS codigo_error, @msg AS mensaje_error;
+GO
+
+-- 2.5 Baja del único Administrador -> codigo_error = 6
+DECLARE @cod INT, @msg VARCHAR(500);
+DECLARE @id INT = (SELECT id_usuario FROM Usuario WHERE email = 'admin@farmagest.com');
+EXEC sp_Usuario_Modificacion
+    @id_usuario = @id, @estado = 0,
+    @codigo_error = @cod OUTPUT, @mensaje_error = @msg OUTPUT;
+SELECT @cod AS codigo_error, @msg AS mensaje_error;
+GO
+
+-- 2.6 Estado final de la tabla
+SELECT id_usuario, dni, nombre, apellido, email, estado, requiere_cambio_contrasena, id_rol
+FROM Usuario;
+GO
+
