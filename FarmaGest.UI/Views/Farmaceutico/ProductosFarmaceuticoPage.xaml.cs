@@ -135,6 +135,28 @@ public partial class ProductosFarmaceuticoPage : Page
 
         var producto = (Producto)item.GetType().GetProperty("Producto")!.GetValue(item)!;
 
+        // Confirmación: se muestran los datos del producto y el foco queda en "No"
+        string accion = producto.Estado ? "dar de baja" : "reactivar";
+
+        var respuesta = MessageBox.Show(
+            $"¿Seguro que querés {accion} este producto?\n\n" +
+            $"Descripción:  {producto.Descripcion}\n" +
+            $"Categoría:  {producto.Categoria?.Nombre ?? "—"}\n" +
+            $"Precio:  $ {producto.PrecioVenta:N2}\n" +
+            $"Stock:  {producto.StockVenta} unidad(es)\n" +
+            $"Requiere receta:  {(producto.RequiereReceta ? "Sí" : "No")}\n" +
+            $"Estado actual:  {(producto.Estado ? "Activo" : "Inactivo")}\n\n" +
+            (producto.Estado
+                ? "Es una baja lógica: el producto no se borra, pero deja de aparecer para la venta."
+                : "El producto vuelve a estar disponible para la venta."),
+            producto.Estado ? "Confirmar baja de producto" : "Confirmar reactivación de producto",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (respuesta != MessageBoxResult.Yes)
+            return;
+
         try
         {
             await _service.CambiarEstadoAsync(producto.Id, !producto.Estado);

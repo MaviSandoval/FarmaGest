@@ -19,7 +19,7 @@ public partial class StockPage : Page
         InitializeComponent();
         _stockService = stockService;
 
-        SubtituloText.Text = "Existencias actuales. El stock lo actualiza el Farmacéutico desde «Productos». " +
+        SubtituloText.Text = "Productos, precios y existencias (solo consulta). El alta, la edición y el stock los maneja el Farmacéutico. " +
                              $"Se considera stock bajo por debajo de {EstadosStock.UmbralStockBajo} unidades.";
 
         Loaded += async (_, _) => await CargarAsync();
@@ -29,7 +29,7 @@ public partial class StockPage : Page
     {
         try
         {
-            _productos = await _stockService.ObtenerStockAsync();
+            _productos = await _stockService.ObtenerStockAsync(incluirBajas: true);
         }
         catch (Exception ex)
         {
@@ -38,10 +38,12 @@ public partial class StockPage : Page
             return;
         }
 
-        ActivosText.Text = _productos.Count.ToString();
-        NormalText.Text = _productos.Count(p => p.Estado == EstadosStock.Normal).ToString();
-        BajoText.Text = _productos.Count(p => p.Estado == EstadosStock.Bajo).ToString();
-        SinStockText.Text = _productos.Count(p => p.Estado == EstadosStock.SinStock).ToString();
+        // Los indicadores cuentan solo los productos activos
+        var activos = _productos.Where(p => p.Activo).ToList();
+        ActivosText.Text = activos.Count.ToString();
+        NormalText.Text = activos.Count(p => p.Estado == EstadosStock.Normal).ToString();
+        BajoText.Text = activos.Count(p => p.Estado == EstadosStock.Bajo).ToString();
+        SinStockText.Text = activos.Count(p => p.Estado == EstadosStock.SinStock).ToString();
 
         AplicarFiltro();
     }
@@ -51,6 +53,7 @@ public partial class StockPage : Page
         string texto = BuscarText.Text.Trim();
 
         StockGrid.ItemsSource = _productos
+            .Where(p => VerBajasCheck.IsChecked == true || p.Activo)
             .Where(p => texto.Length == 0 || p.Descripcion.Contains(texto, StringComparison.OrdinalIgnoreCase))
             .Where(p => EstadoCombo.SelectedIndex switch
             {

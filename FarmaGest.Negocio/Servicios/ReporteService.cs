@@ -13,7 +13,8 @@ public class ReporteService
         _factory = factory;
     }
 
-    public async Task<List<ReporteObraSocialDto>> VentasPorObraSocialAsync(DateTime desde, DateTime hasta)
+    /// <param name="usuarioId">Si se indica, solo las ventas que armó ese usuario (reporte del Farmacéutico).</param>
+    public async Task<List<ReporteObraSocialDto>> VentasPorObraSocialAsync(DateTime desde, DateTime hasta, int? usuarioId = null)
     {
         await using var context = await _factory.CreateDbContextAsync();
         var (inicio, fin) = Rango(desde, hasta);
@@ -21,6 +22,7 @@ public class ReporteService
         var ventas = await context.Ventas
             .AsNoTracking()
             .Where(v => v.Estado && v.Fecha >= inicio && v.Fecha < fin)
+            .Where(v => usuarioId == null || v.UsuarioId == usuarioId)
             .Select(v => new
             {
                 ObraSocial = v.Receta == null ? null : v.Receta.Afiliado.Plan.ObraSocial.Nombre,
@@ -42,7 +44,8 @@ public class ReporteService
             .ToList();
     }
 
-    public async Task<List<ReporteProductoDto>> ProductosMasVendidosAsync(DateTime desde, DateTime hasta, int top = 20)
+    /// <param name="usuarioId">Si se indica, solo las ventas que armó ese usuario (reporte del Farmacéutico).</param>
+    public async Task<List<ReporteProductoDto>> ProductosMasVendidosAsync(DateTime desde, DateTime hasta, int top = 20, int? usuarioId = null)
     {
         await using var context = await _factory.CreateDbContextAsync();
         var (inicio, fin) = Rango(desde, hasta);
@@ -50,6 +53,7 @@ public class ReporteService
         var filas = await context.DetallesVenta
             .AsNoTracking()
             .Where(d => d.Venta.Estado && d.Venta.Fecha >= inicio && d.Venta.Fecha < fin)
+            .Where(d => usuarioId == null || d.Venta.UsuarioId == usuarioId)
             .GroupBy(d => new { d.ProductoId, d.Producto.Descripcion, Categoria = d.Producto.Categoria.Nombre })
             .Select(g => new
             {
@@ -137,6 +141,43 @@ public class ReporteService
             .ToList();
     }
 
+    /// <summary>
+    /// Recetas por obra social y estado, según la fecha de emisión.
+    /// Cruza Recetas, Afiliados, Planes, ObraSocial y Venta (para saber cuáles se usaron).
+    /// </summary>
+    public async Task<List<ReporteRecetasDto>> RecetasPorObraSocialAsync(DateTime desde, DateTime hasta)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+
+        var inicio = DateOnly.FromDateTime(desde);
+        var fin = DateOnly.FromDateTime(hasta);
+
+        var recetas = await context.Recetas
+            .AsNoTracking()
+            .Where(r => r.FechaEmision >= inicio && r.FechaEmision <= fin)
+            .Select(r => new
+            {
+                ObraSocial = r.Afiliado.Plan.ObraSocial.Nombre,
+                r.Estado,
+                Usada = context.Ventas.Any(v => v.RecetaId == r.Id && v.Estado)
+            })
+            .ToListAsync();
+
+        return recetas
+            .GroupBy(r => r.ObraSocial)
+            .Select(g => new ReporteRecetasDto
+            {
+                ObraSocial = g.Key,
+                Total = g.Count(),
+                Pendientes = g.Count(r => r.Estado == null),
+                Validadas = g.Count(r => r.Estado == true),
+                Rechazadas = g.Count(r => r.Estado == false),
+                Usadas = g.Count(r => r.Usada)
+            })
+            .OrderByDescending(r => r.Total)
+            .ToList();
+    }
+
     // "hasta" es inclusivo: se toma hasta el final de ese día
     private static (DateTime Inicio, DateTime Fin) Rango(DateTime desde, DateTime hasta) =>
         (desde.Date, hasta.Date.AddDays(1));
@@ -149,6 +190,16 @@ public class ReporteObraSocialDto
     public decimal TotalVendido { get; set; }
     public decimal TotalCubierto { get; set; }
     public decimal PagadoCliente => TotalVendido - TotalCubierto;
+}
+
+public class ReporteRecetasDto
+{
+    public string ObraSocial { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public int Pendientes { get; set; }
+    public int Validadas { get; set; }
+    public int Rechazadas { get; set; }
+    public int Usadas { get; set; }
 }
 
 public class ReporteProductoDto

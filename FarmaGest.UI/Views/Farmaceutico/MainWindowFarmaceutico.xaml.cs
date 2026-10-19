@@ -93,6 +93,10 @@ namespace FarmaGest.UI.Views.Farmaceutico
                 case nameof(NavObrasSociales):
                     RootFrame.Navigate(_serviceProvider.GetRequiredService<ObrasSocialesPage>());
                     break;
+
+                case nameof(NavReportes):
+                    RootFrame.Navigate(_serviceProvider.GetRequiredService<ReportesFarmaceuticoPage>());
+                    break;
             }
         }
 

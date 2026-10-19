@@ -1,0 +1,103 @@
+﻿<Page x:Class="FarmaGest.UI.Views.Farmaceutico.ReportesFarmaceuticoPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+      Title="Reportes">
+
+	<!-- Reportes del Farmacéutico: cruzan varias tablas y se filtran por período -->
+
+	<Page.Resources>
+		<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+	</Page.Resources>
+
+	<Grid Margin="26,20">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="Auto" />
+			<RowDefinition Height="*" />
+		</Grid.RowDefinitions>
+
+		<!-- ===================== ENCABEZADO ===================== -->
+		<Grid Grid.Row="0" Margin="0,0,0,16">
+			<StackPanel>
+				<TextBlock Text="Reportes" Style="{StaticResource PageTitleText}" />
+				<TextBlock Text="Tus ventas por obra social, los productos que más vendiste y el estado de las recetas recibidas."
+                           Style="{StaticResource PageSubtitleText}" />
+			</StackPanel>
+			<ui:Button HorizontalAlignment="Right" VerticalAlignment="Center"
+                       Appearance="Secondary" Icon="{ui:SymbolIcon ArrowDownload24}"
+                       Content="Exportar" Click="Exportar_Click" />
+		</Grid>
+
+		<!-- ===================== FILTRO DE PERÍODO ===================== -->
+		<Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16" Padding="18,14">
+			<StackPanel Orientation="Horizontal">
+				<StackPanel Margin="0,0,12,0">
+					<TextBlock Text="Desde" Style="{StaticResource FieldLabelText}" />
+					<DatePicker x:Name="DesdePicker" Width="160" />
+				</StackPanel>
+				<StackPanel Margin="0,0,12,0">
+					<TextBlock Text="Hasta" Style="{StaticResource FieldLabelText}" />
+					<DatePicker x:Name="HastaPicker" Width="160" />
+				</StackPanel>
+				<ui:Button Content="Generar" Appearance="Primary" Icon="{ui:SymbolIcon ArrowSync24}"
+                           VerticalAlignment="Bottom" Click="Generar_Click" />
+			</StackPanel>
+		</Border>
+
+		<!-- ===================== REPORTES ===================== -->
+		<Border Grid.Row="2" Style="{StaticResource CardStyle}">
+			<TabControl x:Name="ReportesTabs">
+
+				<!-- Ventas del farmacéutico por obra social -->
+				<TabItem Header="Mis ventas por obra social">
+					<DataGrid x:Name="ObraSocialGrid" Margin="0,12,0,0"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
+                              RowHeight="38" Background="Transparent" BorderThickness="0">
+						<DataGrid.Columns>
+							<DataGridTextColumn Header="Obra social" Binding="{Binding ObraSocial}" Width="1.4*" />
+							<DataGridTextColumn Header="Ventas" Binding="{Binding Ventas}" Width="*" />
+							<DataGridTextColumn Header="Total vendido" Binding="{Binding TotalVendido, StringFormat='$ {0:N2}'}" Width="*" />
+							<DataGridTextColumn Header="Cubierto por la obra social" Binding="{Binding TotalCubierto, StringFormat='$ {0:N2}'}" Width="1.3*" />
+							<DataGridTextColumn Header="Pagado por el cliente" Binding="{Binding PagadoCliente, StringFormat='$ {0:N2}'}" Width="1.2*" />
+						</DataGrid.Columns>
+					</DataGrid>
+				</TabItem>
+
+				<!-- Productos que más vendió el farmacéutico -->
+				<TabItem Header="Productos que más vendí">
+					<DataGrid x:Name="ProductosGrid" Margin="0,12,0,0"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
+                              RowHeight="38" Background="Transparent" BorderThickness="0">
+						<DataGrid.Columns>
+							<DataGridTextColumn Header="#" Binding="{Binding Puesto}" Width="40" />
+							<DataGridTextColumn Header="Producto" Binding="{Binding Producto}" Width="2*" />
+							<DataGridTextColumn Header="Categoría" Binding="{Binding Categoria}" Width="1.3*" />
+							<DataGridTextColumn Header="Unidades" Binding="{Binding Unidades}" Width="*" />
+							<DataGridTextColumn Header="Total vendido" Binding="{Binding Total, StringFormat='$ {0:N2}'}" Width="*" />
+						</DataGrid.Columns>
+					</DataGrid>
+				</TabItem>
+
+				<!-- Recetas recibidas por obra social y estado (según fecha de emisión) -->
+				<TabItem Header="Recetas por obra social">
+					<DataGrid x:Name="RecetasGrid" Margin="0,12,0,0"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
+                              RowHeight="38" Background="Transparent" BorderThickness="0">
+						<DataGrid.Columns>
+							<DataGridTextColumn Header="Obra social" Binding="{Binding ObraSocial}" Width="1.4*" />
+							<DataGridTextColumn Header="Recibidas" Binding="{Binding Total}" Width="*" />
+							<DataGridTextColumn Header="Pendientes" Binding="{Binding Pendientes}" Width="*" />
+							<DataGridTextColumn Header="Validadas" Binding="{Binding Validadas}" Width="*" />
+							<DataGridTextColumn Header="Rechazadas" Binding="{Binding Rechazadas}" Width="*" />
+							<DataGridTextColumn Header="Usadas en ventas" Binding="{Binding Usadas}" Width="*" />
+						</DataGrid.Columns>
+					</DataGrid>
+				</TabItem>
+			</TabControl>
+		</Border>
+	</Grid>
+</Page>

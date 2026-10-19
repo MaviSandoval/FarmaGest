@@ -41,7 +41,7 @@
 					<RadioButton x:Name="NavInicio" Style="{StaticResource SidebarNavItem}" Content="Inicio" Tag="Home24" IsChecked="True" Click="NavItem_Click" />
 					<RadioButton x:Name="NavVentas" Style="{StaticResource SidebarNavItem}" Content="Ventas" Tag="Cart24" Click="NavItem_Click" />
 					<RadioButton x:Name="NavRecetas" Style="{StaticResource SidebarNavItem}" Content="Recetas" Tag="DocumentCheckmark24" Click="NavItem_Click" />
-					<RadioButton x:Name="NavProductos" Style="{StaticResource SidebarNavItem}" Content="Productos" Tag="Box24" Click="NavItem_Click" />
+					
 					<RadioButton x:Name="NavStock" Style="{StaticResource SidebarNavItem}" Content="Stock" Tag="DataHistogram24" Click="NavItem_Click" />
 					<RadioButton x:Name="NavUsuarios" Style="{StaticResource SidebarNavItem}" Content="Usuarios" Tag="People24" Click="NavItem_Click" />
 					<RadioButton x:Name="NavReportes" Style="{StaticResource SidebarNavItem}" Content="Reportes" Tag="DataArea24" Click="NavItem_Click" />

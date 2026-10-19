@@ -65,6 +65,15 @@ public partial class GestionUsuariosPage : Page
             return;
         }
 
+        // Cantidad de caracteres: el DNI tiene 7 u 8 dígitos
+        if (DniText.Text.Trim().Length is < 7 or > 8)
+        {
+            MensajeText.Text =
+                "El DNI debe tener 7 u 8 dígitos.";
+
+            return;
+        }
+
         var rolId =
             ((Rol)RolCombo.SelectedItem).Id;
 
@@ -185,6 +194,27 @@ public partial class GestionUsuariosPage : Page
                 .GetType()
                 .GetProperty("Usuario")!
                 .GetValue(item)!;
+
+        // Confirmación: se muestran los datos del usuario y el foco queda en "No"
+        string accion = usuario.Estado ? "dar de baja" : "reactivar";
+
+        var respuesta = System.Windows.MessageBox.Show(
+            $"¿Seguro que querés {accion} a este usuario?\n\n" +
+            $"Nombre:  {usuario.Nombre} {usuario.Apellido}\n" +
+            $"DNI:  {usuario.Dni}\n" +
+            $"Email:  {usuario.Email ?? "—"}\n" +
+            $"Rol:  {usuario.Rol?.Nombre ?? "—"}\n" +
+            $"Estado actual:  {(usuario.Estado ? "Activo" : "Inactivo")}\n\n" +
+            (usuario.Estado
+                ? "Es una baja lógica: el usuario no se borra, pero ya no va a poder ingresar al sistema."
+                : "El usuario va a poder ingresar de nuevo al sistema."),
+            usuario.Estado ? "Confirmar baja de usuario" : "Confirmar reactivación de usuario",
+            System.Windows.MessageBoxButton.YesNo,
+            System.Windows.MessageBoxImage.Warning,
+            System.Windows.MessageBoxResult.No);
+
+        if (respuesta != System.Windows.MessageBoxResult.Yes)
+            return;
 
         try
         {

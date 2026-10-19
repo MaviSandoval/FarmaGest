@@ -9,8 +9,11 @@ namespace FarmaGest.Negocio.Servicios;
 /// Flujo: el Farmacéutico arma la venta -> queda "Pendiente de cobro" ->
 /// el Cajero la cobra (FacturacionService crea la Facturacion).
 ///
-/// Stock: el Farmacéutico solo envía la preventa. Acá se verifica que haya stock,
-/// pero NO se descuenta: el descuento corresponde al momento del cobro en caja.
+/// Stock (concurrencia): al enviar la preventa el stock se RESERVA, es decir, se descuenta
+/// con un UPDATE condicional atómico (WHERE stockVenta >= cantidad). Si dos farmacéuticos
+/// venden la última unidad al mismo tiempo, solo el primero que confirma la consigue;
+/// al segundo el UPDATE le afecta 0 filas, se hace rollback y se le avisa.
+/// Si la preventa se anula antes del cobro, el stock se devuelve.
 /// </summary>
 public class VentaService
 {
@@ -122,9 +125,24 @@ public class VentaService
                 throw new InvalidOperationException(
                     $"\"{producto.Descripcion}\": la receta autoriza {recetado.Cantidad} unidad(es).");
 
-            if (item.Cantidad > producto.StockVenta)
+            // Reserva atómica: la condición y el descuento van en un único UPDATE,
+            // así otro usuario no puede consumir el mismo stock entre la lectura y la escritura.
+            int filas = await context.Productos
+                .Where(p => p.Id == producto.Id && p.StockVenta >= item.Cantidad)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockVenta, p => p.StockVenta - item.Cantidad));
+
+            if (filas == 0)
+            {
+                // Sin CommitAsync, la transacción hace rollback al salir (libera lo ya reservado)
+                int stockActual = await context.Productos
+                    .Where(p => p.Id == producto.Id)
+                    .Select(p => p.StockVenta)
+                    .FirstAsync();
+
                 throw new InvalidOperationException(
-                    $"\"{producto.Descripcion}\": stock insuficiente (hay {producto.StockVenta}).");
+                    $"\"{producto.Descripcion}\": stock insuficiente (hay {stockActual}). " +
+                    "Puede que otro usuario lo haya vendido recién.");
+            }
 
             // Cobertura: solo para lo recetado y si el plan cubre el producto
             CoberturaPlan? cobertura = recetado == null
@@ -162,6 +180,7 @@ public class VentaService
         await using var transaccion = await context.Database.BeginTransactionAsync();
 
         var venta = await context.Ventas
+            .Include(v => v.Detalles)
             .FirstOrDefaultAsync(v => v.Id == ventaId)
             ?? throw new InvalidOperationException("La venta no existe.");
 
@@ -170,7 +189,14 @@ public class VentaService
         if (await context.Facturaciones.AnyAsync(f => f.VentaId == ventaId))
             throw new InvalidOperationException("La venta ya fue cobrada: no se puede anular.");
 
-        // La preventa no descontó stock, así que no hay nada que devolver
+        // La preventa había reservado stock: se devuelve (también atómico)
+        foreach (var detalle in venta.Detalles)
+        {
+            await context.Productos
+                .Where(p => p.Id == detalle.ProductoId)
+                .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockVenta, p => p.StockVenta + detalle.Cantidad));
+        }
+
         venta.Estado = false;
 
         await context.SaveChangesAsync();

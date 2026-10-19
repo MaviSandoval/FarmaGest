@@ -295,6 +295,14 @@ public partial class NuevaVentaPage : Page
         catch (Exception ex)
         {
             MensajeText.Text = ex.Message;
+
+            // Otro usuario pudo haber consumido stock: refresca la lista con los valores reales
+            try
+            {
+                _productos = await _ventaService.ObtenerProductosVendiblesAsync();
+                ActualizarProductosDisponibles();
+            }
+            catch { /* si falla el refresco se mantiene el mensaje original */ }
         }
         finally
         {

@@ -51,7 +51,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             nameof(NavInicio) => App.Services.GetRequiredService<DashboardPage>(),
             nameof(NavVentas) => App.Services.GetRequiredService<VentasPage>(),
             nameof(NavRecetas) => App.Services.GetRequiredService<RecetasPage>(),
-            nameof(NavProductos) => App.Services.GetRequiredService<ProductosPage>(),
+            
             nameof(NavStock) => App.Services.GetRequiredService<StockPage>(),
             nameof(NavReportes) => App.Services.GetRequiredService<ReportesPage>(),
             nameof(NavConfiguracion) => App.Services.GetRequiredService<ConfiguracionPage>(),

@@ -92,7 +92,7 @@ public partial class App : Application
         servicios.AddTransient<DashboardPage>();
         servicios.AddTransient<VentasPage>();
         servicios.AddTransient<RecetasPage>();
-        servicios.AddTransient<ProductosPage>();
+        
         servicios.AddTransient<StockPage>();
         servicios.AddTransient<ClientesPage>();
         servicios.AddTransient<ReportesPage>();
@@ -109,6 +109,7 @@ public partial class App : Application
         servicios.AddTransient<ProductosFarmaceuticoPage>();
         servicios.AddTransient<StockFarmaceuticoPage>();
         servicios.AddTransient<ObrasSocialesPage>();
+        servicios.AddTransient<ReportesFarmaceuticoPage>();
 
         // ---- Capa de UI - Cajero ----
         servicios.AddTransient<MainWindowCajero>();
