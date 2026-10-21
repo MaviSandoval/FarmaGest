@@ -13,12 +13,17 @@ public class CajaService
         _factory = factory;
     }
 
-    public async Task<Caja> AbrirCajaAsync(int usuarioId, decimal montoInicial)
+    public async Task<Caja> AbrirCajaAsync(
+        int usuarioId,
+        decimal montoInicial)
     {
-        await using var context = await _factory.CreateDbContextAsync();
+        await using var context =
+            await _factory.CreateDbContextAsync();
 
         var cajaAbierta = await context.Cajas
-            .AnyAsync(c => c.UsuarioId == usuarioId && c.Estado);
+            .AnyAsync(c =>
+                c.UsuarioId == usuarioId &&
+                c.Estado);
 
         if (cajaAbierta)
             throw new InvalidOperationException(
@@ -38,9 +43,11 @@ public class CajaService
         return caja;
     }
 
-    public async Task<Caja?> ObtenerCajaAbiertaAsync(int usuarioId)
+    public async Task<Caja?> ObtenerCajaAbiertaAsync(
+        int usuarioId)
     {
-        await using var context = await _factory.CreateDbContextAsync();
+        await using var context =
+            await _factory.CreateDbContextAsync();
 
         return await context.Cajas
             .FirstOrDefaultAsync(c =>
@@ -48,9 +55,12 @@ public class CajaService
                 c.Estado);
     }
 
-    public async Task CerrarCajaAsync(int usuarioId, decimal montoFinal)
+    public async Task CerrarCajaAsync(
+        int usuarioId,
+        decimal montoFinal)
     {
-        await using var context = await _factory.CreateDbContextAsync();
+        await using var context =
+            await _factory.CreateDbContextAsync();
 
         var caja = await context.Cajas
             .FirstOrDefaultAsync(c =>
@@ -68,9 +78,15 @@ public class CajaService
         await context.SaveChangesAsync();
     }
 
-    public async Task<decimal> ObtenerTotalVentasAsync(int cajaId)
+    // =========================================================
+    // TOTAL DE VENTAS - TODOS LOS MEDIOS DE PAGO
+    // =========================================================
+
+    public async Task<decimal> ObtenerTotalVentasAsync(
+        int cajaId)
     {
-        await using var context = await _factory.CreateDbContextAsync();
+        await using var context =
+            await _factory.CreateDbContextAsync();
 
         return await context.Facturaciones
             .Where(f =>
@@ -80,24 +96,102 @@ public class CajaService
             ?? 0;
     }
 
-    public async Task<decimal> ObtenerMontoEsperadoAsync(int cajaId)
+    // =========================================================
+    // TOTAL COBRADO EN EFECTIVO
+    // =========================================================
+
+    public async Task<decimal> ObtenerTotalEfectivoAsync(
+        int cajaId)
     {
-        await using var context = await _factory.CreateDbContextAsync();
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        return await context.Facturaciones
+            .Where(f =>
+                f.CajaId == cajaId &&
+                f.Venta.Estado &&
+                f.MetodoPago == "Efectivo")
+            .SumAsync(f => (decimal?)f.Importe)
+            ?? 0;
+    }
+
+    // =========================================================
+    // CANTIDAD DE COBROS EN EFECTIVO
+    // =========================================================
+
+    public async Task<int> ObtenerCantidadCobrosEfectivoAsync(
+        int cajaId)
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        return await context.Facturaciones
+            .CountAsync(f =>
+                f.CajaId == cajaId &&
+                f.Venta.Estado &&
+                f.MetodoPago == "Efectivo");
+    }
+
+    // =========================================================
+    // OTROS MEDIOS DE PAGO
+    // =========================================================
+
+    public async Task<decimal> ObtenerTotalOtrosMediosAsync(
+        int cajaId)
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        return await context.Facturaciones
+            .Where(f =>
+                f.CajaId == cajaId &&
+                f.Venta.Estado &&
+                f.MetodoPago != "Efectivo")
+            .SumAsync(f => (decimal?)f.Importe)
+            ?? 0;
+    }
+
+    public async Task<int> ObtenerCantidadOtrosMediosAsync(
+        int cajaId)
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        return await context.Facturaciones
+            .CountAsync(f =>
+                f.CajaId == cajaId &&
+                f.Venta.Estado &&
+                f.MetodoPago != "Efectivo");
+    }
+
+    // =========================================================
+    // EFECTIVO ESPERADO EN EL CAJÓN
+    // Monto inicial + cobros realizados en efectivo
+    // =========================================================
+
+    public async Task<decimal> ObtenerMontoEsperadoAsync(
+        int cajaId)
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
 
         var caja = await context.Cajas
-            .FirstOrDefaultAsync(c => c.Id == cajaId);
+            .FirstOrDefaultAsync(c =>
+                c.Id == cajaId);
 
         if (caja == null)
             throw new InvalidOperationException(
                 "Caja no encontrada.");
 
-        var totalVentas = await context.Facturaciones
-            .Where(f =>
-                f.CajaId == cajaId &&
-                f.Venta.Estado)
-            .SumAsync(f => (decimal?)f.Importe)
+        var efectivoCobrado =
+            await context.Facturaciones
+                .Where(f =>
+                    f.CajaId == cajaId &&
+                    f.Venta.Estado &&
+                    f.MetodoPago == "Efectivo")
+                .SumAsync(f => (decimal?)f.Importe)
             ?? 0;
 
-        return caja.MontoInicial + totalVentas;
+        return caja.MontoInicial + efectivoCobrado;
     }
 }

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-
 using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.Views.Cajero;
@@ -12,6 +11,7 @@ public partial class ResumenCajaPage : Page
 {
     private readonly FacturacionService _facturacionService;
     private readonly SesionUsuarioService _sesionUsuarioService;
+    private readonly CajaService _cajaService;
 
     // =========================================================
     // CONSTRUCTOR
@@ -19,12 +19,14 @@ public partial class ResumenCajaPage : Page
 
     public ResumenCajaPage(
         FacturacionService facturacionService,
-        SesionUsuarioService sesionUsuarioService)
+        SesionUsuarioService sesionUsuarioService,
+        CajaService cajaService)
     {
         InitializeComponent();
 
         _facturacionService = facturacionService;
         _sesionUsuarioService = sesionUsuarioService;
+        _cajaService = cajaService;
 
         Loaded += ResumenCajaPage_Loaded;
     }
@@ -48,10 +50,6 @@ public partial class ResumenCajaPage : Page
     {
         try
         {
-            // -------------------------------------------------
-            // 1. Obtener usuario logueado
-            // -------------------------------------------------
-
             var usuario =
                 _sesionUsuarioService.UsuarioActual;
 
@@ -66,17 +64,13 @@ public partial class ResumenCajaPage : Page
                 return;
             }
 
-            // -------------------------------------------------
-            // 2. Obtener resumen real de la caja abierta
-            // -------------------------------------------------
-
             var resumen =
                 await _facturacionService
                     .ObtenerResumenCajaAbiertaAsync(
                         usuario.Id);
 
             // -------------------------------------------------
-            // 3. Verificar que exista una caja abierta
+            // NO HAY CAJA ABIERTA
             // -------------------------------------------------
 
             if (resumen == null)
@@ -109,7 +103,7 @@ public partial class ResumenCajaPage : Page
             }
 
             // -------------------------------------------------
-            // 4. Encabezado
+            // ENCABEZADO
             // -------------------------------------------------
 
             TxtInfoCaja.Text =
@@ -119,7 +113,7 @@ public partial class ResumenCajaPage : Page
                 $"{resumen.Cajero}";
 
             // -------------------------------------------------
-            // 5. KPIs
+            // KPIs
             // -------------------------------------------------
 
             TxtMontoInicial.Text =
@@ -138,7 +132,7 @@ public partial class ResumenCajaPage : Page
                 resumen.CantidadCobros.ToString();
 
             // -------------------------------------------------
-            // 6. TOTALES POR MEDIO DE PAGO
+            // TOTALES POR MEDIO DE PAGO
             // -------------------------------------------------
 
             MediosPagoList.ItemsSource =
@@ -149,7 +143,7 @@ public partial class ResumenCajaPage : Page
                     "$ #,##0.00");
 
             // -------------------------------------------------
-            // 7. MOVIMIENTOS / COBROS
+            // MOVIMIENTOS / COBROS
             // -------------------------------------------------
 
             MovimientosGrid.ItemsSource =
@@ -165,8 +159,6 @@ public partial class ResumenCajaPage : Page
                         Numero =
                             m.VentaId,
 
-                        // Farmacéutico/vendedor que
-                        // realizó la venta.
                         Responsable =
                             m.Responsable,
 
@@ -193,18 +185,27 @@ public partial class ResumenCajaPage : Page
     // CERRAR CAJA
     // =========================================================
 
-    private void CerrarCaja_Click(
+    private async void CerrarCaja_Click(
         object sender,
         RoutedEventArgs e)
     {
         var ventana =
-            new CierreCajaWindow
+            new CierreCajaWindow(
+                _cajaService,
+                _sesionUsuarioService)
             {
                 Owner =
                     Window.GetWindow(this)
             };
 
         ventana.ShowDialog();
+
+        // Si se confirmó el cierre real,
+        // actualizamos el resumen.
+        if (ventana.CajaCerrada)
+        {
+            await CargarResumenCajaAsync();
+        }
     }
 
     // =========================================================
@@ -215,17 +216,9 @@ public partial class ResumenCajaPage : Page
         object sender,
         RoutedEventArgs e)
     {
-        // Obtenemos la fila seleccionada.
         if (sender is FrameworkElement elemento &&
             elemento.DataContext is MovimientoVista movimiento)
         {
-            // Por ahora mantenemos la ventana actual
-            // de ticket.
-            //
-            // Más adelante podemos pasarle
-            // movimiento.FacturacionId o movimiento.Numero
-            // para mostrar el ticket exacto.
-
             var ventana =
                 new TicketWindow
                 {
