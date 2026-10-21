@@ -44,10 +44,6 @@
                            Margin="0,0,8,0"
                            Click="Imprimir_Click" />
 
-                <ui:Button Content="Cerrar caja"
-                           Appearance="Primary"
-                           Icon="{ui:SymbolIcon LockClosed24}"
-                           Click="CerrarCaja_Click" />
 
             </StackPanel>
 

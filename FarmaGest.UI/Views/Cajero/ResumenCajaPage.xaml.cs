@@ -1,9 +1,9 @@
-﻿using System;
+﻿using FarmaGest.Negocio.Servicios;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.Views.Cajero;
 

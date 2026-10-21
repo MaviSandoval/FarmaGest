@@ -66,7 +66,8 @@ namespace FarmaGest.UI.Views.Cajero
                 }
 
                 // Verificar que exista un usuario con sesión iniciada
-                var usuario = _sesionUsuarioService.UsuarioActual;
+                var usuario =
+                    _sesionUsuarioService.UsuarioActual;
 
                 if (usuario == null)
                 {
@@ -99,7 +100,8 @@ namespace FarmaGest.UI.Views.Cajero
                 await _facturacionService.FacturarVentaAsync(
                     venta.VentaId,
                     usuario.Id,
-                    ventanaCobro.MetodoPagoSeleccionado);
+                    ventanaCobro.MetodoPagoSeleccionado,
+                    ventanaCobro.MontoCambio);
 
                 MessageBox.Show(
                     $"Venta N° {venta.VentaId} facturada correctamente.",

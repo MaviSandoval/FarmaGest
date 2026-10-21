@@ -141,9 +141,7 @@ public class FacturacionService
 
                 Fecha = f.Fecha,
 
-                // IMPORTANTE:
-                // Este es el usuario que realizó/preparó
-                // originalmente la venta.
+                // Usuario que realizó/preparó originalmente la venta.
                 Responsable =
                     f.Venta.Usuario.Nombre + " " +
                     f.Venta.Usuario.Apellido,
@@ -224,7 +222,8 @@ public class FacturacionService
     public async Task FacturarVentaAsync(
         int ventaId,
         int usuarioId,
-        string metodoPago)
+        string metodoPago,
+        decimal montoCambio)
     {
         await using var context =
             await _factory.CreateDbContextAsync();
@@ -294,7 +293,23 @@ public class FacturacionService
                 "La venta no posee un importe válido.");
 
         // -----------------------------------------------------
-        // 6. Crear facturación
+        // 6. Validar monto de cambio
+        // -----------------------------------------------------
+
+        if (montoCambio < 0)
+            throw new InvalidOperationException(
+                "El monto de cambio no puede ser negativo.");
+
+        // Si el pago no es en efectivo, no corresponde vuelto.
+        if (!metodoPago.Trim().Equals(
+                "Efectivo",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            montoCambio = 0;
+        }
+
+        // -----------------------------------------------------
+        // 7. Crear facturación
         // -----------------------------------------------------
 
         var facturacion =
@@ -306,6 +321,8 @@ public class FacturacionService
                     metodoPago.Trim(),
 
                 Importe = importe,
+
+                MontoCambio = montoCambio,
 
                 VentaId = venta.Id,
 

@@ -16,7 +16,10 @@
             </Grid.RowDefinitions>
 
             <!-- ===================== ENCABEZADO ===================== -->
-            <StackPanel Grid.Row="0" Margin="0,0,0,24">
+
+            <StackPanel Grid.Row="0"
+                        Margin="0,0,0,24">
+
                 <TextBlock
                     Text="Gestión de caja"
                     FontSize="26"
@@ -28,9 +31,11 @@
                     Margin="0,6,0,0"
                     FontSize="13"
                     Foreground="{StaticResource FarmaTextMutedBrush}" />
+
             </StackPanel>
 
             <!-- ===================== CONTENIDO ===================== -->
+
             <Border
                 Grid.Row="1"
                 Padding="28"
@@ -39,7 +44,8 @@
 
                 <Grid>
 
-                    <!-- ===== ESTADO: CAJA CERRADA ===== -->
+                    <!-- ================= CAJA CERRADA ================= -->
+
                     <StackPanel
                         x:Name="PanelCajaCerrada"
                         Width="420"
@@ -58,19 +64,22 @@
                             Foreground="{StaticResource FarmaTextMutedBrush}"
                             TextWrapping="Wrap" />
 
-                        <TextBlock
-                            Margin="0,0,0,6"
-                            Text="Monto inicial"
-                            FontWeight="SemiBold" />
+                        <!-- MONTO INICIAL -->
 
-                        <TextBox
+                        <TextBlock
+                            Text="Monto inicial"
+                            FontWeight="SemiBold"
+                            Margin="0,0,0,6" />
+
+                        <ui:TextBox
                             x:Name="TxtMontoInicial"
-                            h:ValidacionEntrada.Tipo="Decimal"
-                            MaxLength="12"
                             Height="42"
                             Margin="0,0,0,20"
-                            Padding="12,8"
-                            FontSize="14" />
+                            PlaceholderText="Ingrese el monto inicial"
+                            h:ValidacionEntrada.Tipo="Decimal"
+                            MaxLength="12" />
+
+                        <!-- ABRIR CAJA -->
 
                         <ui:Button
                             x:Name="BtnAbrirCaja"
@@ -80,9 +89,11 @@
                             Appearance="Primary"
                             Content="Abrir caja"
                             Click="AbrirCaja_Click" />
+
                     </StackPanel>
 
-                    <!-- ===== ESTADO: CAJA ABIERTA ===== -->
+                    <!-- ================= CAJA ABIERTA ================= -->
+
                     <StackPanel
                         x:Name="PanelCajaAbierta"
                         Visibility="Collapsed">
@@ -100,40 +111,67 @@
                             FontSize="13"
                             Foreground="{StaticResource FarmaTextMutedBrush}" />
 
+                        <!-- DATOS DE LA CAJA -->
+
                         <Grid Margin="0,0,0,24">
+
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="200" />
                                 <ColumnDefinition Width="200" />
                                 <ColumnDefinition Width="200" />
                             </Grid.ColumnDefinitions>
 
+                            <!-- MONTO INICIAL -->
+
                             <StackPanel Grid.Column="0">
-                                <TextBlock Text="Monto inicial" FontWeight="SemiBold" />
+
+                                <TextBlock
+                                    Text="Monto inicial"
+                                    FontWeight="SemiBold" />
+
                                 <TextBlock
                                     x:Name="TxtMontoInicialActual"
                                     Margin="0,6,0,0"
                                     FontSize="20"
                                     Text="$ 0,00" />
+
                             </StackPanel>
 
+                            <!-- TOTAL VENDIDO -->
+
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Total vendido" FontWeight="SemiBold" />
+
+                                <TextBlock
+                                    Text="Total vendido"
+                                    FontWeight="SemiBold" />
+
                                 <TextBlock
                                     x:Name="TxtTotalVentas"
                                     Margin="0,6,0,0"
                                     FontSize="20"
                                     Text="$ 0,00" />
+
                             </StackPanel>
 
+                            <!-- EFECTIVO ESPERADO -->
+
                             <StackPanel Grid.Column="2">
-                                <TextBlock Text="Monto esperado" FontWeight="SemiBold" />
+
+                                <TextBlock
+                                    Text="Efectivo esperado"
+                                    FontWeight="SemiBold" />
+
                                 <TextBlock
                                     x:Name="TxtMontoEsperado"
                                     Margin="0,6,0,0"
                                     FontSize="20"
                                     Text="$ 0,00" />
+
                             </StackPanel>
+
                         </Grid>
+
+                        <!-- CERRAR CAJA -->
 
                         <ui:Button
                             x:Name="BtnCerrarCaja"
@@ -143,11 +181,14 @@
                             Appearance="Primary"
                             Content="Cerrar caja"
                             Click="CerrarCaja_Click" />
+
                     </StackPanel>
 
                 </Grid>
+
             </Border>
 
         </Grid>
     </ScrollViewer>
+
 </Page>

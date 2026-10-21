@@ -40,12 +40,13 @@ namespace FarmaGest.UI.Views.Cajero
         }
 
         // =====================================================
-        // ACTUALIZAR ESTADO DE LA CAJA
+        // ACTUALIZAR ESTADO
         // =====================================================
 
         private async Task ActualizarEstadoCajaAsync()
         {
-            var usuario = _sesionUsuarioService.UsuarioActual;
+            var usuario =
+                _sesionUsuarioService.UsuarioActual;
 
             if (usuario == null)
             {
@@ -62,10 +63,7 @@ namespace FarmaGest.UI.Views.Cajero
                 await _cajaService.ObtenerCajaAbiertaAsync(
                     usuario.Id);
 
-            // -------------------------------------------------
             // CAJA CERRADA
-            // -------------------------------------------------
-
             if (caja == null)
             {
                 PanelCajaCerrada.Visibility =
@@ -77,10 +75,7 @@ namespace FarmaGest.UI.Views.Cajero
                 return;
             }
 
-            // -------------------------------------------------
             // CAJA ABIERTA
-            // -------------------------------------------------
-
             PanelCajaCerrada.Visibility =
                 Visibility.Collapsed;
 
@@ -151,8 +146,7 @@ namespace FarmaGest.UI.Views.Cajero
             if (montoLeido == null)
             {
                 MessageBox.Show(
-                    "Ingrese un monto inicial válido " +
-                    "(solo números, con hasta 2 decimales).",
+                    "Ingrese un monto inicial válido.",
                     "FarmaGest",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -250,8 +244,6 @@ namespace FarmaGest.UI.Views.Cajero
 
             ventana.ShowDialog();
 
-            // Si el cierre se confirmó correctamente,
-            // actualizamos la pantalla.
             if (ventana.CajaCerrada)
             {
                 await ActualizarEstadoCajaAsync();
