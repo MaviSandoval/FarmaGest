@@ -18,4 +18,6 @@ public class Facturacion
 
     public int CajaId { get; set; }
     public Caja Caja { get; set; } = null!;
+
+    public decimal MontoCambio { get; set; }
 }

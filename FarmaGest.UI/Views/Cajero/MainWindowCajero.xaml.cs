@@ -4,9 +4,12 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
+
 using FarmaGest.Negocio.Servicios;
 using FarmaGest.UI.Views.Compartido;
+
 using Microsoft.Extensions.DependencyInjection;
+
 using Wpf.Ui.Controls;
 
 namespace FarmaGest.UI.Views.Cajero
@@ -17,6 +20,10 @@ namespace FarmaGest.UI.Views.Cajero
         private readonly SesionUsuarioService _sesionUsuarioService;
         private readonly DispatcherTimer _relojTimer;
 
+        // =====================================================
+        // CONSTRUCTOR
+        // =====================================================
+
         public MainWindowCajero(
             IServiceProvider serviceProvider,
             SesionUsuarioService sesionUsuarioService)
@@ -26,114 +33,212 @@ namespace FarmaGest.UI.Views.Cajero
             _serviceProvider = serviceProvider;
             _sesionUsuarioService = sesionUsuarioService;
 
-            // ---- Vista inicial: Inicio del Cajero ----
-            RootFrame.Navigate(new DashboardCajeroPage());
+            // =================================================
+            // VISTA INICIAL
+            // =================================================
 
-            // ---- Reloj de la barra superior ----
+            RootFrame.Navigate(
+                _serviceProvider
+                    .GetRequiredService<DashboardCajeroPage>());
+
+            // =================================================
+            // RELOJ DE LA BARRA SUPERIOR
+            // =================================================
+
             _relojTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(1)
             };
 
-            _relojTimer.Tick += (_, _) => ActualizarFechaHora();
+            _relojTimer.Tick +=
+                (_, _) => ActualizarFechaHora();
+
             _relojTimer.Start();
 
             ActualizarFechaHora();
 
-            // ---- Encabezado con el nombre y la foto del usuario logueado ----
+            // =================================================
+            // ENCABEZADO DEL USUARIO
+            // =================================================
+
             ActualizarEncabezado();
-            _sesionUsuarioService.UsuarioActualizado += ActualizarEncabezado;
+
+            _sesionUsuarioService.UsuarioActualizado +=
+                ActualizarEncabezado;
 
             Closed += (_, _) =>
             {
                 _relojTimer.Stop();
-                _sesionUsuarioService.UsuarioActualizado -= ActualizarEncabezado;
+
+                _sesionUsuarioService.UsuarioActualizado -=
+                    ActualizarEncabezado;
             };
         }
 
+        // =====================================================
+        // ACTUALIZAR ENCABEZADO
+        // =====================================================
+
         private void ActualizarEncabezado()
         {
-            var usuario = _sesionUsuarioService.UsuarioActual;
+            var usuario =
+                _sesionUsuarioService.UsuarioActual;
+
             if (usuario == null)
                 return;
 
-            BienvenidaText.Text = $"Bienvenido/a, {usuario.Nombre}";
-            NombreUsuarioText.Text = $"{usuario.Nombre} {usuario.Apellido}";
+            BienvenidaText.Text =
+                $"Bienvenido/a, {usuario.Nombre}";
+
+            NombreUsuarioText.Text =
+                $"{usuario.Nombre} {usuario.Apellido}";
+
             AvatarEncabezado.Mostrar(usuario);
         }
 
-        private void MiPerfil_Click(object sender, RoutedEventArgs e)
-        {
-            // Ninguna opción del menú queda marcada mientras se está en Mi perfil
-            foreach (var item in NavPanel.Children.OfType<RadioButton>())
-                item.IsChecked = false;
+        // =====================================================
+        // MI PERFIL
+        // =====================================================
 
-            RootFrame.Navigate(_serviceProvider.GetRequiredService<MiPerfilPage>());
+        private void MiPerfil_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            foreach (
+                var item in
+                NavPanel.Children.OfType<RadioButton>())
+            {
+                item.IsChecked = false;
+            }
+
+            RootFrame.Navigate(
+                _serviceProvider
+                    .GetRequiredService<MiPerfilPage>());
         }
+
+        // =====================================================
+        // FECHA Y HORA
+        // =====================================================
 
         private void ActualizarFechaHora()
         {
-            var cultura = new CultureInfo("es-AR");
+            var cultura =
+                new CultureInfo("es-AR");
 
-            var texto = DateTime.Now.ToString(
-                "dddd, dd 'de' MMMM 'de' yyyy - HH:mm",
-                cultura);
+            var texto =
+                DateTime.Now.ToString(
+                    "dddd, dd 'de' MMMM 'de' yyyy - HH:mm",
+                    cultura);
 
             FechaHoraText.Text =
-                char.ToUpper(texto[0], cultura) + texto[1..];
+                char.ToUpper(texto[0], cultura)
+                + texto[1..];
         }
 
-        private void NavItem_Click(object sender, RoutedEventArgs e)
+        // =====================================================
+        // NAVEGACIÓN
+        // =====================================================
+
+        private void NavItem_Click(
+            object sender,
+            RoutedEventArgs e)
         {
             if (sender is not RadioButton radioButton)
                 return;
 
             switch (radioButton.Name)
             {
+                // ---------------------------------------------
+                // INICIO
+                // ---------------------------------------------
+
                 case nameof(NavInicio):
-                    RootFrame.Navigate(new DashboardCajeroPage());
+
+                    RootFrame.Navigate(
+                        _serviceProvider
+                            .GetRequiredService<DashboardCajeroPage>());
+
                     break;
+
+                // ---------------------------------------------
+                // VENTAS PENDIENTES DE FACTURACIÓN
+                // ---------------------------------------------
 
                 case nameof(NavPreventas):
-                    // MAQUETA para la presentación. Para volver a la pantalla real (con la base de datos),
-                    // reemplazar por: RootFrame.Navigate(_serviceProvider.GetRequiredService<PreventasPage>());
-                    RootFrame.Navigate(new PreventasMaquetaPage());
+
+                    RootFrame.Navigate(
+                        _serviceProvider
+                            .GetRequiredService<PreventasPage>());
+
                     break;
+
+                // ---------------------------------------------
+                // VENTAS COBRADAS
+                // ---------------------------------------------
 
                 case nameof(NavVentasCobradas):
-                    // MAQUETA para la presentación. Para volver a la pantalla real (con la base de datos),
-                    // reemplazar por: RootFrame.Navigate(_serviceProvider.GetRequiredService<VentasCobradasPage>());
-                    RootFrame.Navigate(new VentasCobradasMaquetaPage());
+
+                    RootFrame.Navigate(
+                        _serviceProvider
+                            .GetRequiredService<VentasCobradasPage>());
+
                     break;
+
+                // ---------------------------------------------
+                // CAJA
+                // ---------------------------------------------
 
                 case nameof(NavCaja):
+
                     RootFrame.Navigate(
-                        _serviceProvider.GetRequiredService<CajaPage>());
+                        _serviceProvider
+                            .GetRequiredService<CajaPage>());
+
                     break;
 
+                // ---------------------------------------------
+                // RESUMEN DE CAJA
+                // ---------------------------------------------
+
                 case nameof(NavResumen):
-                    RootFrame.Navigate(new ResumenCajaPage());
+
+                    RootFrame.Navigate(
+                        _serviceProvider
+                            .GetRequiredService<ResumenCajaPage>());
+
                     break;
             }
         }
 
-        private void CerrarSesion_Click(object sender, RoutedEventArgs e)
-        {
-            var respuesta = System.Windows.MessageBox.Show(
-                "¿Querés cerrar la sesión?",
-                "Cerrar sesión",
-                System.Windows.MessageBoxButton.YesNo,
-                System.Windows.MessageBoxImage.Question);
+        // =====================================================
+        // CERRAR SESIÓN
+        // =====================================================
 
-            if (respuesta != System.Windows.MessageBoxResult.Yes)
+        private void CerrarSesion_Click(
+            object sender,
+            RoutedEventArgs e)
+        {
+            var respuesta =
+                System.Windows.MessageBox.Show(
+                    "¿Querés cerrar la sesión?",
+                    "Cerrar sesión",
+                    System.Windows.MessageBoxButton.YesNo,
+                    System.Windows.MessageBoxImage.Question);
+
+            if (respuesta !=
+                System.Windows.MessageBoxResult.Yes)
+            {
                 return;
+            }
 
             _sesionUsuarioService.CerrarSesion();
 
             var authWindow =
-                _serviceProvider.GetRequiredService<AuthWindow>();
+                _serviceProvider
+                    .GetRequiredService<AuthWindow>();
 
             authWindow.Show();
+
             Close();
         }
     }

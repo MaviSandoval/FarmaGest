@@ -12,27 +12,41 @@ namespace FarmaGest.UI.Views.Cajero
     {
         private readonly CajaService _cajaService;
         private readonly SesionUsuarioService _sesionUsuarioService;
+        private readonly UsuarioService _usuarioService;
 
         public CajaPage(
             CajaService cajaService,
-            SesionUsuarioService sesionUsuarioService)
+            SesionUsuarioService sesionUsuarioService,
+            UsuarioService usuarioService)
         {
             InitializeComponent();
 
             _cajaService = cajaService;
             _sesionUsuarioService = sesionUsuarioService;
+            _usuarioService = usuarioService;
 
             Loaded += CajaPage_Loaded;
         }
 
-        private async void CajaPage_Loaded(object sender, RoutedEventArgs e)
+        // =====================================================
+        // CARGAR PÁGINA
+        // =====================================================
+
+        private async void CajaPage_Loaded(
+            object sender,
+            RoutedEventArgs e)
         {
             await ActualizarEstadoCajaAsync();
         }
 
+        // =====================================================
+        // ACTUALIZAR ESTADO
+        // =====================================================
+
         private async Task ActualizarEstadoCajaAsync()
         {
-            var usuario = _sesionUsuarioService.UsuarioActual;
+            var usuario =
+                _sesionUsuarioService.UsuarioActual;
 
             if (usuario == null)
             {
@@ -45,50 +59,75 @@ namespace FarmaGest.UI.Views.Cajero
                 return;
             }
 
-            var caja = await _cajaService.ObtenerCajaAbiertaAsync(usuario.Id);
+            var caja =
+                await _cajaService.ObtenerCajaAbiertaAsync(
+                    usuario.Id);
 
+            // CAJA CERRADA
             if (caja == null)
             {
-                PanelCajaCerrada.Visibility = Visibility.Visible;
-                PanelCajaAbierta.Visibility = Visibility.Collapsed;
+                PanelCajaCerrada.Visibility =
+                    Visibility.Visible;
+
+                PanelCajaAbierta.Visibility =
+                    Visibility.Collapsed;
+
                 return;
             }
 
-            PanelCajaCerrada.Visibility = Visibility.Collapsed;
-            PanelCajaAbierta.Visibility = Visibility.Visible;
+            // CAJA ABIERTA
+            PanelCajaCerrada.Visibility =
+                Visibility.Collapsed;
 
-            var totalVentas = await _cajaService.ObtenerTotalVentasAsync(caja.Id);
-            var montoEsperado = await _cajaService.ObtenerMontoEsperadoAsync(caja.Id);
+            PanelCajaAbierta.Visibility =
+                Visibility.Visible;
 
-            var cultura = new CultureInfo("es-AR");
+            var totalVentas =
+                await _cajaService.ObtenerTotalVentasAsync(
+                    caja.Id);
+
+            var montoEsperado =
+                await _cajaService.ObtenerMontoEsperadoAsync(
+                    caja.Id);
+
+            var cultura =
+                new CultureInfo("es-AR");
 
             TxtFechaApertura.Text =
-                $"Abierta desde: {caja.FechaApertura:dd/MM/yyyy HH:mm}";
+                $"Abierta desde: " +
+                $"{caja.FechaApertura:dd/MM/yyyy HH:mm}";
 
             TxtMontoInicialActual.Text =
-                caja.MontoInicial.ToString("C", cultura);
+                caja.MontoInicial.ToString(
+                    "C",
+                    cultura);
 
             TxtTotalVentas.Text =
-                totalVentas.ToString("C", cultura);
+                totalVentas.ToString(
+                    "C",
+                    cultura);
 
             TxtMontoEsperado.Text =
-                montoEsperado.ToString("C", cultura);
+                montoEsperado.ToString(
+                    "C",
+                    cultura);
         }
 
-        private async void AbrirCaja_Click(object sender, RoutedEventArgs e)
+        // =====================================================
+        // ABRIR CAJA
+        // =====================================================
+
+        private async void AbrirCaja_Click(
+            object sender,
+            RoutedEventArgs e)
         {
-            var usuario = _sesionUsuarioService.UsuarioActual;
+            var usuario =
+                _sesionUsuarioService.UsuarioActual;
 
             if (usuario == null)
-                return;
-
-            // Validación de tipo de dato: acepta coma o punto como separador decimal
-            var montoLeido = ValidacionEntrada.LeerDecimal(TxtMontoInicial.Text);
-
-            if (montoLeido == null)
             {
                 MessageBox.Show(
-                    "Ingrese un monto inicial válido (solo números, con hasta 2 decimales).",
+                    "No hay un usuario autenticado.",
                     "FarmaGest",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -96,7 +135,27 @@ namespace FarmaGest.UI.Views.Cajero
                 return;
             }
 
-            decimal montoInicial = montoLeido.Value;
+            // -------------------------------------------------
+            // VALIDAR MONTO INICIAL
+            // -------------------------------------------------
+
+            var montoLeido =
+                ValidacionEntrada.LeerDecimal(
+                    TxtMontoInicial.Text);
+
+            if (montoLeido == null)
+            {
+                MessageBox.Show(
+                    "Ingrese un monto inicial válido.",
+                    "FarmaGest",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+
+                return;
+            }
+
+            decimal montoInicial =
+                montoLeido.Value;
 
             if (montoInicial < 0)
             {
@@ -109,13 +168,43 @@ namespace FarmaGest.UI.Views.Cajero
                 return;
             }
 
+            // -------------------------------------------------
+            // AUTORIZACIÓN DEL ADMINISTRADOR
+            // -------------------------------------------------
+
+            var ventanaAutorizacion =
+                new AutorizacionAdministradorWindow(
+                    _usuarioService)
+                {
+                    Owner =
+                        Window.GetWindow(this)
+                };
+
+            var autorizado =
+                ventanaAutorizacion.ShowDialog();
+
+            if (autorizado != true)
+                return;
+
+            // -------------------------------------------------
+            // ABRIR CAJA
+            // -------------------------------------------------
+
             try
             {
-                await _cajaService.AbrirCajaAsync(usuario.Id, montoInicial);
+                await _cajaService.AbrirCajaAsync(
+                    usuario.Id,
+                    montoInicial);
 
                 TxtMontoInicial.Clear();
 
                 await ActualizarEstadoCajaAsync();
+
+                MessageBox.Show(
+                    "Caja abierta correctamente.",
+                    "FarmaGest",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
             catch (InvalidOperationException ex)
             {
@@ -125,13 +214,40 @@ namespace FarmaGest.UI.Views.Cajero
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "No se pudo abrir la caja.\n\n" +
+                    ex.Message,
+                    "FarmaGest",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
         }
 
-        private void CerrarCaja_Click(object sender, RoutedEventArgs e)
+        // =====================================================
+        // CERRAR CAJA
+        // =====================================================
+
+        private async void CerrarCaja_Click(
+            object sender,
+            RoutedEventArgs e)
         {
-            // MAQUETA: la ventana de arqueo todavía no llama a CajaService.CerrarCajaAsync
-            var ventana = new CierreCajaWindow { Owner = Window.GetWindow(this) };
+            var ventana =
+                new CierreCajaWindow(
+                    _cajaService,
+                    _sesionUsuarioService)
+                {
+                    Owner =
+                        Window.GetWindow(this)
+                };
+
             ventana.ShowDialog();
+
+            if (ventana.CajaCerrada)
+            {
+                await ActualizarEstadoCajaAsync();
+            }
         }
     }
 }
