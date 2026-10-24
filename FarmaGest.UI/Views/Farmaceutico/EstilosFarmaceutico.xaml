@@ -132,6 +132,10 @@
 				<Setter Property="TextElement.Foreground" Value="#1F7A6C" />
 			</DataTrigger>
 			<!-- Amarillo: requiere atención -->
+			<DataTrigger Binding="{Binding Estado}" Value="Abierta">
+				<Setter Property="Background" Value="#FDF3E1" />
+				<Setter Property="TextElement.Foreground" Value="#9A6B10" />
+			</DataTrigger>
 			<DataTrigger Binding="{Binding Estado}" Value="Pendiente">
 				<Setter Property="Background" Value="#FDF3E1" />
 				<Setter Property="TextElement.Foreground" Value="#9A6B10" />

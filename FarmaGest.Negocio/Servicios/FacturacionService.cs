@@ -335,7 +335,20 @@ public class FacturacionService
         context.Facturaciones.Add(
             facturacion);
 
-        await context.SaveChangesAsync();
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // Dos cajeros cobraron la misma venta a la vez: el índice único
+            // de Facturacion.id_venta deja pasar solo al primero.
+            if (await context.Facturaciones.AsNoTracking().AnyAsync(f => f.VentaId == ventaId && f.Id != facturacion.Id))
+                throw new InvalidOperationException(
+                    "Otro cajero acaba de cobrar esta venta. Actualizá la lista de preventas.");
+
+            throw;
+        }
     }
 }
 

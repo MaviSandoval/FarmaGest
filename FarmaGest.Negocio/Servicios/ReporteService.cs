@@ -9,6 +9,9 @@ namespace FarmaGest.Negocio.Servicios;
 /// </summary>
 public class ReporteService
 {
+    // Mismo texto que guarda el cobro en Facturacion.MetodoPago
+    private const string MedioEfectivo = "Efectivo";
+
     private readonly IDbContextFactory<FarmaGestDbContext> _factory;
 
     public ReporteService(IDbContextFactory<FarmaGestDbContext> factory)
@@ -81,6 +84,12 @@ public class ReporteService
         }).ToList();
     }
 
+    /// <summary>
+    /// Cajas abiertas en el período (abiertas y cerradas), con el arqueo.
+    /// Mismo criterio que CajaService: el efectivo esperado es monto inicial + cobros en efectivo;
+    /// los otros medios (débito, crédito, transferencia) no van al cajón.
+    /// Cruza Caja, Usuario, Facturacion y Venta.
+    /// </summary>
     public async Task<List<ReporteCierreDto>> CierresDeCajaAsync(DateTime desde, DateTime hasta)
     {
         await using var context = await _factory.CreateDbContextAsync();
@@ -88,30 +97,65 @@ public class ReporteService
 
         var cajas = await context.Cajas
             .AsNoTracking()
-            .Where(c => !c.Estado && c.FechaCierre != null && c.FechaCierre >= inicio && c.FechaCierre < fin)
-            .OrderByDescending(c => c.FechaCierre)
-            .Select(c => new
+            .Where(c => c.FechaApertura >= inicio && c.FechaApertura < fin)
+            .OrderByDescending(c => c.FechaApertura)
+            .Select(c => new ReporteCierreDto
             {
-                c.Id,
-                c.FechaCierre,
+                Caja = c.Id,
                 Cajero = c.Usuario.Nombre + " " + c.Usuario.Apellido,
-                c.MontoInicial,
-                c.MontoFinal,
-                // Mismo criterio que CajaService: monto inicial + cobros de ventas no anuladas
-                Cobrado = context.Facturaciones
-                    .Where(f => f.CajaId == c.Id && f.Venta.Estado)
+                Apertura = c.FechaApertura,
+                Cierre = c.FechaCierre,
+                Abierta = c.Estado,
+                MontoInicial = c.MontoInicial,
+                Contado = c.MontoFinal,
+                Cobros = context.Facturaciones.Count(f => f.CajaId == c.Id && f.Venta.Estado),
+                Efectivo = context.Facturaciones
+                    .Where(f => f.CajaId == c.Id && f.Venta.Estado && f.MetodoPago == MedioEfectivo)
+                    .Sum(f => (decimal?)f.Importe) ?? 0,
+                OtrosMedios = context.Facturaciones
+                    .Where(f => f.CajaId == c.Id && f.Venta.Estado && f.MetodoPago != MedioEfectivo)
                     .Sum(f => (decimal?)f.Importe) ?? 0
             })
             .ToListAsync();
 
-        return cajas.Select(c => new ReporteCierreDto
-        {
-            Fecha = c.FechaCierre!.Value.ToString("dd/MM/yyyy HH:mm"),
-            Caja = c.Id,
-            Cajero = c.Cajero,
-            Esperado = c.MontoInicial + c.Cobrado,
-            Contado = c.MontoFinal ?? 0
-        }).ToList();
+        return cajas;
+    }
+
+    /// <summary>
+    /// Cobros del período agrupados por medio de pago (según la fecha de cobro).
+    /// Cruza Facturacion, Venta y Caja.
+    /// </summary>
+    public async Task<List<ReporteMedioPagoDto>> CobrosPorMedioDePagoAsync(DateTime desde, DateTime hasta)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+        var (inicio, fin) = Rango(desde, hasta);
+
+        var filas = await context.Facturaciones
+            .AsNoTracking()
+            .Where(f => f.Venta.Estado && f.Fecha >= inicio && f.Fecha < fin)
+            .GroupBy(f => f.MetodoPago)
+            .Select(g => new
+            {
+                Medio = g.Key,
+                Cobros = g.Count(),
+                Cajas = g.Select(f => f.CajaId).Distinct().Count(),
+                Importe = g.Sum(f => f.Importe)
+            })
+            .ToListAsync();
+
+        decimal total = filas.Sum(f => f.Importe);
+
+        return filas
+            .OrderByDescending(f => f.Importe)
+            .Select(f => new ReporteMedioPagoDto
+            {
+                Medio = f.Medio,
+                Cobros = f.Cobros,
+                Cajas = f.Cajas,
+                Importe = f.Importe,
+                Porcentaje = total == 0 ? 0 : Math.Round(f.Importe * 100 / total, 1)
+            })
+            .ToList();
     }
 
     public async Task<List<ReporteFarmaceuticoDto>> VentasPorFarmaceuticoAsync(DateTime desde, DateTime hasta)
@@ -278,15 +322,37 @@ public class ReporteProductoDto
 
 public class ReporteCierreDto
 {
-    public string Fecha { get; set; } = string.Empty;
     public int Caja { get; set; }
     public string Cajero { get; set; } = string.Empty;
-    public decimal Esperado { get; set; }
-    public decimal Contado { get; set; }
-    public decimal Diferencia => Contado - Esperado;
+    public DateTime Apertura { get; set; }
+    public DateTime? Cierre { get; set; }
+    public bool Abierta { get; set; }
+    public decimal MontoInicial { get; set; }
+    public int Cobros { get; set; }
+    public decimal Efectivo { get; set; }
+    public decimal OtrosMedios { get; set; }
+    public decimal? Contado { get; set; }
 
-    // Verde si el arqueo cerró justo, rojo si hubo sobrante o faltante
-    public string Estado => Diferencia == 0 ? "Sin diferencia" : "Con diferencia";
+    public decimal TotalCobrado => Efectivo + OtrosMedios;
+    public decimal Esperado => MontoInicial + Efectivo;
+
+    // Sin diferencia mientras la caja sigue abierta (todavía no se contó)
+    public decimal? Diferencia => Abierta || Contado == null ? null : Contado - Esperado;
+
+    public string AperturaTexto => Apertura.ToString("dd/MM/yyyy HH:mm");
+    public string CierreTexto => Cierre?.ToString("dd/MM/yyyy HH:mm") ?? "—";
+
+    public string Estado => Abierta ? "Abierta" : Diferencia == 0 ? "Sin diferencia" : "Con diferencia";
+}
+
+public class ReporteMedioPagoDto
+{
+    public string Medio { get; set; } = string.Empty;
+    public int Cobros { get; set; }
+    public int Cajas { get; set; }
+    public decimal Importe { get; set; }
+    public decimal Porcentaje { get; set; }
+    public decimal TicketPromedio => Cobros == 0 ? 0 : Math.Round(Importe / Cobros, 2);
 }
 
 public class ReporteFarmaceuticoDto

@@ -21,7 +21,7 @@
 		<Grid Grid.Row="0" Margin="0,0,0,16">
 			<StackPanel>
 				<TextBlock Text="Reportes" Style="{StaticResource PageTitleText}" />
-				<TextBlock Text="Información cruzada de ventas, obras sociales, productos y cajas."
+				<TextBlock Text="Información cruzada de ventas, obras sociales, productos, cajas y cobros."
                            Style="{StaticResource PageSubtitleText}" />
 			</StackPanel>
 			<StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
@@ -84,19 +84,24 @@
 					</DataGrid>
 				</TabItem>
 
-				<!-- Cierres de caja -->
-				<TabItem Header="Cierres de caja">
+				<!-- Cajas: apertura, cobros y arqueo -->
+				<TabItem Header="Cajas">
 					<DataGrid x:Name="CierresGrid" Margin="0,12,0,0"
                               AutoGenerateColumns="False" IsReadOnly="True"
                               HeadersVisibility="Column" GridLinesVisibility="None"
                               RowHeight="38" Background="Transparent" BorderThickness="0">
 						<DataGrid.Columns>
-							<DataGridTextColumn Header="Fecha" Binding="{Binding Fecha}" Width="*" />
-							<DataGridTextColumn Header="Caja" Binding="{Binding Caja}" Width="70" />
+							<DataGridTextColumn Header="Caja" Binding="{Binding Caja}" Width="55" />
 							<DataGridTextColumn Header="Cajero" Binding="{Binding Cajero}" Width="1.2*" />
+							<DataGridTextColumn Header="Apertura" Binding="{Binding AperturaTexto}" Width="1.1*" />
+							<DataGridTextColumn Header="Cierre" Binding="{Binding CierreTexto}" Width="1.1*" />
+							<DataGridTextColumn Header="Monto inicial" Binding="{Binding MontoInicial, StringFormat='$ {0:N2}'}" Width="*" />
+							<DataGridTextColumn Header="Cobros" Binding="{Binding Cobros}" Width="60" />
+							<DataGridTextColumn Header="Efectivo" Binding="{Binding Efectivo, StringFormat='$ {0:N2}'}" Width="*" />
+							<DataGridTextColumn Header="Otros medios" Binding="{Binding OtrosMedios, StringFormat='$ {0:N2}'}" Width="*" />
 							<DataGridTextColumn Header="Efectivo esperado" Binding="{Binding Esperado, StringFormat='$ {0:N2}'}" Width="*" />
-							<DataGridTextColumn Header="Efectivo contado" Binding="{Binding Contado, StringFormat='$ {0:N2}'}" Width="*" />
-							<DataGridTextColumn Header="Diferencia" Binding="{Binding Diferencia, StringFormat='$ {0:N2}'}" Width="*" />
+							<DataGridTextColumn Header="Efectivo contado" Binding="{Binding Contado, StringFormat='$ {0:N2}', TargetNullValue='—'}" Width="*" />
+							<DataGridTextColumn Header="Diferencia" Binding="{Binding Diferencia, StringFormat='$ {0:N2}', TargetNullValue='—'}" Width="*" />
 							<DataGridTemplateColumn Header="Resultado" Width="120">
 								<DataGridTemplateColumn.CellTemplate>
 									<DataTemplate>
@@ -155,6 +160,23 @@
 							</DataGrid.Columns>
 						</DataGrid>
 					</Grid>
+				</TabItem>
+
+				<!-- Cobros por medio de pago -->
+				<TabItem Header="Medios de pago">
+					<DataGrid x:Name="MediosPagoGrid" Margin="0,12,0,0"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              HeadersVisibility="Column" GridLinesVisibility="None"
+                              RowHeight="38" Background="Transparent" BorderThickness="0">
+						<DataGrid.Columns>
+							<DataGridTextColumn Header="Medio de pago" Binding="{Binding Medio}" Width="1.4*" />
+							<DataGridTextColumn Header="Cobros" Binding="{Binding Cobros}" Width="*" />
+							<DataGridTextColumn Header="Cajas" Binding="{Binding Cajas}" Width="*" />
+							<DataGridTextColumn Header="Total cobrado" Binding="{Binding Importe, StringFormat='$ {0:N2}'}" Width="*" />
+							<DataGridTextColumn Header="% del total" Binding="{Binding Porcentaje, StringFormat='{}{0:N1} %'}" Width="*" />
+							<DataGridTextColumn Header="Ticket promedio" Binding="{Binding TicketPromedio, StringFormat='$ {0:N2}'}" Width="*" />
+						</DataGrid.Columns>
+					</DataGrid>
 				</TabItem>
 			</TabControl>
 		</Border>

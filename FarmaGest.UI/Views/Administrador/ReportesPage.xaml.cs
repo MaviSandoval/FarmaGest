@@ -18,6 +18,7 @@ public partial class ReportesPage : Page
     private List<ReporteCierreDto> _cierres = new();
     private List<ReporteFarmaceuticoDto> _farmaceuticos = new();
     private List<ReportePeriodoDto> _periodos = new();
+    private List<ReporteMedioPagoDto> _mediosPago = new();
 
     public ReportesPage(ReporteService reporteService)
     {
@@ -51,12 +52,14 @@ public partial class ReportesPage : Page
             _cierres = await _reporteService.CierresDeCajaAsync(desde, hasta);
             _farmaceuticos = await _reporteService.VentasPorFarmaceuticoAsync(desde, hasta);
             _periodos = await _reporteService.VentasPorPeriodoAsync(desde, hasta, PorMes);
+            _mediosPago = await _reporteService.CobrosPorMedioDePagoAsync(desde, hasta);
 
             ObraSocialGrid.ItemsSource = _obrasSociales;
             ProductosGrid.ItemsSource = _productos;
             CierresGrid.ItemsSource = _cierres;
             FarmaceuticosGrid.ItemsSource = _farmaceuticos;
             PeriodoGrid.ItemsSource = _periodos;
+            MediosPagoGrid.ItemsSource = _mediosPago;
         }
         catch (Exception ex)
         {
@@ -108,13 +111,18 @@ public partial class ReportesPage : Page
                     ("Unidades", r => r.Unidades),
                     ("Total vendido", r => r.Total)),
 
-                2 => Exp<ReporteCierreDto>("Cierres de caja", "Cierres_de_caja", _cierres,
-                    ("Fecha", r => r.Fecha),
+                2 => Exp<ReporteCierreDto>("Cajas", "Cajas", _cierres,
                     ("Caja", r => r.Caja),
                     ("Cajero", r => r.Cajero),
-                    ("Esperado", r => r.Esperado),
-                    ("Contado", r => r.Contado),
-                    ("Diferencia", r => r.Diferencia)),
+                    ("Apertura", r => r.AperturaTexto),
+                    ("Cierre", r => r.CierreTexto),
+                    ("Monto inicial", r => r.MontoInicial),
+                    ("Efectivo", r => r.Efectivo),
+                    ("Otros medios", r => r.OtrosMedios),
+                    ("Efectivo esperado", r => r.Esperado),
+                    ("Efectivo contado", r => r.Contado),
+                    ("Diferencia", r => r.Diferencia),
+                    ("Resultado", r => r.Estado)),
 
                 3 => Exp<ReporteFarmaceuticoDto>("Ventas por farmacéutico", "Ventas_por_farmaceutico", _farmaceuticos,
                     ("Farmacéutico", r => r.Farmaceutico),
@@ -123,7 +131,7 @@ public partial class ReportesPage : Page
                     ("Anuladas", r => r.Anuladas),
                     ("Total vendido", r => r.Total)),
 
-                _ => Exp<ReportePeriodoDto>(PorMes ? "Ventas por mes" : "Ventas por semana",
+                4 => Exp<ReportePeriodoDto>(PorMes ? "Ventas por mes" : "Ventas por semana",
                     PorMes ? "Ventas_por_mes" : "Ventas_por_semana", _periodos,
                     ("Período", r => r.Periodo),
                     ("Ventas", r => r.Ventas),
@@ -131,6 +139,14 @@ public partial class ReportesPage : Page
                     ("Total vendido", r => r.TotalVendido),
                     ("Cubierto por la obra social", r => r.TotalCubierto),
                     ("Pagado por el cliente", r => r.PagadoCliente),
+                    ("Ticket promedio", r => r.TicketPromedio)),
+
+                _ => Exp<ReporteMedioPagoDto>("Cobros por medio de pago", "Cobros_por_medio_de_pago", _mediosPago,
+                    ("Medio de pago", r => r.Medio),
+                    ("Cobros", r => r.Cobros),
+                    ("Cajas", r => r.Cajas),
+                    ("Total cobrado", r => r.Importe),
+                    ("% del total", r => $"{r.Porcentaje:N1} %"),
                     ("Ticket promedio", r => r.TicketPromedio))
             };
 
