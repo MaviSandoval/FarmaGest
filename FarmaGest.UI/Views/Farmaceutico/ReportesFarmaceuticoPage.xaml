@@ -24,9 +24,12 @@
 				<TextBlock Text="Tus ventas por obra social, los productos que más vendiste y el estado de las recetas recibidas."
                            Style="{StaticResource PageSubtitleText}" />
 			</StackPanel>
-			<ui:Button HorizontalAlignment="Right" VerticalAlignment="Center"
-                       Appearance="Secondary" Icon="{ui:SymbolIcon ArrowDownload24}"
-                       Content="Exportar" Click="Exportar_Click" />
+			<StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
+				<ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon DocumentTable24}"
+                           Content="Excel (CSV)" Click="ExportarCsv_Click" Margin="0,0,8,0" />
+				<ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon DocumentPdf24}"
+                           Content="PDF" Click="ExportarPdf_Click" />
+			</StackPanel>
 		</Grid>
 
 		<!-- ===================== FILTRO DE PERÍODO ===================== -->
@@ -96,6 +99,37 @@
 							<DataGridTextColumn Header="Usadas en ventas" Binding="{Binding Usadas}" Width="*" />
 						</DataGrid.Columns>
 					</DataGrid>
+				</TabItem>
+				<!-- Ventas por período (semana / mes) -->
+				<TabItem Header="Ventas por período">
+					<Grid Margin="0,12,0,0">
+						<Grid.RowDefinitions>
+							<RowDefinition Height="Auto" />
+							<RowDefinition Height="*" />
+						</Grid.RowDefinitions>
+						<StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+							<TextBlock Text="Agrupar por" VerticalAlignment="Center" Margin="0,0,8,0" />
+							<ComboBox x:Name="AgrupacionCombo" Width="140" SelectedIndex="0"
+                                      SelectionChanged="Agrupacion_Changed">
+								<ComboBoxItem Content="Semana" />
+								<ComboBoxItem Content="Mes" />
+							</ComboBox>
+						</StackPanel>
+						<DataGrid x:Name="PeriodoGrid" Grid.Row="1"
+                                  AutoGenerateColumns="False" IsReadOnly="True"
+                                  HeadersVisibility="Column" GridLinesVisibility="None"
+                                  RowHeight="38" Background="Transparent" BorderThickness="0">
+							<DataGrid.Columns>
+								<DataGridTextColumn Header="Período" Binding="{Binding Periodo}" Width="1.8*" />
+								<DataGridTextColumn Header="Ventas" Binding="{Binding Ventas}" Width="0.7*" />
+								<DataGridTextColumn Header="Con receta" Binding="{Binding ConReceta}" Width="0.8*" />
+								<DataGridTextColumn Header="Total vendido" Binding="{Binding TotalVendido, StringFormat='$ {0:N2}'}" Width="*" />
+								<DataGridTextColumn Header="Cubierto por OS" Binding="{Binding TotalCubierto, StringFormat='$ {0:N2}'}" Width="*" />
+								<DataGridTextColumn Header="Pagado por el cliente" Binding="{Binding PagadoCliente, StringFormat='$ {0:N2}'}" Width="*" />
+								<DataGridTextColumn Header="Ticket promedio" Binding="{Binding TicketPromedio, StringFormat='$ {0:N2}'}" Width="*" />
+							</DataGrid.Columns>
+						</DataGrid>
+					</Grid>
 				</TabItem>
 			</TabControl>
 		</Border>

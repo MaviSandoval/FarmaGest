@@ -13,6 +13,7 @@ namespace FarmaGest.UI.Views.Farmaceutico;
 ///  1. Mis ventas por obra social ..... Venta + DetalleVenta + Recetas + Afiliados + Planes + ObraSocial
 ///  2. Productos que más vendí ........ DetalleVenta + Venta + Producto + CategoriasProductos
 ///  3. Recetas por obra social ........ Recetas + Afiliados + Planes + ObraSocial + Venta
+///  4. Mis ventas por semana / mes .... Venta + DetalleVenta + Facturacion + Recetas
 /// Los dos primeros solo cuentan las ventas del usuario logueado; las anuladas no suman.
 /// </summary>
 public partial class ReportesFarmaceuticoPage : Page
@@ -23,6 +24,7 @@ public partial class ReportesFarmaceuticoPage : Page
     private List<ReporteObraSocialDto> _obrasSociales = new();
     private List<ReporteProductoDto> _productos = new();
     private List<ReporteRecetasDto> _recetas = new();
+    private List<ReportePeriodoDto> _periodos = new();
 
     public ReportesFarmaceuticoPage(ReporteService reporteService, SesionUsuarioService sesion)
     {
@@ -57,10 +59,12 @@ public partial class ReportesFarmaceuticoPage : Page
             _obrasSociales = await _reporteService.VentasPorObraSocialAsync(desde, hasta, usuarioId);
             _productos = await _reporteService.ProductosMasVendidosAsync(desde, hasta, usuarioId: usuarioId);
             _recetas = await _reporteService.RecetasPorObraSocialAsync(desde, hasta);
+            _periodos = await _reporteService.VentasPorPeriodoAsync(desde, hasta, PorMes, usuarioId);
 
             ObraSocialGrid.ItemsSource = _obrasSociales;
             ProductosGrid.ItemsSource = _productos;
             RecetasGrid.ItemsSource = _recetas;
+            PeriodoGrid.ItemsSource = _periodos;
         }
         catch (Exception ex)
         {
@@ -71,34 +75,64 @@ public partial class ReportesFarmaceuticoPage : Page
 
     private async void Generar_Click(object sender, RoutedEventArgs e) => await GenerarAsync();
 
-    /// <summary>Exporta a CSV el reporte de la pestaña que se está viendo.</summary>
-    private void Exportar_Click(object sender, RoutedEventArgs e)
+    private bool PorMes => AgrupacionCombo.SelectedIndex == 1;
+
+    private async void Agrupacion_Changed(object sender, SelectionChangedEventArgs e)
     {
+        if (IsLoaded)
+            await GenerarAsync();
+    }
+
+    private void ExportarCsv_Click(object sender, RoutedEventArgs e) => Exportar(pdf: false);
+
+    private void ExportarPdf_Click(object sender, RoutedEventArgs e) => Exportar(pdf: true);
+
+    /// <summary>Exporta a CSV o PDF el reporte de la pestaña que se está viendo.</summary>
+    private void Exportar(bool pdf)
+    {
+        string periodo = $"Período: {DesdePicker.SelectedDate:dd/MM/yyyy} al {HastaPicker.SelectedDate:dd/MM/yyyy}";
+
+        // Mismas columnas para los dos formatos
+        string? Exp<T>(string titulo, string archivo, IEnumerable<T> filas,
+            params (string Titulo, Func<T, object?> Valor)[] columnas) =>
+            pdf ? ExportadorPdf.Exportar(titulo, periodo, archivo, filas, columnas)
+                : ExportadorCsv.Exportar(archivo, filas, columnas);
+
         try
         {
             string? ruta = ReportesTabs.SelectedIndex switch
             {
-                0 => ExportadorCsv.Exportar<ReporteObraSocialDto>("Mis_ventas_por_obra_social", _obrasSociales,
+                0 => Exp<ReporteObraSocialDto>("Mis ventas por obra social", "Mis_ventas_por_obra_social", _obrasSociales,
                     ("Obra social", r => r.ObraSocial),
                     ("Ventas", r => r.Ventas),
                     ("Total vendido", r => r.TotalVendido),
                     ("Cubierto por la obra social", r => r.TotalCubierto),
                     ("Pagado por el cliente", r => r.PagadoCliente)),
 
-                1 => ExportadorCsv.Exportar<ReporteProductoDto>("Productos_que_mas_vendi", _productos,
+                1 => Exp<ReporteProductoDto>("Productos que más vendí", "Productos_que_mas_vendi", _productos,
                     ("Puesto", r => r.Puesto),
                     ("Producto", r => r.Producto),
                     ("Categoría", r => r.Categoria),
                     ("Unidades", r => r.Unidades),
                     ("Total vendido", r => r.Total)),
 
-                _ => ExportadorCsv.Exportar<ReporteRecetasDto>("Recetas_por_obra_social", _recetas,
+                2 => Exp<ReporteRecetasDto>("Recetas por obra social", "Recetas_por_obra_social", _recetas,
                     ("Obra social", r => r.ObraSocial),
                     ("Recibidas", r => r.Total),
                     ("Pendientes", r => r.Pendientes),
                     ("Validadas", r => r.Validadas),
                     ("Rechazadas", r => r.Rechazadas),
-                    ("Usadas en ventas", r => r.Usadas))
+                    ("Usadas en ventas", r => r.Usadas)),
+
+                _ => Exp<ReportePeriodoDto>(PorMes ? "Ventas por mes" : "Ventas por semana",
+                    PorMes ? "Ventas_por_mes" : "Ventas_por_semana", _periodos,
+                    ("Período", r => r.Periodo),
+                    ("Ventas", r => r.Ventas),
+                    ("Con receta", r => r.ConReceta),
+                    ("Total vendido", r => r.TotalVendido),
+                    ("Cubierto por la obra social", r => r.TotalCubierto),
+                    ("Pagado por el cliente", r => r.PagadoCliente),
+                    ("Ticket promedio", r => r.TicketPromedio))
             };
 
             if (ruta != null)

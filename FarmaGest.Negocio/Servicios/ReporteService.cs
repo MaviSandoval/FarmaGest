@@ -3,7 +3,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FarmaGest.Negocio.Servicios;
 
-/// <summary>Reportes del Administrador. Las ventas anuladas no suman en los totales.</summary>
+/// <summary>
+/// Reportes cruzados. Una venta cuenta como vendida recién cuando el Cajero la cobró
+/// (tiene Facturacion): las preventas pendientes de cobro y las anuladas no suman.
+/// </summary>
 public class ReporteService
 {
     private readonly IDbContextFactory<FarmaGestDbContext> _factory;
@@ -22,6 +25,7 @@ public class ReporteService
         var ventas = await context.Ventas
             .AsNoTracking()
             .Where(v => v.Estado && v.Fecha >= inicio && v.Fecha < fin)
+            .Where(v => context.Facturaciones.Any(f => f.VentaId == v.Id))
             .Where(v => usuarioId == null || v.UsuarioId == usuarioId)
             .Select(v => new
             {
@@ -53,6 +57,7 @@ public class ReporteService
         var filas = await context.DetallesVenta
             .AsNoTracking()
             .Where(d => d.Venta.Estado && d.Venta.Fecha >= inicio && d.Venta.Fecha < fin)
+            .Where(d => context.Facturaciones.Any(f => f.VentaId == d.VentaId))
             .Where(d => usuarioId == null || d.Venta.UsuarioId == usuarioId)
             .GroupBy(d => new { d.ProductoId, d.Producto.Descripcion, Categoria = d.Producto.Categoria.Nombre })
             .Select(g => new
@@ -122,6 +127,7 @@ public class ReporteService
                 v.UsuarioId,
                 Farmaceutico = v.Usuario.Nombre + " " + v.Usuario.Apellido,
                 v.Estado,
+                Facturada = context.Facturaciones.Any(f => f.VentaId == v.Id),
                 ConReceta = v.RecetaId != null,
                 Total = v.Detalles.Sum(d => (decimal?)(d.Cantidad * d.PrecioUnitario - d.Descuento)) ?? 0
             })
@@ -132,10 +138,11 @@ public class ReporteService
             .Select(g => new ReporteFarmaceuticoDto
             {
                 Farmaceutico = g.Key.Farmaceutico,
-                Ventas = g.Count(v => v.Estado),
-                ConReceta = g.Count(v => v.Estado && v.ConReceta),
+                // Ventas, con receta y total: solo las cobradas. Anuladas: todas las del período.
+                Ventas = g.Count(v => v.Estado && v.Facturada),
+                ConReceta = g.Count(v => v.Estado && v.Facturada && v.ConReceta),
                 Anuladas = g.Count(v => !v.Estado),
-                Total = g.Where(v => v.Estado).Sum(v => v.Total)
+                Total = g.Where(v => v.Estado && v.Facturada).Sum(v => v.Total)
             })
             .OrderByDescending(r => r.Total)
             .ToList();
@@ -178,6 +185,53 @@ public class ReporteService
             .ToList();
     }
 
+    /// <summary>
+    /// Ventas cobradas agrupadas por semana (lunes a domingo) o por mes.
+    /// Cruza Venta, DetalleVenta, Facturacion y Receta.
+    /// </summary>
+    /// <param name="porMes">true agrupa por mes; false, por semana.</param>
+    /// <param name="usuarioId">Si se indica, solo las ventas que armó ese usuario (reporte del Farmacéutico).</param>
+    public async Task<List<ReportePeriodoDto>> VentasPorPeriodoAsync(DateTime desde, DateTime hasta, bool porMes, int? usuarioId = null)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+        var (inicio, fin) = Rango(desde, hasta);
+
+        var ventas = await context.Ventas
+            .AsNoTracking()
+            .Where(v => v.Estado && v.Fecha >= inicio && v.Fecha < fin)
+            .Where(v => context.Facturaciones.Any(f => f.VentaId == v.Id))
+            .Where(v => usuarioId == null || v.UsuarioId == usuarioId)
+            .Select(v => new
+            {
+                v.Fecha,
+                ConReceta = v.RecetaId != null,
+                Bruto = v.Detalles.Sum(d => (decimal?)(d.Cantidad * d.PrecioUnitario)) ?? 0,
+                Descuento = v.Detalles.Sum(d => (decimal?)d.Descuento) ?? 0
+            })
+            .ToListAsync();
+
+        var cultura = new System.Globalization.CultureInfo("es-AR");
+
+        return ventas
+            .GroupBy(v => porMes ? new DateTime(v.Fecha.Year, v.Fecha.Month, 1) : InicioSemana(v.Fecha))
+            .OrderBy(g => g.Key)
+            .Select(g => new ReportePeriodoDto
+            {
+                Periodo = porMes
+                    ? cultura.TextInfo.ToTitleCase(g.Key.ToString("MMMM yyyy", cultura))
+                    : $"Semana del {g.Key:dd/MM} al {g.Key.AddDays(6):dd/MM/yyyy}",
+                Ventas = g.Count(),
+                ConReceta = g.Count(v => v.ConReceta),
+                TotalVendido = g.Sum(v => v.Bruto),
+                TotalCubierto = g.Sum(v => v.Descuento)
+            })
+            .ToList();
+    }
+
+    // La semana empieza el lunes
+    private static DateTime InicioSemana(DateTime fecha) =>
+        fecha.Date.AddDays(-(((int)fecha.DayOfWeek + 6) % 7));
+
     // "hasta" es inclusivo: se toma hasta el final de ese día
     private static (DateTime Inicio, DateTime Fin) Rango(DateTime desde, DateTime hasta) =>
         (desde.Date, hasta.Date.AddDays(1));
@@ -190,6 +244,17 @@ public class ReporteObraSocialDto
     public decimal TotalVendido { get; set; }
     public decimal TotalCubierto { get; set; }
     public decimal PagadoCliente => TotalVendido - TotalCubierto;
+}
+
+public class ReportePeriodoDto
+{
+    public string Periodo { get; set; } = string.Empty;
+    public int Ventas { get; set; }
+    public int ConReceta { get; set; }
+    public decimal TotalVendido { get; set; }
+    public decimal TotalCubierto { get; set; }
+    public decimal PagadoCliente => TotalVendido - TotalCubierto;
+    public decimal TicketPromedio => Ventas == 0 ? 0 : Math.Round(PagadoCliente / Ventas, 2);
 }
 
 public class ReporteRecetasDto

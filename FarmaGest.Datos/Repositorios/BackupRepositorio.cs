@@ -59,7 +59,8 @@ public class BackupRepositorio
     }
 
     /// <summary>Últimas copias completas registradas por SQL Server.</summary>
-    public async Task<List<BackupInfo>> ObtenerHistorialAsync(int maximo = 20)
+    /// <param name="generadoPor">Si se indica, solo las copias con esa descripción (p. ej. "Automático").</param>
+    public async Task<List<BackupInfo>> ObtenerHistorialAsync(int maximo = 20, string? generadoPor = null)
     {
         await using var conexion = ConexionSingleton.Instancia.CrearConexion();
         await conexion.OpenAsync();
@@ -73,9 +74,11 @@ public class BackupRepositorio
             FROM msdb.dbo.backupset b
             JOIN msdb.dbo.backupmediafamily m ON m.media_set_id = b.media_set_id
             WHERE b.database_name = @base AND b.type = 'D'
+              AND (@generadoPor IS NULL OR b.description = @generadoPor)
             ORDER BY b.backup_finish_date DESC;", conexion);
         comando.Parameters.Add("@maximo", SqlDbType.Int).Value = maximo;
         comando.Parameters.Add("@base", SqlDbType.NVarChar, 128).Value = NombreBase;
+        comando.Parameters.Add("@generadoPor", SqlDbType.NVarChar, 255).Value = (object?)generadoPor ?? DBNull.Value;
 
         var lista = new List<BackupInfo>();
         await using var lector = await comando.ExecuteReaderAsync();

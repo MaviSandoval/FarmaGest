@@ -52,6 +52,9 @@ public partial class App : Application
             }
         }
 
+        // ---- Copia de seguridad automática diaria (00:00) ----
+        Services.GetRequiredService<BackupProgramadoService>().Iniciar();
+
         var authWindow = new AuthWindow();
         authWindow.Show();
     }
@@ -84,6 +87,7 @@ public partial class App : Application
         servicios.AddSingleton<ObraSocialService>();
         servicios.AddSingleton<ReporteService>();
         servicios.AddSingleton<BackupService>();
+        servicios.AddSingleton<BackupProgramadoService>();
 
         // ---- Capa de UI - Administrador ----
         // Las ventanas principales son Transient: al cerrar sesión se cierran,

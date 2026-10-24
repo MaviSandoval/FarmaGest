@@ -12,17 +12,21 @@ namespace FarmaGest.UI.Views.Administrador;
 /// Configuración y copias de seguridad.
 /// - Datos de la farmacia y parámetros: maqueta (todavía no hay tabla de configuración).
 /// - Copia de seguridad: real, con BACKUP DATABASE / RESTORE DATABASE de SQL Server.
+///   Manual (botón) + automática diaria a las 00:00 (BackupProgramadoService).
 /// </summary>
 public partial class ConfiguracionPage : Page
 {
     private readonly BackupService _backupService;
     private readonly SesionUsuarioService _sesion;
+    private readonly BackupProgramadoService _backupProgramado;
 
-    public ConfiguracionPage(BackupService backupService, SesionUsuarioService sesion)
+    public ConfiguracionPage(BackupService backupService, SesionUsuarioService sesion,
+        BackupProgramadoService backupProgramado)
     {
         InitializeComponent();
         _backupService = backupService;
         _sesion = sesion;
+        _backupProgramado = backupProgramado;
         Loaded += async (_, _) => await CargarAsync();
     }
 
@@ -34,6 +38,10 @@ public partial class ConfiguracionPage : Page
                 CarpetaBackupText.Text = await _backupService.ObtenerCarpetaPorDefectoAsync() ?? string.Empty;
 
             BackupsGrid.ItemsSource = await _backupService.ObtenerHistorialAsync();
+
+            if (_backupProgramado.UltimoError != null)
+                Aviso($"La última copia automática falló:\n\n{_backupProgramado.UltimoError}\n\n" +
+                      "Podés generar una copia manual mientras tanto.", MessageBoxImage.Warning);
         }
         catch (Exception ex)
         {
