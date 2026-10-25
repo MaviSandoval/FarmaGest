@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using FarmaGest.Negocio.Servicios;
 using FarmaGest.UI.Helpers;
 
@@ -10,11 +12,13 @@ namespace FarmaGest.UI.Views.Farmaceutico;
 
 /// <summary>
 /// Reportes del Farmacéutico (tablas cruzadas, filtradas por período):
-///  1. Mis ventas por obra social ..... Venta + DetalleVenta + Recetas + Afiliados + Planes + ObraSocial
-///  2. Productos que más vendí ........ DetalleVenta + Venta + Producto + CategoriasProductos
+///  0. Resumen del período (tablero) . Venta + DetalleVenta + Facturacion + Producto + Categoria + Receta + ObraSocial
+///  1. Ventas por obra social ......... Venta + DetalleVenta + Recetas + Afiliados + Planes + ObraSocial
+///  2. Productos más vendidos ......... DetalleVenta + Venta + Producto + CategoriasProductos
 ///  3. Recetas por obra social ........ Recetas + Afiliados + Planes + ObraSocial + Venta
-///  4. Mis ventas por semana / mes .... Venta + DetalleVenta + Facturacion + Recetas
-/// Los dos primeros solo cuentan las ventas del usuario logueado; las anuladas no suman.
+///  4. Ventas por semana / mes ........ Venta + DetalleVenta + Facturacion + Recetas
+/// El Farmacéutico es el puesto más alto de la farmacia: ve los datos de TODA la farmacia,
+/// no solo sus ventas. Solo cuentan las ventas cobradas; las anuladas no suman.
 /// </summary>
 public partial class ReportesFarmaceuticoPage : Page
 {
@@ -36,6 +40,7 @@ public partial class ReportesFarmaceuticoPage : Page
         HastaPicker.SelectedDate = DateTime.Today;
 
         Loaded += async (_, _) => await GenerarAsync();
+        PreviewMouseWheel += ReenviarRueda;
     }
 
     private async Task GenerarAsync()
@@ -54,23 +59,65 @@ public partial class ReportesFarmaceuticoPage : Page
 
         try
         {
-            int? usuarioId = _sesion.UsuarioActual?.Id;
-
-            _obrasSociales = await _reporteService.VentasPorObraSocialAsync(desde, hasta, usuarioId);
-            _productos = await _reporteService.ProductosMasVendidosAsync(desde, hasta, usuarioId: usuarioId);
+            _obrasSociales = await _reporteService.VentasPorObraSocialAsync(desde, hasta);
+            _productos = await _reporteService.ProductosMasVendidosAsync(desde, hasta);
             _recetas = await _reporteService.RecetasPorObraSocialAsync(desde, hasta);
-            _periodos = await _reporteService.VentasPorPeriodoAsync(desde, hasta, PorMes, usuarioId);
+            _periodos = await _reporteService.VentasPorPeriodoAsync(desde, hasta, PorMes);
 
             ObraSocialGrid.ItemsSource = _obrasSociales;
             ProductosGrid.ItemsSource = _productos;
             RecetasGrid.ItemsSource = _recetas;
             PeriodoGrid.ItemsSource = _periodos;
+
+            Resumen.Mostrar(await _reporteService.ResumenAsync(desde, hasta));
+            ActualizarGraficos();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"No se pudieron generar los reportes.\n\n{ex.Message}", "FarmaGest",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    // =========================================================
+    // GRÁFICOS DE LAS PESTAÑAS (los que no están en el resumen)
+    // =========================================================
+    private void ActualizarGraficos()
+    {
+        Graficos.Dona(RecetasChart, new[]
+            {
+                ("Validadas", (double)_recetas.Sum(r => r.Validadas)),
+                ("Pendientes", (double)_recetas.Sum(r => r.Pendientes)),
+                ("Rechazadas", (double)_recetas.Sum(r => r.Rechazadas))
+            },
+            new[] { Graficos.Verde, Graficos.Ambar, Graficos.Rojo });
+        Graficos.Mostrar(RecetasChartCard, _recetas.Count > 0);
+
+        Graficos.BarrasYLinea(PeriodoChart, _periodos.Select(p => p.Etiqueta),
+            "Total vendido", _periodos.Select(p => (double)p.TotalVendido),
+            "Cantidad de ventas", _periodos.Select(p => (double)p.Ventas));
+        Graficos.Mostrar(PeriodoChartCard, _periodos.Count > 0);
+    }
+
+    // =========================================================
+    // ACCESOS RÁPIDOS DE PERÍODO
+    // =========================================================
+    private async void Rapido_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string tag } && int.TryParse(tag, out int dias))
+        {
+            HastaPicker.SelectedDate = DateTime.Today;
+            DesdePicker.SelectedDate = DateTime.Today.AddDays(-(dias - 1));
+            await GenerarAsync();
+        }
+    }
+
+    // Las tablas y los gráficos se quedan con la rueda del mouse:
+    // se reenvía al scroll de la página para que se pueda bajar desde cualquier lado.
+    private void ReenviarRueda(object sender, MouseWheelEventArgs e)
+    {
+        ScrollPrincipal.ScrollToVerticalOffset(ScrollPrincipal.VerticalOffset - e.Delta);
+        e.Handled = true;
     }
 
     private async void Generar_Click(object sender, RoutedEventArgs e) => await GenerarAsync();
@@ -102,14 +149,14 @@ public partial class ReportesFarmaceuticoPage : Page
         {
             string? ruta = ReportesTabs.SelectedIndex switch
             {
-                0 => Exp<ReporteObraSocialDto>("Mis ventas por obra social", "Mis_ventas_por_obra_social", _obrasSociales,
+                0 => Exp<ReporteObraSocialDto>("Ventas por obra social", "Ventas_por_obra_social", _obrasSociales,
                     ("Obra social", r => r.ObraSocial),
                     ("Ventas", r => r.Ventas),
                     ("Total vendido", r => r.TotalVendido),
                     ("Cubierto por la obra social", r => r.TotalCubierto),
                     ("Pagado por el cliente", r => r.PagadoCliente)),
 
-                1 => Exp<ReporteProductoDto>("Productos que más vendí", "Productos_que_mas_vendi", _productos,
+                1 => Exp<ReporteProductoDto>("Productos más vendidos", "Productos_mas_vendidos", _productos,
                     ("Puesto", r => r.Puesto),
                     ("Producto", r => r.Producto),
                     ("Categoría", r => r.Categoria),

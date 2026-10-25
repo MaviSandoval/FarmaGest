@@ -1,4 +1,6 @@
-﻿using FarmaGest.Datos.Contexto;
+﻿using System.Globalization;
+using FarmaGest.Datos.Contexto;
+using FarmaGest.Dominio;
 using Microsoft.EntityFrameworkCore;
 
 namespace FarmaGest.Negocio.Servicios;
@@ -264,6 +266,9 @@ public class ReporteService
                 Periodo = porMes
                     ? cultura.TextInfo.ToTitleCase(g.Key.ToString("MMMM yyyy", cultura))
                     : $"Semana del {g.Key:dd/MM} al {g.Key.AddDays(6):dd/MM/yyyy}",
+                Etiqueta = porMes
+                    ? cultura.TextInfo.ToTitleCase(g.Key.ToString("MMM yy", cultura))
+                    : g.Key.ToString("dd/MM"),
                 Ventas = g.Count(),
                 ConReceta = g.Count(v => v.ConReceta),
                 TotalVendido = g.Sum(v => v.Bruto),
@@ -275,6 +280,155 @@ public class ReporteService
     // La semana empieza el lunes
     private static DateTime InicioSemana(DateTime fecha) =>
         fecha.Date.AddDays(-(((int)fecha.DayOfWeek + 6) % 7));
+
+    // =========================================================
+    // RESUMEN DEL PERÍODO (tablero de arriba de Reportes)
+    // =========================================================
+
+    /// <summary>
+    /// Indicadores y rankings del período, comparados con el período anterior de igual duración.
+    /// Cruza Venta, DetalleVenta, Facturacion, Producto, Categoria, Receta, Afiliado, Plan y ObraSocial.
+    /// </summary>
+    public async Task<ResumenReportesDto> ResumenAsync(DateTime desde, DateTime hasta)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+        var (inicio, fin) = Rango(desde, hasta);
+        int dias = Math.Max(1, (fin - inicio).Days);
+        var cultura = new CultureInfo("es-AR");
+
+        // ---------- Ventas cobradas del período ----------
+        var ventas = await VentasCobradas(context, inicio, fin)
+            .Select(v => new
+            {
+                v.Fecha,
+                ConReceta = v.RecetaId != null,
+                ObraSocial = v.Receta == null ? null : v.Receta.Afiliado.Plan.ObraSocial.Nombre,
+                Bruto = v.Detalles.Sum(d => (decimal?)(d.Cantidad * d.PrecioUnitario)) ?? 0,
+                Descuento = v.Detalles.Sum(d => (decimal?)d.Descuento) ?? 0,
+                Unidades = v.Detalles.Sum(d => (int?)d.Cantidad) ?? 0
+            })
+            .ToListAsync();
+
+        decimal anterior = await VentasCobradas(context, inicio.AddDays(-dias), inicio)
+            .SelectMany(v => v.Detalles)
+            .SumAsync(d => (decimal?)(d.Cantidad * d.PrecioUnitario - d.Descuento)) ?? 0;
+
+        var resumen = new ResumenReportesDto
+        {
+            Facturacion = ventas.Sum(v => v.Bruto - v.Descuento),
+            FacturacionAnterior = anterior,
+            Ventas = ventas.Count,
+            Unidades = ventas.Sum(v => v.Unidades),
+            UnidadesConReceta = ventas.Where(v => v.ConReceta).Sum(v => v.Unidades),
+            VentasConObraSocial = ventas.Count(v => v.ConReceta),
+            CoberturaDescontada = ventas.Sum(v => v.Descuento)
+        };
+
+        // ---------- Evolución: por día hasta 31 días, por semana si es más largo ----------
+        if (dias <= 31)
+        {
+            var porDia = ventas.GroupBy(v => v.Fecha.Date).ToDictionary(g => g.Key, g => g.Sum(v => v.Bruto - v.Descuento));
+            resumen.TituloEvolucion = "por día";
+            for (var d = inicio; d < fin; d = d.AddDays(1))
+            {
+                string etiqueta = d == DateTime.Today ? "Hoy"
+                    : dias <= 7 ? cultura.TextInfo.ToTitleCase(d.ToString("ddd d", cultura))
+                    : d.ToString("dd/MM");
+                resumen.Evolucion.Add(new PuntoEvolucionDto { Etiqueta = etiqueta, Total = porDia.GetValueOrDefault(d) });
+            }
+        }
+        else
+        {
+            resumen.TituloEvolucion = "por semana";
+            resumen.Evolucion = ventas
+                .GroupBy(v => InicioSemana(v.Fecha))
+                .OrderBy(g => g.Key)
+                .Select(g => new PuntoEvolucionDto { Etiqueta = g.Key.ToString("dd/MM"), Total = g.Sum(v => v.Bruto - v.Descuento) })
+                .ToList();
+        }
+
+        // ---------- Facturación por obra social (las 4 primeras + "Otras") ----------
+        var porObraSocial = ventas
+            .GroupBy(v => v.ObraSocial ?? "Particular")
+            .Select(g => (Nombre: g.Key, Cantidad: g.Count(), Importe: g.Sum(v => v.Bruto)))
+            .OrderByDescending(x => x.Importe)
+            .ToList();
+
+        if (porObraSocial.Count > 5)
+        {
+            var resto = porObraSocial.Skip(4).ToList();
+            porObraSocial = porObraSocial.Take(4)
+                .Append(("Otras", resto.Sum(x => x.Cantidad), resto.Sum(x => x.Importe)))
+                .ToList();
+        }
+        resumen.ObrasSociales = Participaciones(porObraSocial);
+
+        // ---------- Productos y categorías ----------
+        var detalles = await VentasCobradas(context, inicio, fin)
+            .SelectMany(v => v.Detalles)
+            .GroupBy(d => new { d.ProductoId, d.Producto.Descripcion, Categoria = d.Producto.Categoria.Nombre })
+            .Select(g => new
+            {
+                g.Key.Descripcion,
+                g.Key.Categoria,
+                Unidades = g.Sum(d => d.Cantidad),
+                Total = g.Sum(d => d.Cantidad * d.PrecioUnitario - d.Descuento)
+            })
+            .ToListAsync();
+
+        resumen.TopProductos = detalles
+            .OrderByDescending(d => d.Unidades)
+            .Take(5)
+            .Select((d, i) => new ReporteProductoDto
+            {
+                Puesto = i + 1,
+                Producto = d.Descripcion,
+                Categoria = d.Categoria,
+                Unidades = d.Unidades,
+                Total = d.Total
+            })
+            .ToList();
+
+        resumen.Categorias = Participaciones(detalles
+            .GroupBy(d => d.Categoria)
+            .Select(g => (Nombre: g.Key, Cantidad: g.Sum(d => d.Unidades), Importe: g.Sum(d => d.Total)))
+            .OrderByDescending(x => x.Importe)
+            .ToList());
+
+        // ---------- Medios de pago ----------
+        var medios = await context.Facturaciones
+            .AsNoTracking()
+            .Where(f => f.Venta.Estado && f.Venta.Fecha >= inicio && f.Venta.Fecha < fin)
+            .GroupBy(f => f.MetodoPago)
+            .Select(g => new { Medio = g.Key, Cantidad = g.Count(), Importe = g.Sum(f => f.Importe) })
+            .ToListAsync();
+
+        resumen.MediosPago = Participaciones(medios
+            .Select(m => (Nombre: m.Medio, m.Cantidad, m.Importe))
+            .OrderByDescending(x => x.Importe)
+            .ToList());
+
+        return resumen;
+    }
+
+    /// <summary>Ventas activas del rango que ya fueron cobradas (tienen Facturacion).</summary>
+    private static IQueryable<Venta> VentasCobradas(FarmaGestDbContext context, DateTime inicio, DateTime fin) =>
+        context.Ventas
+            .AsNoTracking()
+            .Where(v => v.Estado && v.Fecha >= inicio && v.Fecha < fin)
+            .Where(v => context.Facturaciones.Any(f => f.VentaId == v.Id));
+
+    private static List<ParticipacionDto> Participaciones(List<(string Nombre, int Cantidad, decimal Importe)> filas)
+    {
+        decimal total = filas.Sum(f => f.Importe);
+        return filas.Select(f => new ParticipacionDto
+        {
+            Nombre = f.Nombre,
+            Cantidad = f.Cantidad,
+            Importe = f.Importe,
+            Porcentaje = total == 0 ? 0 : Math.Round(f.Importe * 100 / total, 1)
+        }).ToList();
+    }
 
     // "hasta" es inclusivo: se toma hasta el final de ese día
     private static (DateTime Inicio, DateTime Fin) Rango(DateTime desde, DateTime hasta) =>
@@ -290,9 +444,56 @@ public class ReporteObraSocialDto
     public decimal PagadoCliente => TotalVendido - TotalCubierto;
 }
 
+public class ResumenReportesDto
+{
+    public decimal Facturacion { get; set; }
+    public decimal FacturacionAnterior { get; set; }
+    public int Ventas { get; set; }
+    public int Unidades { get; set; }
+    public int UnidadesConReceta { get; set; }
+    public int VentasConObraSocial { get; set; }
+    public decimal CoberturaDescontada { get; set; }
+
+    public string TituloEvolucion { get; set; } = string.Empty;
+    public List<PuntoEvolucionDto> Evolucion { get; set; } = new();
+    public List<ParticipacionDto> ObrasSociales { get; set; } = new();
+    public List<ReporteProductoDto> TopProductos { get; set; } = new();
+    public List<ParticipacionDto> Categorias { get; set; } = new();
+    public List<ParticipacionDto> MediosPago { get; set; } = new();
+
+    public decimal TicketPromedio => Ventas == 0 ? 0 : Math.Round(Facturacion / Ventas, 2);
+
+    /// <summary>Variación % contra el período anterior (null si antes no hubo ventas).</summary>
+    public decimal? Variacion => FacturacionAnterior == 0
+        ? null
+        : Math.Round((Facturacion - FacturacionAnterior) * 100 / FacturacionAnterior, 1);
+
+    public decimal PorcentajeConObraSocial => Ventas == 0 ? 0 : Math.Round(VentasConObraSocial * 100m / Ventas, 0);
+}
+
+public class PuntoEvolucionDto
+{
+    public string Etiqueta { get; set; } = string.Empty;
+    public decimal Total { get; set; }
+}
+
+public class ParticipacionDto
+{
+    public string Nombre { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+    public decimal Importe { get; set; }
+    public decimal Porcentaje { get; set; }
+
+    public string Detalle => $"{Porcentaje:N0} %  ·  $ {Importe:N0}";
+    public string PorcentajeTexto => $"{Porcentaje:N0} %";
+}
+
 public class ReportePeriodoDto
 {
     public string Periodo { get; set; } = string.Empty;
+
+    /// <summary>Texto corto para el eje del gráfico ("Oct 26" o "13/10").</summary>
+    public string Etiqueta { get; set; } = string.Empty;
     public int Ventas { get; set; }
     public int ConReceta { get; set; }
     public decimal TotalVendido { get; set; }

@@ -91,7 +91,9 @@ CREATE TABLE Producto (
     estado          BIT           NOT NULL DEFAULT 1,
     id_categoria    INT           NOT NULL,
 
-    CONSTRAINT FK_Producto_Categoria FOREIGN KEY (id_categoria) REFERENCES CategoriasProductos(id_categoria)
+    CONSTRAINT FK_Producto_Categoria FOREIGN KEY (id_categoria) REFERENCES CategoriasProductos(id_categoria),
+    -- Red de seguridad: el stock nunca puede quedar negativo (dos farmacéuticos vendiendo la última unidad)
+    CONSTRAINT CK_Producto_StockVenta CHECK (stockVenta >= 0)
 );
 GO
 
@@ -238,6 +240,7 @@ CREATE TABLE Facturacion (
     id_venta        INT           NOT NULL,
     id_usuario      INT           NOT NULL,  -- cajero que cobró
     id_caja         INT           NOT NULL,  -- caja abierta al momento del cobro
+    MontoCambio     DECIMAL(10,2) NOT NULL CONSTRAINT DF_Facturacion_MontoCambio DEFAULT 0,  -- vuelto entregado (solo efectivo)
 
     CONSTRAINT UQ_Facturacion_Venta   UNIQUE (id_venta),  -- una venta se cobra una sola vez
     CONSTRAINT FK_Facturacion_Venta   FOREIGN KEY (id_venta)   REFERENCES Venta(id_venta),

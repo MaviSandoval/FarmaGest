@@ -1,0 +1,202 @@
+<UserControl x:Class="FarmaGest.UI.Views.Compartido.ResumenReportes"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
+
+	<!-- Tablero de resumen del período: lo usan Reportes del Administrador y del Farmacéutico -->
+
+	<UserControl.Resources>
+		<ResourceDictionary>
+			<ResourceDictionary.MergedDictionaries>
+				<ResourceDictionary Source="/FarmaGest.UI;component/Views/Farmaceutico/EstilosFarmaceutico.xaml" />
+			</ResourceDictionary.MergedDictionaries>
+
+			<Style x:Key="TarjetaTitulo" TargetType="TextBlock">
+				<Setter Property="FontSize" Value="14" />
+				<Setter Property="FontWeight" Value="SemiBold" />
+				<Setter Property="Foreground" Value="#1F2E2C" />
+			</Style>
+
+			<Style x:Key="TextoSuave" TargetType="TextBlock">
+				<Setter Property="FontSize" Value="11.5" />
+				<Setter Property="Foreground" Value="#6B7B79" />
+			</Style>
+
+			<Style x:Key="BarraParticipacion" TargetType="ProgressBar">
+				<Setter Property="Height" Value="6" />
+				<Setter Property="Minimum" Value="0" />
+				<Setter Property="Maximum" Value="100" />
+				<Setter Property="Foreground" Value="#1F7A6C" />
+				<Setter Property="Background" Value="#E6EEEC" />
+				<Setter Property="BorderThickness" Value="0" />
+				<Setter Property="Margin" Value="0,5,0,12" />
+			</Style>
+		</ResourceDictionary>
+	</UserControl.Resources>
+
+	<StackPanel>
+
+		<!-- Aviso cuando el período no tiene ventas cobradas -->
+		<Border x:Name="SinDatosAviso" Visibility="Collapsed" Background="#FDF3E1" CornerRadius="8"
+		        Padding="14,10" Margin="0,0,0,16">
+			<TextBlock Text="No hay ventas cobradas en el período elegido. Probá con otro rango de fechas."
+			           Foreground="#9A6B10" FontSize="12.5" />
+		</Border>
+
+		<!-- ===================== INDICADORES ===================== -->
+		<UniformGrid Rows="1" Columns="4" Margin="0,0,0,16">
+			<Border Style="{StaticResource CardStyle}" Margin="0,0,8,0" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Facturación" Style="{StaticResource KpiTitulo}" />
+					<TextBlock x:Name="FacturacionText" Text="—" Style="{StaticResource KpiValor}" FontSize="26" />
+					<TextBlock x:Name="VariacionText" Text="—" Style="{StaticResource KpiDetalle}" FontWeight="SemiBold" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Ticket promedio" Style="{StaticResource KpiTitulo}" />
+					<TextBlock x:Name="TicketText" Text="—" Style="{StaticResource KpiValor}" FontSize="26" />
+					<TextBlock x:Name="VentasText" Text="—" Style="{StaticResource KpiDetalle}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="4,0" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Unidades vendidas" Style="{StaticResource KpiTitulo}" />
+					<TextBlock x:Name="UnidadesText" Text="—" Style="{StaticResource KpiValor}" FontSize="26" />
+					<TextBlock x:Name="UnidadesRecetaText" Text="—" Style="{StaticResource KpiDetalle}" />
+				</StackPanel>
+			</Border>
+			<Border Style="{StaticResource CardStyle}" Margin="8,0,0,0" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Ventas con obra social" Style="{StaticResource KpiTitulo}" />
+					<TextBlock x:Name="ConObraSocialText" Text="—" Style="{StaticResource KpiValor}" FontSize="26" />
+					<TextBlock x:Name="CoberturaText" Text="—" Style="{StaticResource KpiDetalle}" />
+				</StackPanel>
+			</Border>
+		</UniformGrid>
+
+		<!-- ===================== EVOLUCIÓN + OBRAS SOCIALES ===================== -->
+		<Grid Margin="0,0,0,16">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="3*" />
+				<ColumnDefinition Width="16" />
+				<ColumnDefinition Width="2*" />
+			</Grid.ColumnDefinitions>
+
+			<Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="18,14">
+				<StackPanel>
+					<DockPanel Margin="0,0,0,8">
+						<TextBlock x:Name="EvolucionDetalleText" DockPanel.Dock="Right" Style="{StaticResource TextoSuave}"
+						           VerticalAlignment="Center" />
+						<TextBlock Text="Evolución de ventas" Style="{StaticResource TarjetaTitulo}" />
+					</DockPanel>
+					<lvc:CartesianChart x:Name="EvolucionChart" Height="240" />
+				</StackPanel>
+			</Border>
+
+			<Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Facturación por obra social" Style="{StaticResource TarjetaTitulo}" Margin="0,0,0,14" />
+					<TextBlock x:Name="ObrasSocialesVacio" Text="Sin datos en el período." Style="{StaticResource TextoSuave}" Visibility="Collapsed" />
+					<ItemsControl x:Name="ObrasSocialesList">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate>
+								<StackPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Right" Text="{Binding Detalle}" FontSize="12" Foreground="#1F2E2C" />
+										<TextBlock Text="{Binding Nombre}" FontSize="12.5" FontWeight="SemiBold" Foreground="#1F2E2C" />
+									</DockPanel>
+									<ProgressBar Value="{Binding Porcentaje, Mode=OneWay}" Style="{StaticResource BarraParticipacion}" />
+								</StackPanel>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+				</StackPanel>
+			</Border>
+		</Grid>
+
+		<!-- ===================== TOP PRODUCTOS + CATEGORÍAS / MEDIOS DE PAGO ===================== -->
+		<Grid Margin="0,0,0,16">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="3*" />
+				<ColumnDefinition Width="16" />
+				<ColumnDefinition Width="2*" />
+			</Grid.ColumnDefinitions>
+
+			<Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Productos más vendidos" Style="{StaticResource TarjetaTitulo}" Margin="0,0,0,12" />
+
+					<!-- Encabezado de la tabla -->
+					<Grid Margin="0,0,0,6">
+						<Grid.ColumnDefinitions>
+							<ColumnDefinition Width="30" />
+							<ColumnDefinition Width="*" />
+							<ColumnDefinition Width="130" />
+							<ColumnDefinition Width="80" />
+							<ColumnDefinition Width="110" />
+						</Grid.ColumnDefinitions>
+						<TextBlock Grid.Column="0" Text="#" Style="{StaticResource TextoSuave}" />
+						<TextBlock Grid.Column="1" Text="Producto" Style="{StaticResource TextoSuave}" />
+						<TextBlock Grid.Column="2" Text="Categoría" Style="{StaticResource TextoSuave}" />
+						<TextBlock Grid.Column="3" Text="Unidades" Style="{StaticResource TextoSuave}" HorizontalAlignment="Right" />
+						<TextBlock Grid.Column="4" Text="Facturación" Style="{StaticResource TextoSuave}" HorizontalAlignment="Right" />
+					</Grid>
+					<Border Height="1" Background="#E6EEEC" Margin="0,0,0,4" />
+
+					<TextBlock x:Name="ProductosVacio" Text="Sin ventas en el período." Style="{StaticResource TextoSuave}"
+					           Margin="0,8,0,0" Visibility="Collapsed" />
+					<ItemsControl x:Name="ProductosList">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate>
+								<Border BorderBrush="#EEF3F2" BorderThickness="0,0,0,1" Padding="0,9">
+									<Grid>
+										<Grid.ColumnDefinitions>
+											<ColumnDefinition Width="30" />
+											<ColumnDefinition Width="*" />
+											<ColumnDefinition Width="130" />
+											<ColumnDefinition Width="80" />
+											<ColumnDefinition Width="110" />
+										</Grid.ColumnDefinitions>
+										<TextBlock Grid.Column="0" Text="{Binding Puesto}" Foreground="#6B7B79" />
+										<TextBlock Grid.Column="1" Text="{Binding Producto}" FontWeight="SemiBold" Foreground="#1F2E2C"
+										           TextTrimming="CharacterEllipsis" />
+										<TextBlock Grid.Column="2" Text="{Binding Categoria}" Foreground="#2FA98C" TextTrimming="CharacterEllipsis" />
+										<TextBlock Grid.Column="3" Text="{Binding Unidades}" HorizontalAlignment="Right" FontWeight="SemiBold" />
+										<TextBlock Grid.Column="4" Text="{Binding Total, StringFormat='$ {0:N0}'}" HorizontalAlignment="Right" FontWeight="SemiBold" />
+									</Grid>
+								</Border>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+				</StackPanel>
+			</Border>
+
+			<Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="18,14">
+				<StackPanel>
+					<TextBlock Text="Por categoría" Style="{StaticResource TarjetaTitulo}" />
+					<lvc:PieChart x:Name="CategoriasChart" Height="170" Margin="0,4,0,8" />
+
+					<Border Height="1" Background="#E6EEEC" Margin="0,4,0,12" />
+
+					<TextBlock Text="Medios de pago" Style="{StaticResource TarjetaTitulo}" Margin="0,0,0,8" />
+					<TextBlock x:Name="MediosVacio" Text="Sin cobros en el período." Style="{StaticResource TextoSuave}" Visibility="Collapsed" />
+					<ItemsControl x:Name="MediosPagoList">
+						<ItemsControl.ItemTemplate>
+							<DataTemplate>
+								<StackPanel>
+									<DockPanel>
+										<TextBlock DockPanel.Dock="Right" Text="{Binding PorcentajeTexto}" FontWeight="Bold" Foreground="#1F7A6C" />
+										<TextBlock Text="{Binding Nombre}" FontSize="12.5" Foreground="#1F2E2C" />
+									</DockPanel>
+									<ProgressBar Value="{Binding Porcentaje, Mode=OneWay}" Style="{StaticResource BarraParticipacion}"
+									             Foreground="#22B8CF" Margin="0,4,0,10" Height="4" />
+								</StackPanel>
+							</DataTemplate>
+						</ItemsControl.ItemTemplate>
+					</ItemsControl>
+				</StackPanel>
+			</Border>
+		</Grid>
+	</StackPanel>
+</UserControl>

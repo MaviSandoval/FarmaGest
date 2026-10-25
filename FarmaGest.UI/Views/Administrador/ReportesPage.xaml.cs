@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using FarmaGest.Negocio.Servicios;
 using FarmaGest.UI.Helpers;
 
@@ -29,6 +31,7 @@ public partial class ReportesPage : Page
         HastaPicker.SelectedDate = DateTime.Today;
 
         Loaded += async (_, _) => await GenerarAsync();
+        PreviewMouseWheel += ReenviarRueda;
     }
 
     private async Task GenerarAsync()
@@ -60,12 +63,58 @@ public partial class ReportesPage : Page
             FarmaceuticosGrid.ItemsSource = _farmaceuticos;
             PeriodoGrid.ItemsSource = _periodos;
             MediosPagoGrid.ItemsSource = _mediosPago;
+
+            Resumen.Mostrar(await _reporteService.ResumenAsync(desde, hasta));
+            ActualizarGraficos();
         }
         catch (Exception ex)
         {
             MessageBox.Show($"No se pudieron generar los reportes.\n\n{ex.Message}", "FarmaGest",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
+    }
+
+    // =========================================================
+    // GRÁFICOS DE LAS PESTAÑAS (los que no están en el resumen)
+    // =========================================================
+    private void ActualizarGraficos()
+    {
+        // Solo cajas cerradas (las abiertas todavía no tienen efectivo contado)
+        var cerradas = _cierres.Where(c => !c.Abierta).OrderBy(c => c.Apertura).TakeLast(12).ToList();
+        Graficos.BarrasAgrupadas(CajasChart, cerradas.Select(c => $"Caja {c.Caja}"), Graficos.Moneda,
+            ("Efectivo esperado", cerradas.Select(c => (double)c.Esperado), Graficos.Gris),
+            ("Efectivo contado", cerradas.Select(c => (double)(c.Contado ?? 0)), Graficos.Verde));
+        Graficos.Mostrar(CajasChartCard, cerradas.Count > 0);
+
+        Graficos.Barras(FarmaceuticosChart, _farmaceuticos.Select(f => f.Farmaceutico), "Total vendido",
+            _farmaceuticos.Select(f => (double)f.Total), Graficos.VerdeClaro, Graficos.Moneda);
+        Graficos.Mostrar(FarmaceuticosChartCard, _farmaceuticos.Count > 0);
+
+        Graficos.BarrasYLinea(PeriodoChart, _periodos.Select(p => p.Etiqueta),
+            "Total vendido", _periodos.Select(p => (double)p.TotalVendido),
+            "Cantidad de ventas", _periodos.Select(p => (double)p.Ventas));
+        Graficos.Mostrar(PeriodoChartCard, _periodos.Count > 0);
+    }
+
+    // =========================================================
+    // ACCESOS RÁPIDOS DE PERÍODO
+    // =========================================================
+    private async void Rapido_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string tag } && int.TryParse(tag, out int dias))
+        {
+            HastaPicker.SelectedDate = DateTime.Today;
+            DesdePicker.SelectedDate = DateTime.Today.AddDays(-(dias - 1));
+            await GenerarAsync();
+        }
+    }
+
+    // Las tablas y los gráficos se quedan con la rueda del mouse:
+    // se reenvía al scroll de la página para que se pueda bajar desde cualquier lado.
+    private void ReenviarRueda(object sender, MouseWheelEventArgs e)
+    {
+        ScrollPrincipal.ScrollToVerticalOffset(ScrollPrincipal.VerticalOffset - e.Delta);
+        e.Handled = true;
     }
 
     private async void Generar_Click(object sender, RoutedEventArgs e) => await GenerarAsync();

@@ -171,4 +171,39 @@
 			</DataTrigger>
 		</Style.Triggers>
 	</Style>
+
+	<!-- ===================== REPORTES: gráficos e indicadores ===================== -->
+	<Style x:Key="GraficoCard" TargetType="Border">
+		<Setter Property="Background" Value="#F8FBFA" />
+		<Setter Property="BorderBrush" Value="#E3ECEA" />
+		<Setter Property="BorderThickness" Value="1" />
+		<Setter Property="CornerRadius" Value="10" />
+		<Setter Property="Padding" Value="14,10,14,6" />
+		<Setter Property="Margin" Value="0,0,0,12" />
+	</Style>
+
+	<Style x:Key="GraficoTitulo" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="13" />
+		<Setter Property="FontWeight" Value="SemiBold" />
+		<Setter Property="Foreground" Value="#1F2E2C" />
+		<Setter Property="Margin" Value="2,0,0,4" />
+	</Style>
+
+	<Style x:Key="KpiTitulo" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="12" />
+		<Setter Property="Foreground" Value="#6B7B79" />
+	</Style>
+
+	<Style x:Key="KpiValor" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="22" />
+		<Setter Property="FontWeight" Value="Bold" />
+		<Setter Property="Margin" Value="0,4,0,2" />
+	</Style>
+
+	<Style x:Key="KpiDetalle" TargetType="TextBlock">
+		<Setter Property="FontSize" Value="11" />
+		<Setter Property="Foreground" Value="#6B7B79" />
+		<Setter Property="TextTrimming" Value="CharacterEllipsis" />
+	</Style>
+
 </ResourceDictionary>

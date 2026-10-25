@@ -1,0 +1,58 @@
+/* =====================================================================
+   FARMAGEST - SCRIPT DE ACTUALIZACIÓN
+   ---------------------------------------------------------------------
+   Taller de Programación II - FaCENA UNNE - 2026 - Grupo 23
+   Motor: SQL Server
+
+   Para bases FarmaGestDB que ya estaban creadas antes de estos cambios.
+   Se puede ejecutar más de una vez: cada paso verifica si ya está aplicado.
+   (Las bases nuevas no lo necesitan: el script de creación ya lo incluye.)
+
+   Contenido:
+     1. Facturacion.MontoCambio ........ vuelto entregado en cobros en efectivo
+     2. CK_Producto_StockVenta ......... el stock nunca puede quedar negativo
+   ===================================================================== */
+
+USE FarmaGestDB;
+GO
+
+
+/* =====================================================================
+   1. FACTURACION: columna MontoCambio
+      La usa el cobro en caja (FacturacionService). Sin esta columna el
+      cobro falla con "Invalid column name 'MontoCambio'".
+   ===================================================================== */
+
+IF COL_LENGTH('Facturacion', 'MontoCambio') IS NULL
+BEGIN
+    ALTER TABLE Facturacion
+        ADD MontoCambio DECIMAL(10,2) NOT NULL
+            CONSTRAINT DF_Facturacion_MontoCambio DEFAULT 0;
+
+    PRINT 'Agregada la columna Facturacion.MontoCambio.';
+END
+ELSE
+    PRINT 'Facturacion.MontoCambio ya existía.';
+GO
+
+
+/* =====================================================================
+   2. PRODUCTO: stock no negativo
+      La venta descuenta el stock con un UPDATE condicional atómico
+      (VentaService). Esta restricción es la red de seguridad de la base:
+      ningún camino puede dejar stockVenta por debajo de cero.
+   ===================================================================== */
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = 'CK_Producto_StockVenta')
+BEGIN
+    -- Si quedó algún stock negativo de pruebas anteriores, se corrige antes
+    UPDATE Producto SET stockVenta = 0 WHERE stockVenta < 0;
+
+    ALTER TABLE Producto
+        ADD CONSTRAINT CK_Producto_StockVenta CHECK (stockVenta >= 0);
+
+    PRINT 'Agregada la restricción CK_Producto_StockVenta.';
+END
+ELSE
+    PRINT 'CK_Producto_StockVenta ya existía.';
+GO
