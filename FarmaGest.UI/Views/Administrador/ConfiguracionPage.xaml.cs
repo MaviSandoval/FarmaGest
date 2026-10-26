@@ -20,6 +20,9 @@ public partial class ConfiguracionPage : Page
     private readonly SesionUsuarioService _sesion;
     private readonly BackupProgramadoService _backupProgramado;
 
+    // Evita guardar el interruptor mientras se carga su valor inicial
+    private bool _cargandoInterruptor;
+
     public ConfiguracionPage(BackupService backupService, SesionUsuarioService sesion,
         BackupProgramadoService backupProgramado)
     {
@@ -35,9 +38,14 @@ public partial class ConfiguracionPage : Page
         try
         {
             if (string.IsNullOrWhiteSpace(CarpetaBackupText.Text))
-                CarpetaBackupText.Text = await _backupService.ObtenerCarpetaPorDefectoAsync() ?? string.Empty;
+                CarpetaBackupText.Text = await _backupService.ObtenerCarpetaAsync() ?? string.Empty;
 
             BackupsGrid.ItemsSource = await _backupService.ObtenerHistorialAsync();
+
+            _cargandoInterruptor = true;
+            BackupAutomaticoSwitch.IsChecked = await _backupService.AutomaticoActivoAsync();
+            _cargandoInterruptor = false;
+            MostrarEstadoAutomatico();
 
             if (_backupProgramado.UltimoError != null)
                 Aviso($"La última copia automática falló:\n\n{_backupProgramado.UltimoError}\n\n" +
@@ -49,15 +57,57 @@ public partial class ConfiguracionPage : Page
         }
     }
 
+    // =========================================================
+    // BACKUP AUTOMÁTICO: activar / desactivar
+    // =========================================================
+    private async void BackupAutomatico_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_cargandoInterruptor)
+            return;
+
+        bool activo = BackupAutomaticoSwitch.IsChecked == true;
+
+        try
+        {
+            await _backupService.CambiarAutomaticoAsync(activo);
+            MostrarEstadoAutomatico();
+        }
+        catch (Exception ex)
+        {
+            // No se pudo guardar: el interruptor vuelve a como estaba
+            _cargandoInterruptor = true;
+            BackupAutomaticoSwitch.IsChecked = !activo;
+            _cargandoInterruptor = false;
+            Aviso($"No se pudo guardar la configuración del backup automático.\n\n{ex.Message}", MessageBoxImage.Warning);
+        }
+    }
+
+    private void MostrarEstadoAutomatico() =>
+        BackupAutomaticoEstadoText.Text = BackupAutomaticoSwitch.IsChecked == true
+            ? "Activado: todos los días a las 00:00 (o al abrir FarmaGest si a esa hora estaba cerrado) se guarda una copia en la carpeta de destino de abajo. Se conservan las últimas 7."
+            : "Desactivado: solo se hacen copias manuales con \"Generar copia ahora\".";
+
     private void Guardar_Click(object sender, RoutedEventArgs e) =>
         Aviso("Configuración guardada (maqueta: todavía no hay tabla de configuración en la base).");
 
-    private void ElegirCarpeta_Click(object sender, RoutedEventArgs e)
+    private async void ElegirCarpeta_Click(object sender, RoutedEventArgs e)
     {
         var dialogo = new OpenFolderDialog { Title = "Carpeta donde guardar las copias de seguridad" };
 
-        if (dialogo.ShowDialog() == true)
-            CarpetaBackupText.Text = dialogo.FolderName;
+        if (dialogo.ShowDialog() != true)
+            return;
+
+        CarpetaBackupText.Text = dialogo.FolderName;
+
+        try
+        {
+            // Se guarda para las próximas copias, incluida la automática de las 00:00
+            await _backupService.GuardarCarpetaAsync(dialogo.FolderName);
+        }
+        catch (Exception ex)
+        {
+            Aviso($"No se pudo guardar la carpeta elegida.\n\n{ex.Message}", MessageBoxImage.Warning);
+        }
     }
 
     private async void GenerarBackup_Click(object sender, RoutedEventArgs e)

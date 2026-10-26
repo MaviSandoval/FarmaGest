@@ -122,7 +122,7 @@ public partial class VentasFarmaceuticoPage : Page
             return;
 
         var respuesta = MessageBox.Show(
-            $"¿Anular la venta N° {venta.Numero}? La receta queda libre para usarla en otra venta.",
+            $"¿Anular la venta N° {venta.Numero}?\n\nEl stock reservado vuelve a estar disponible y, si tenía receta, queda libre para usarla en otra venta.",
             "FarmaGest", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
         if (respuesta != MessageBoxResult.Yes)

@@ -12,6 +12,7 @@
         2.3 Obras sociales ... ObraSocial, Planes, Afiliados, CoberturaPlan
         2.4 Recetas .......... Recetas, DetalleReceta
         2.5 Caja y ventas .... Caja, Venta, DetalleVenta, Facturacion
+        2.6 Configuración .... Configuracion (parámetros del sistema)
      3. Datos iniciales (roles, usuarios, categorías)
      4. Datos de prueba (productos)
    ===================================================================== */
@@ -159,7 +160,7 @@ CREATE TABLE Recetas (
     fechaVencimiento  DATE         NOT NULL,
     matriculaMedico   VARCHAR(30)  NOT NULL,
     nombreMedico      VARCHAR(120) NOT NULL,
-    estado            BIT          NOT NULL DEFAULT 1,
+    estado            BIT          NULL,  -- NULL = Pendiente, 1 = Validada, 0 = Rechazada (la valida el Farmacéutico)
     id_afiliado       INT          NOT NULL,
 
     CONSTRAINT FK_Recetas_Afiliados FOREIGN KEY (id_afiliado) REFERENCES Afiliados(id_afiliado)
@@ -216,6 +217,11 @@ CREATE TABLE Venta (
 );
 GO
 
+-- Una receta se puede usar en una sola venta activa (evita que dos farmacéuticos la usen a la vez)
+CREATE UNIQUE INDEX UX_Venta_RecetaActiva ON Venta (id_Receta)
+    WHERE estado = 1 AND id_Receta IS NOT NULL;
+GO
+
 CREATE TABLE DetalleVenta (
     idDetalleVenta  INT IDENTITY(1,1) PRIMARY KEY,
     cantidad        INT           NOT NULL,
@@ -247,6 +253,22 @@ CREATE TABLE Facturacion (
     CONSTRAINT FK_Facturacion_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
     CONSTRAINT FK_Facturacion_Caja    FOREIGN KEY (id_caja)    REFERENCES Caja(id_caja)
 );
+GO
+
+
+/* =====================================================================
+   2.6 CONFIGURACIÓN
+   Parámetros del sistema como pares clave / valor.
+     BackupAutomaticoActivo: '1' = backup diario a las 00:00, '0' = solo manual
+   ===================================================================== */
+
+CREATE TABLE Configuracion (
+    clave  VARCHAR(50)  NOT NULL PRIMARY KEY,
+    valor  VARCHAR(200) NOT NULL
+);
+GO
+
+INSERT INTO Configuracion (clave, valor) VALUES ('BackupAutomaticoActivo', '1');
 GO
 
 

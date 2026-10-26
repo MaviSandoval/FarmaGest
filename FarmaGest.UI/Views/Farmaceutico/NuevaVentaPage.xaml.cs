@@ -130,6 +130,20 @@ public partial class NuevaVentaPage : Page
         }
 
         MensajeText.Text = string.Empty;
+
+        // Aviso temprano: si algún medicamento de la receta no alcanza, se sabe antes de enviar
+        if (RecetaCombo.SelectedItem is RecetaDto elegida)
+        {
+            var faltantes = elegida.Medicamentos
+                .Where(m => !m.ProductoActivo || m.Stock < m.Cantidad)
+                .Select(m => m.ProductoActivo ? $"{m.Producto} (hay {m.Stock}, pide {m.Cantidad})" : $"{m.Producto} (dado de baja)")
+                .ToList();
+
+            if (faltantes.Count > 0)
+                MensajeText.Text = "Sin stock suficiente para: " + string.Join(", ", faltantes) +
+                                   ". Quitá ese medicamento o reponé stock antes de enviar.";
+        }
+
         ActualizarProductosDisponibles();
         ActualizarTotales();
     }

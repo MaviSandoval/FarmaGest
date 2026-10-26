@@ -5,29 +5,32 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using FarmaGest.Negocio.Servicios;
 using FarmaGest.UI.Helpers;
 
 namespace FarmaGest.UI.Views.Administrador;
 
-/// <summary>Reportes cruzados del período elegido. Las ventas anuladas no suman.</summary>
+/// <summary>
+/// Reportes del Administrador (los de ventas son del Farmacéutico):
+///  1. Copias de seguridad ..... msdb.dbo.backupset + backupmediafamily
+///  2. Usuarios ................ Usuario + Rol (el admin gestiona usuarios; las ventas las ve el Farmacéutico)
+///  3. Usuarios por rol ........ Usuario + Rol
+/// </summary>
 public partial class ReportesPage : Page
 {
-    private readonly ReporteService _reporteService;
+    private readonly ReporteSistemaService _reporteService;
 
-    private List<ReporteObraSocialDto> _obrasSociales = new();
-    private List<ReporteProductoDto> _productos = new();
-    private List<ReporteCierreDto> _cierres = new();
-    private List<ReporteFarmaceuticoDto> _farmaceuticos = new();
-    private List<ReportePeriodoDto> _periodos = new();
-    private List<ReporteMedioPagoDto> _mediosPago = new();
+    private ReporteBackupsDto? _backups;
+    private List<UsuarioReporteDto> _usuarios = new();
+    private List<UsuariosPorRolDto> _roles = new();
 
-    public ReportesPage(ReporteService reporteService)
+    public ReportesPage(ReporteSistemaService reporteService)
     {
         InitializeComponent();
         _reporteService = reporteService;
 
-        DesdePicker.SelectedDate = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+        DesdePicker.SelectedDate = DateTime.Today.AddDays(-29);
         HastaPicker.SelectedDate = DateTime.Today;
 
         Loaded += async (_, _) => await GenerarAsync();
@@ -50,22 +53,17 @@ public partial class ReportesPage : Page
 
         try
         {
-            _obrasSociales = await _reporteService.VentasPorObraSocialAsync(desde, hasta);
-            _productos = await _reporteService.ProductosMasVendidosAsync(desde, hasta);
-            _cierres = await _reporteService.CierresDeCajaAsync(desde, hasta);
-            _farmaceuticos = await _reporteService.VentasPorFarmaceuticoAsync(desde, hasta);
-            _periodos = await _reporteService.VentasPorPeriodoAsync(desde, hasta, PorMes);
-            _mediosPago = await _reporteService.CobrosPorMedioDePagoAsync(desde, hasta);
+            _backups = await _reporteService.BackupsAsync(desde, hasta);
+            _usuarios = await _reporteService.UsuariosAsync();
+            _roles = await _reporteService.UsuariosPorRolAsync();
 
-            ObraSocialGrid.ItemsSource = _obrasSociales;
-            ProductosGrid.ItemsSource = _productos;
-            CierresGrid.ItemsSource = _cierres;
-            FarmaceuticosGrid.ItemsSource = _farmaceuticos;
-            PeriodoGrid.ItemsSource = _periodos;
-            MediosPagoGrid.ItemsSource = _mediosPago;
+            BackupsGrid.ItemsSource = _backups.Copias;
+            BackupsVacioText.Visibility = _backups.Copias.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            UsuariosGrid.ItemsSource = _usuarios;
+            RolesGrid.ItemsSource = _roles;
 
-            Resumen.Mostrar(await _reporteService.ResumenAsync(desde, hasta));
-            ActualizarGraficos();
+            ActualizarIndicadores(desde, hasta);
+            ActualizarGraficos(desde, hasta);
         }
         catch (Exception ex)
         {
@@ -75,30 +73,70 @@ public partial class ReportesPage : Page
     }
 
     // =========================================================
-    // GRÁFICOS DE LAS PESTAÑAS (los que no están en el resumen)
+    // INDICADORES
     // =========================================================
-    private void ActualizarGraficos()
+    private void ActualizarIndicadores(DateTime desde, DateTime hasta)
     {
-        // Solo cajas cerradas (las abiertas todavía no tienen efectivo contado)
-        var cerradas = _cierres.Where(c => !c.Abierta).OrderBy(c => c.Apertura).TakeLast(12).ToList();
-        Graficos.BarrasAgrupadas(CajasChart, cerradas.Select(c => $"Caja {c.Caja}"), Graficos.Moneda,
-            ("Efectivo esperado", cerradas.Select(c => (double)c.Esperado), Graficos.Gris),
-            ("Efectivo contado", cerradas.Select(c => (double)(c.Contado ?? 0)), Graficos.Verde));
-        Graficos.Mostrar(CajasChartCard, cerradas.Count > 0);
+        var b = _backups!;
+        var verde = (Brush)FindResource("FarmaPrimaryBrush");
+        var rojo = (Brush)FindResource("FarmaDangerBrush");
 
-        Graficos.Barras(FarmaceuticosChart, _farmaceuticos.Select(f => f.Farmaceutico), "Total vendido",
-            _farmaceuticos.Select(f => (double)f.Total), Graficos.VerdeClaro, Graficos.Moneda);
-        Graficos.Mostrar(FarmaceuticosChartCard, _farmaceuticos.Count > 0);
+        if (b.Ultima is { } ultima)
+        {
+            int dias = (DateTime.Today - ultima.Fecha.Date).Days;
+            UltimaCopiaText.Text = ultima.Fecha.ToString("dd/MM HH:mm");
+            UltimaCopiaText.Foreground = dias > 1 ? rojo : verde;
+            UltimaCopiaDetalleText.Text = dias switch
+            {
+                0 => $"Hoy · {ultima.Tamano}",
+                1 => $"Ayer · {ultima.Tamano}",
+                _ => $"Hace {dias} días · conviene generar una"
+            };
+        }
+        else
+        {
+            UltimaCopiaText.Text = "Nunca";
+            UltimaCopiaText.Foreground = rojo;
+            UltimaCopiaDetalleText.Text = "Todavía no se hizo ninguna copia";
+        }
 
-        Graficos.BarrasYLinea(PeriodoChart, _periodos.Select(p => p.Etiqueta),
-            "Total vendido", _periodos.Select(p => (double)p.TotalVendido),
-            "Cantidad de ventas", _periodos.Select(p => (double)p.Ventas));
-        Graficos.Mostrar(PeriodoChartCard, _periodos.Count > 0);
+        CopiasText.Text = b.Copias.Count.ToString();
+        CopiasDetalleText.Text = $"{b.Automaticas} automática(s) · {b.Manuales} manual(es) · {b.DiasSinCopia} día(s) sin copia";
+
+        AutomaticoText.Text = b.AutomaticoActivo ? "Activado" : "Desactivado";
+        AutomaticoText.Foreground = b.AutomaticoActivo ? verde : rojo;
+        AutomaticoDetalleText.Text = b.AutomaticoActivo ? "Todos los días a las 00:00" : "Se cambia en Configuración";
+
+        int activos = _roles.Sum(r => r.Activos);
+        UsuariosText.Text = activos.ToString();
+        UsuariosDetalleText.Text = $"de {_roles.Sum(r => r.Total)} registrados · {_roles.Sum(r => r.CambioPendiente)} deben cambiar la contraseña";
     }
 
     // =========================================================
-    // ACCESOS RÁPIDOS DE PERÍODO
+    // GRÁFICOS
     // =========================================================
+    private void ActualizarGraficos(DateTime desde, DateTime hasta)
+    {
+        // Copias por día: un punto por cada día del período (o por semana si es largo)
+        var copias = _backups!.Copias;
+        var dias = Enumerable.Range(0, (hasta.Date - desde.Date).Days + 1).Select(d => desde.Date.AddDays(d)).ToList();
+        bool porSemana = dias.Count > 31;
+
+        var grupos = porSemana
+            ? dias.GroupBy(d => d.AddDays(-(((int)d.DayOfWeek + 6) % 7))).Select(g => (Etiqueta: g.Key.ToString("dd/MM"), Dias: g.ToList())).ToList()
+            : dias.Select(d => (Etiqueta: d.ToString("dd/MM"), Dias: new List<DateTime> { d })).ToList();
+
+        Graficos.BarrasApiladas(BackupsChart, grupos.Select(g => g.Etiqueta), Graficos.Entero,
+            ("Automáticas", grupos.Select(g => (double)copias.Count(c => c.Tipo == "Automático" && g.Dias.Contains(c.Fecha.Date))), Graficos.Verde),
+            ("Manuales", grupos.Select(g => (double)copias.Count(c => c.Tipo == "Manual" && g.Dias.Contains(c.Fecha.Date))), Graficos.Celeste));
+        Graficos.Mostrar(BackupsChartCard, copias.Count > 0);
+
+        Graficos.Dona(RolesChart, _roles.Select(r => (r.Rol, (double)r.Activos)));
+        Graficos.Mostrar(RolesChartCard, _roles.Any(r => r.Activos > 0));
+    }
+
+    private async void Generar_Click(object sender, RoutedEventArgs e) => await GenerarAsync();
+
     private async void Rapido_Click(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string tag } && int.TryParse(tag, out int dias))
@@ -109,94 +147,100 @@ public partial class ReportesPage : Page
         }
     }
 
-    // Las tablas y los gráficos se quedan con la rueda del mouse:
-    // se reenvía al scroll de la página para que se pueda bajar desde cualquier lado.
+    // Las tablas y los gráficos se quedan con la rueda del mouse: se reenvía al scroll de la página
     private void ReenviarRueda(object sender, MouseWheelEventArgs e)
     {
         ScrollPrincipal.ScrollToVerticalOffset(ScrollPrincipal.VerticalOffset - e.Delta);
         e.Handled = true;
     }
 
-    private async void Generar_Click(object sender, RoutedEventArgs e) => await GenerarAsync();
+    // =========================================================
+    // EXPORTACIÓN
+    // =========================================================
+    private string Periodo => $"Período: {DesdePicker.SelectedDate:dd/MM/yyyy} al {HastaPicker.SelectedDate:dd/MM/yyyy}";
 
-    private bool PorMes => AgrupacionCombo.SelectedIndex == 1;
-
-    private async void Agrupacion_Changed(object sender, SelectionChangedEventArgs e)
+    private SeccionPdf SeccionBackups() => new()
     {
-        if (IsLoaded)
-            await GenerarAsync();
+        Titulo = "Copias de seguridad",
+        Columnas = new[] { "Fecha", "Tipo", "Generada por", "Archivo", "Tamaño (MB)", "Archivo .bak" },
+        Filas = (_backups?.Copias ?? new()).Select(c => new object?[] { c.FechaTexto, c.Tipo, c.GeneradaPor, c.Archivo, (double)c.TamanoMb, c.EstadoTexto }).ToList()
+    };
+
+    private SeccionPdf SeccionUsuarios() => new()
+    {
+        Titulo = "Usuarios",
+        Columnas = new[] { "Usuario", "DNI", "Email", "Rol", "Estado", "Debe cambiar contraseña" },
+        Filas = _usuarios.Select(u => new object?[] { u.Usuario, u.Dni, u.Email, u.Rol, u.Estado, u.CambioPendienteTexto }).ToList()
+    };
+
+    private SeccionPdf SeccionRoles() => new()
+    {
+        Titulo = "Usuarios por rol",
+        Columnas = new[] { "Rol", "Descripción", "Activos", "Inactivos", "Total", "Deben cambiar contraseña" },
+        Filas = _roles.Select(r => new object?[] { r.Rol, r.Descripcion, r.Activos, r.Inactivos, r.Total, r.CambioPendiente }).ToList()
+    };
+
+    /// <summary>Informe completo del período en PDF.</summary>
+    private void ExportarPdf_Click(object sender, RoutedEventArgs e)
+    {
+        if (_backups == null)
+        {
+            MessageBox.Show("Generá los reportes del período antes de exportar.", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var indicadores = new List<IndicadorPdf>
+            {
+                new("Última copia", UltimaCopiaText.Text, UltimaCopiaDetalleText.Text),
+                new("Copias en el período", CopiasText.Text, CopiasDetalleText.Text),
+                new("Backup automático", AutomaticoText.Text, AutomaticoDetalleText.Text),
+                new("Usuarios activos", UsuariosText.Text, UsuariosDetalleText.Text)
+            };
+
+            string? ruta = ExportadorPdf.ExportarInforme("Reporte del sistema", Periodo, "Reporte_sistema",
+                indicadores, new[] { SeccionBackups(), SeccionUsuarios(), SeccionRoles() });
+
+            if (ruta != null)
+                MessageBox.Show($"Informe exportado en:\n{ruta}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo exportar el informe.\n\n{ex.Message}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
-    private void ExportarCsv_Click(object sender, RoutedEventArgs e) => Exportar(pdf: false);
-
-    private void ExportarPdf_Click(object sender, RoutedEventArgs e) => Exportar(pdf: true);
-
-    /// <summary>Exporta a CSV o PDF el reporte de la pestaña que se está viendo.</summary>
-    private void Exportar(bool pdf)
+    /// <summary>Exporta a CSV la pestaña que se está viendo.</summary>
+    private void ExportarCsv_Click(object sender, RoutedEventArgs e)
     {
-        string periodo = $"Período: {DesdePicker.SelectedDate:dd/MM/yyyy} al {HastaPicker.SelectedDate:dd/MM/yyyy}";
-
-        // Mismas columnas para los dos formatos
-        string? Exp<T>(string titulo, string archivo, IEnumerable<T> filas,
-            params (string Titulo, Func<T, object?> Valor)[] columnas) =>
-            pdf ? ExportadorPdf.Exportar(titulo, periodo, archivo, filas, columnas)
-                : ExportadorCsv.Exportar(archivo, filas, columnas);
-
         try
         {
             string? ruta = ReportesTabs.SelectedIndex switch
             {
-                0 => Exp<ReporteObraSocialDto>("Ventas por obra social", "Ventas_por_obra_social", _obrasSociales,
-                    ("Obra social", r => r.ObraSocial),
-                    ("Ventas", r => r.Ventas),
-                    ("Total vendido", r => r.TotalVendido),
-                    ("Cubierto por la obra social", r => r.TotalCubierto),
-                    ("Pagado por el cliente", r => r.PagadoCliente)),
+                0 => ExportadorCsv.Exportar<FilaBackupDto>("Copias_de_seguridad", _backups?.Copias ?? new(),
+                    ("Fecha", r => r.FechaTexto),
+                    ("Tipo", r => r.Tipo),
+                    ("Generada por", r => r.GeneradaPor),
+                    ("Archivo", r => r.Archivo),
+                    ("Tamaño (MB)", r => (double)r.TamanoMb),
+                    ("Archivo .bak", r => r.EstadoTexto)),
 
-                1 => Exp<ReporteProductoDto>("Productos más vendidos", "Productos_mas_vendidos", _productos,
-                    ("Puesto", r => r.Puesto),
-                    ("Producto", r => r.Producto),
-                    ("Categoría", r => r.Categoria),
-                    ("Unidades", r => r.Unidades),
-                    ("Total vendido", r => r.Total)),
+                1 => ExportadorCsv.Exportar<UsuarioReporteDto>("Usuarios", _usuarios,
+                    ("Usuario", r => r.Usuario),
+                    ("DNI", r => r.Dni),
+                    ("Email", r => r.Email),
+                    ("Rol", r => r.Rol),
+                    ("Estado", r => r.Estado),
+                    ("Debe cambiar contraseña", r => r.CambioPendienteTexto)),
 
-                2 => Exp<ReporteCierreDto>("Cajas", "Cajas", _cierres,
-                    ("Caja", r => r.Caja),
-                    ("Cajero", r => r.Cajero),
-                    ("Apertura", r => r.AperturaTexto),
-                    ("Cierre", r => r.CierreTexto),
-                    ("Monto inicial", r => r.MontoInicial),
-                    ("Efectivo", r => r.Efectivo),
-                    ("Otros medios", r => r.OtrosMedios),
-                    ("Efectivo esperado", r => r.Esperado),
-                    ("Efectivo contado", r => r.Contado),
-                    ("Diferencia", r => r.Diferencia),
-                    ("Resultado", r => r.Estado)),
-
-                3 => Exp<ReporteFarmaceuticoDto>("Ventas por farmacéutico", "Ventas_por_farmaceutico", _farmaceuticos,
-                    ("Farmacéutico", r => r.Farmaceutico),
-                    ("Ventas", r => r.Ventas),
-                    ("Con receta", r => r.ConReceta),
-                    ("Anuladas", r => r.Anuladas),
-                    ("Total vendido", r => r.Total)),
-
-                4 => Exp<ReportePeriodoDto>(PorMes ? "Ventas por mes" : "Ventas por semana",
-                    PorMes ? "Ventas_por_mes" : "Ventas_por_semana", _periodos,
-                    ("Período", r => r.Periodo),
-                    ("Ventas", r => r.Ventas),
-                    ("Con receta", r => r.ConReceta),
-                    ("Total vendido", r => r.TotalVendido),
-                    ("Cubierto por la obra social", r => r.TotalCubierto),
-                    ("Pagado por el cliente", r => r.PagadoCliente),
-                    ("Ticket promedio", r => r.TicketPromedio)),
-
-                _ => Exp<ReporteMedioPagoDto>("Cobros por medio de pago", "Cobros_por_medio_de_pago", _mediosPago,
-                    ("Medio de pago", r => r.Medio),
-                    ("Cobros", r => r.Cobros),
-                    ("Cajas", r => r.Cajas),
-                    ("Total cobrado", r => r.Importe),
-                    ("% del total", r => $"{r.Porcentaje:N1} %"),
-                    ("Ticket promedio", r => r.TicketPromedio))
+                _ => ExportadorCsv.Exportar<UsuariosPorRolDto>("Usuarios_por_rol", _roles,
+                    ("Rol", r => r.Rol),
+                    ("Descripción", r => r.Descripcion),
+                    ("Activos", r => r.Activos),
+                    ("Inactivos", r => r.Inactivos),
+                    ("Total", r => r.Total),
+                    ("Deben cambiar contraseña", r => r.CambioPendiente))
             };
 
             if (ruta != null)

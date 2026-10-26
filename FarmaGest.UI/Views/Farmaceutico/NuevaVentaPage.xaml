@@ -191,7 +191,7 @@
 
 				<Border Background="#F4F7F6" CornerRadius="8" Padding="12,10" Margin="0,16,0,16">
 					<TextBlock TextWrapping="Wrap" FontSize="11.5" Foreground="{StaticResource FarmaTextMutedBrush}"
-                               Text="Al enviar, la venta queda como «Pendiente de cobro» y aparece en Preventas del cajero. El stock se descuenta cuando el cajero la cobra." />
+                               Text="Al enviar, la venta queda como «Pendiente de cobro» y aparece en Preventas del cajero. El stock queda reservado al enviarla y vuelve si se anula." />
 				</Border>
 
 				<ui:Button x:Name="EnviarButton" Content="Enviar a caja" Appearance="Primary" Icon="{ui:SymbolIcon Send24}"

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Globalization;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -16,12 +17,15 @@ namespace FarmaGest.UI.Views.Farmaceutico
         private readonly IServiceProvider _serviceProvider;
         private readonly SesionUsuarioService _sesionUsuarioService;
         private readonly DispatcherTimer _relojTimer;
+        private readonly DispatcherTimer _notificacionesTimer;
+        private readonly NotificacionService _notificacionService;
 
         public MainWindowFarmaceutico(IServiceProvider serviceProvider)
         {
             InitializeComponent();
             _serviceProvider = serviceProvider;
             _sesionUsuarioService = _serviceProvider.GetRequiredService<SesionUsuarioService>();
+            _notificacionService = _serviceProvider.GetRequiredService<NotificacionService>();
 
             // ---- Vista inicial: Dashboard del Farmacéutico ----
             RootFrame.Navigate(_serviceProvider.GetRequiredService<DashboardFarmaceuticoPage>());
@@ -36,9 +40,16 @@ namespace FarmaGest.UI.Views.Farmaceutico
             _relojTimer.Start();
             ActualizarFechaHora();
 
+            // ---- Notificaciones: al abrir y cada 2 minutos ----
+            _notificacionesTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+            _notificacionesTimer.Tick += async (_, _) => await CargarNotificacionesAsync();
+            _notificacionesTimer.Start();
+            Loaded += async (_, _) => await CargarNotificacionesAsync();
+
             Closed += (_, _) =>
             {
                 _relojTimer.Stop();
+                _notificacionesTimer.Stop();
                 _sesionUsuarioService.UsuarioActualizado -= ActualizarEncabezado;
             };
         }
@@ -97,6 +108,55 @@ namespace FarmaGest.UI.Views.Farmaceutico
                 case nameof(NavReportes):
                     RootFrame.Navigate(_serviceProvider.GetRequiredService<ReportesFarmaceuticoPage>());
                     break;
+            }
+        }
+
+        // =========================================================
+        // NOTIFICACIONES (stock y recetas)
+        // =========================================================
+        private async Task CargarNotificacionesAsync()
+        {
+            try
+            {
+                var avisos = await _notificacionService.ObtenerAsync();
+
+                NotificacionesList.ItemsSource = avisos;
+                SinNotificacionesText.Visibility = avisos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                NotificacionesResumenText.Text = $"Actualizado {DateTime.Now:HH:mm}";
+
+                NotificacionesBadge.Visibility = avisos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                NotificacionesCantidadText.Text = avisos.Count > 9 ? "9+" : avisos.Count.ToString();
+            }
+            catch
+            {
+                // Las notificaciones son un extra: si falla la consulta no se interrumpe el trabajo
+                NotificacionesResumenText.Text = "No se pudieron actualizar";
+            }
+        }
+
+        private async void Notificaciones_Click(object sender, RoutedEventArgs e)
+        {
+            await CargarNotificacionesAsync();
+            NotificacionesPopup.IsOpen = true;
+        }
+
+        /// <summary>Lleva a la pantalla donde se resuelve el aviso.</summary>
+        private void Notificacion_Click(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            if (sender is not FrameworkElement { DataContext: NotificacionDto aviso })
+                return;
+
+            NotificacionesPopup.IsOpen = false;
+
+            if (aviso.Destino == NotificacionService.DestinoStock)
+            {
+                NavStock.IsChecked = true;
+                RootFrame.Navigate(_serviceProvider.GetRequiredService<StockFarmaceuticoPage>());
+            }
+            else
+            {
+                NavRecetas.IsChecked = true;
+                RootFrame.Navigate(_serviceProvider.GetRequiredService<ValidacionRecetasPage>());
             }
         }
 

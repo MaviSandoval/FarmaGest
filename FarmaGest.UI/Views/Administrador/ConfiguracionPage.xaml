@@ -116,6 +116,23 @@
                                    Icon="{ui:SymbolIcon Folder24}" Click="ElegirCarpeta_Click" />
 					</Grid>
 
+					<!-- Backup automático diario -->
+					<Border Background="#F4F7F6" CornerRadius="8" Padding="14,10" Margin="0,0,0,14">
+						<Grid>
+							<Grid.ColumnDefinitions>
+								<ColumnDefinition Width="*" />
+								<ColumnDefinition Width="Auto" />
+							</Grid.ColumnDefinitions>
+							<StackPanel>
+								<TextBlock Text="Backup automático diario (00:00)" FontWeight="SemiBold" />
+								<TextBlock x:Name="BackupAutomaticoEstadoText" FontSize="11.5" TextWrapping="Wrap"
+								           Foreground="{StaticResource FarmaTextMutedBrush}" Margin="0,2,0,0" />
+							</StackPanel>
+							<ui:ToggleSwitch x:Name="BackupAutomaticoSwitch" Grid.Column="1" VerticalAlignment="Center"
+							                 Checked="BackupAutomatico_Changed" Unchecked="BackupAutomatico_Changed" />
+						</Grid>
+					</Border>
+
 					<StackPanel Orientation="Horizontal" Margin="0,0,0,14">
 						<ui:Button Content="Generar copia ahora" Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}"
                                    Margin="0,0,8,0" Click="GenerarBackup_Click" />

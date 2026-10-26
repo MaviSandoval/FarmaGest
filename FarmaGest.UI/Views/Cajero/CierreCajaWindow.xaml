@@ -6,6 +6,7 @@
         Title="Cierre de caja"
         Width="560"
         Height="700"
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ExtendsContentIntoTitleBar="True"
@@ -206,6 +207,7 @@
 
                 <ui:Button Content="Cancelar"
                            Margin="0,0,8,0"
+                           IsCancel="True"
                            Click="Cancelar_Click" />
 
                 <ui:Button Content="Confirmar cierre"

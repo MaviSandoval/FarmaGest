@@ -31,9 +31,9 @@ public partial class PreventasMaquetaPage : Page
         if (cobro.ShowDialog() != true)
             return;
 
-        // 2. Mostrar el ticket (ejemplo)
-        var ticket = new TicketWindow { Owner = Window.GetWindow(this) };
-        ticket.ShowDialog();
+        // 2. Maqueta sin datos reales: el ticket real necesita una venta cobrada en la base
+        MessageBox.Show("Maqueta: el ticket real se ve en Preventas / Ventas cobradas.", "FarmaGest",
+            MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private class PreventaFalsa

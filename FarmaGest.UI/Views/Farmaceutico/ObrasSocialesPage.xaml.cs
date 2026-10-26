@@ -52,6 +52,27 @@ public partial class ObrasSocialesPage : Page
             await BuscarAfiliadosAsync();
     }
 
+    /// <summary>Al elegir un afiliado, muestra abajo su obra social, su plan y lo que cubre.</summary>
+    private void Afiliado_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (AfiliadosGrid.SelectedItem is not AfiliadoDto afiliado || ObrasSocialesList.ItemsSource is null)
+            return;
+
+        var obra = ObrasSocialesList.Items.OfType<ObraSocialDto>().FirstOrDefault(o => o.Nombre == afiliado.ObraSocial);
+        if (obra == null)
+            return;
+
+        ObrasSocialesList.SelectedItem = obra;
+
+        // Después de que se actualice la lista de planes (y de que SeleccionarPrimerPlan elija el primero)
+        Dispatcher.InvokeAsync(() =>
+        {
+            var plan = obra.Planes.FirstOrDefault(p => p.Nombre == afiliado.Plan);
+            if (plan != null)
+                PlanesList.SelectedItem = plan;
+        }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
     private async Task BuscarAfiliadosAsync()
     {
         string texto = BuscarAfiliadoText.Text.Trim();

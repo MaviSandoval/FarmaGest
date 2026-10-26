@@ -8,6 +8,12 @@ public class BackupService
     /// <summary>Descripción con la que se registran las copias automáticas (se ve en el historial).</summary>
     public const string GeneradoPorAutomatico = "Automático";
 
+    /// <summary>Parámetro con la carpeta elegida por el Administrador para las copias.</summary>
+    private const string ParametroCarpeta = "CarpetaBackup";
+
+    /// <summary>Parámetro que guarda si el backup automático está activo ("1" / "0").</summary>
+    private const string ParametroAutomatico = "BackupAutomaticoActivo";
+
     /// <summary>Cantidad de copias automáticas que se conservan en disco.</summary>
     private const int AutomaticosAConservar = 7;
 
@@ -20,7 +26,32 @@ public class BackupService
 
     public Task<string?> ObtenerCarpetaPorDefectoAsync() => _repositorio.ObtenerCarpetaPorDefectoAsync();
 
+    /// <summary>Carpeta de copias: la que eligió el Administrador o, si nunca eligió, la de SQL Server.</summary>
+    public async Task<string?> ObtenerCarpetaAsync() =>
+        await _repositorio.ObtenerParametroAsync(ParametroCarpeta)
+        ?? await _repositorio.ObtenerCarpetaPorDefectoAsync();
+
+    /// <summary>Guarda la carpeta elegida: la usan las copias manuales y las automáticas.</summary>
+    public Task GuardarCarpetaAsync(string carpeta) =>
+        _repositorio.GuardarParametroAsync(ParametroCarpeta, carpeta.Trim());
+
+    /// <summary>Si el .bak sigue estando en el disco (lo verifica SQL Server).</summary>
+    public Task<bool> ArchivoExisteAsync(string ruta) => _repositorio.ArchivoExisteAsync(ruta);
+
     public Task<List<BackupInfo>> ObtenerHistorialAsync() => _repositorio.ObtenerHistorialAsync();
+
+    /// <summary>Copias completas terminadas dentro del período ("hasta" inclusivo).</summary>
+    public async Task<List<BackupInfo>> ObtenerHistorialAsync(DateTime desde, DateTime hasta)
+    {
+        var todas = await _repositorio.ObtenerHistorialAsync(1000);
+        return todas
+            .Where(b => b.Fecha >= desde.Date && b.Fecha < hasta.Date.AddDays(1))
+            .ToList();
+    }
+
+    /// <summary>La copia completa más reciente (de cualquier fecha), o null si nunca se hizo una.</summary>
+    public async Task<BackupInfo?> ObtenerUltimoAsync() =>
+        (await _repositorio.ObtenerHistorialAsync(1)).FirstOrDefault();
 
     public Task<string> GenerarBackupAsync(string carpeta, string generadoPor)
     {
@@ -34,13 +65,26 @@ public class BackupService
     /// Copia automática diaria: la genera solo si todavía no hay una automática de hoy.
     /// Se guarda en la carpeta por defecto de SQL Server. Devuelve true si generó una copia.
     /// </summary>
+    /// <summary>Si el backup automático está activo. Por defecto sí (si nunca se configuró).</summary>
+    public async Task<bool> AutomaticoActivoAsync() =>
+        await _repositorio.ObtenerParametroAsync(ParametroAutomatico) != "0";
+
+    /// <summary>Activa o desactiva el backup automático diario (lo decide el Administrador).</summary>
+    public Task CambiarAutomaticoAsync(bool activo) =>
+        _repositorio.GuardarParametroAsync(ParametroAutomatico, activo ? "1" : "0");
+
     public async Task<bool> GenerarAutomaticoSiFaltaAsync()
     {
+        // Desactivado por el Administrador: no se genera nada
+        if (!await AutomaticoActivoAsync())
+            return false;
+
         var ultima = await _repositorio.ObtenerHistorialAsync(1, GeneradoPorAutomatico);
         if (ultima.Count > 0 && ultima[0].Fecha.Date >= DateTime.Today)
             return false;
 
-        string? carpeta = await _repositorio.ObtenerCarpetaPorDefectoAsync();
+        // Misma carpeta que las copias manuales (así el Administrador las ve y se pueden limpiar las viejas)
+        string? carpeta = await ObtenerCarpetaAsync();
         if (string.IsNullOrWhiteSpace(carpeta))
             throw new InvalidOperationException("SQL Server no tiene configurada una carpeta de copias por defecto.");
 

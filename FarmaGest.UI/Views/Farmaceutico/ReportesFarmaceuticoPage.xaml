@@ -30,8 +30,8 @@
 			</StackPanel>
 			<StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Orientation="Horizontal">
 				<ui:Button Appearance="Secondary" Icon="{ui:SymbolIcon ArrowDownload24}"
-                           Content="Exportar PDF" Click="ExportarPdf_Click" Margin="0,0,8,0"
-                           ToolTip="Exporta la pestaña de detalle que estés viendo" />
+                           Content="Informe PDF" Click="ExportarPdf_Click" Margin="0,0,8,0"
+                           ToolTip="Informe completo del período: indicadores, obras sociales, productos por obra social, categorías, medios de pago, recetas y evolución" />
 				<ui:Button Appearance="Primary" Icon="{ui:SymbolIcon ArrowDownload24}"
                            Content="Exportar Excel" Click="ExportarCsv_Click"
                            ToolTip="Exporta la pestaña de detalle que estés viendo (CSV, se abre con Excel)" />
@@ -72,7 +72,7 @@
 		<Border Grid.Row="3" Style="{StaticResource CardStyle}">
 			<StackPanel>
 			<TextBlock Text="Detalle" FontSize="16" FontWeight="SemiBold" Foreground="#1F2E2C" Margin="2,0,0,2" />
-			<TextBlock Text="Tablas completas de cada reporte. Exportar PDF / Excel descarga la pestaña que estés viendo."
+			<TextBlock Text="Tablas completas de cada reporte. «Exportar Excel» descarga la pestaña que estés viendo; «Informe PDF» arma el informe completo del período."
 			           FontSize="12" Foreground="#6B7B79" Margin="2,0,0,10" />
 			<TabControl x:Name="ReportesTabs">
 

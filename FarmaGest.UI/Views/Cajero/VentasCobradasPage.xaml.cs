@@ -49,11 +49,16 @@ namespace FarmaGest.UI.Views.Cajero
             }
         }
 
-        // MAQUETA: por ahora muestra un ticket de ejemplo
-        private void VerTicket_Click(object sender, RoutedEventArgs e)
+        // Ticket real de la venta de esa fila
+        private async void VerTicket_Click(object sender, RoutedEventArgs e)
         {
-            var ventana = new TicketWindow { Owner = Window.GetWindow(this) };
-            ventana.ShowDialog();
+            if (sender is FrameworkElement { DataContext: VentaCobradaDto venta })
+            {
+                await TicketWindow.AbrirAsync(
+                    _facturacionService,
+                    venta.VentaId,
+                    Window.GetWindow(this));
+            }
         }
     }
 }

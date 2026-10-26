@@ -99,6 +99,8 @@ public partial class App : Application
         servicios.AddSingleton<ReporteService>();
         servicios.AddSingleton<BackupService>();
         servicios.AddSingleton<BackupProgramadoService>();
+        servicios.AddSingleton<NotificacionService>();
+        servicios.AddSingleton<ReporteSistemaService>();
 
         // =====================================================
         // UI - ADMINISTRADOR

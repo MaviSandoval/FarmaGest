@@ -103,14 +103,14 @@ namespace FarmaGest.UI.Views.Cajero
                     ventanaCobro.MetodoPagoSeleccionado,
                     ventanaCobro.MontoCambio);
 
-                MessageBox.Show(
-                    $"Venta N° {venta.VentaId} facturada correctamente.",
-                    "FarmaGest",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Information);
-
-                // Volver a cargar las ventas pendientes
+                // Volver a cargar las ventas pendientes (la cobrada ya no aparece)
                 await CargarVentasPendientesAsync();
+
+                // Mostrar el ticket de la venta recién cobrada
+                await TicketWindow.AbrirAsync(
+                    _facturacionService,
+                    venta.VentaId,
+                    Window.GetWindow(this));
             }
             catch (Exception ex)
             {

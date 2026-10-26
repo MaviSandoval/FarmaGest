@@ -217,6 +217,55 @@ public class FacturacionService
     }
 
     // =========================================================
+    // TICKET DE UNA VENTA COBRADA
+    // Cruza Facturacion, Venta, DetalleVenta, Producto, Usuario
+    // (quien preparó y quien cobró) y Receta/Afiliado/Plan/ObraSocial.
+    // =========================================================
+    public async Task<TicketDto?> ObtenerTicketAsync(int ventaId)
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        var ticket = await context.Facturaciones
+            .AsNoTracking()
+            .Where(f => f.VentaId == ventaId)
+            .Select(f => new TicketDto
+            {
+                VentaId = f.VentaId,
+                FacturacionId = f.Id,
+                Fecha = f.Fecha,
+                Preparo = f.Venta.Usuario.Nombre + " " + f.Venta.Usuario.Apellido,
+                Cobro = f.Usuario.Nombre + " " + f.Usuario.Apellido,
+                MetodoPago = f.MetodoPago,
+                Importe = f.Importe,
+                MontoCambio = f.MontoCambio,
+                ObraSocial = f.Venta.Receta == null ? null : f.Venta.Receta.Afiliado.Plan.ObraSocial.Nombre,
+                Plan = f.Venta.Receta == null ? null : f.Venta.Receta.Afiliado.Plan.NombrePlan,
+                Afiliado = f.Venta.Receta == null ? null
+                    : f.Venta.Receta.Afiliado.Nombre + " " + f.Venta.Receta.Afiliado.Apellido
+            })
+            .FirstOrDefaultAsync();
+
+        if (ticket == null)
+            return null;
+
+        ticket.Items = await context.DetallesVenta
+            .AsNoTracking()
+            .Where(d => d.VentaId == ventaId)
+            .OrderBy(d => d.Id)
+            .Select(d => new ItemTicketDto
+            {
+                Producto = d.Producto.Descripcion,
+                Cantidad = d.Cantidad,
+                PrecioUnitario = d.PrecioUnitario,
+                Descuento = d.Descuento
+            })
+            .ToListAsync();
+
+        return ticket;
+    }
+
+    // =========================================================
     // FACTURAR / COBRAR UNA VENTA
     // =========================================================
     public async Task FacturarVentaAsync(
@@ -350,6 +399,55 @@ public class FacturacionService
             throw;
         }
     }
+}
+
+
+// =============================================================
+// DTO - TICKET DE UNA VENTA COBRADA
+// =============================================================
+
+public class TicketDto
+{
+    public int VentaId { get; set; }
+    public int FacturacionId { get; set; }
+    public DateTime Fecha { get; set; }
+    public string Preparo { get; set; } = string.Empty;
+    public string Cobro { get; set; } = string.Empty;
+    public string MetodoPago { get; set; } = string.Empty;
+    public decimal Importe { get; set; }
+    public decimal MontoCambio { get; set; }
+    public string? ObraSocial { get; set; }
+    public string? Plan { get; set; }
+    public string? Afiliado { get; set; }
+
+    public List<ItemTicketDto> Items { get; set; } = new();
+
+    public decimal Subtotal => Items.Sum(i => i.Subtotal);
+    public decimal Descuento => Items.Sum(i => i.Descuento);
+    public decimal Total => Subtotal - Descuento;
+
+    public bool EsEfectivo => MetodoPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Lo que entregó el cliente: importe + vuelto.</summary>
+    public decimal PagaCon => Importe + MontoCambio;
+
+    public string NumeroTicket => $"0001-{FacturacionId:D8}";
+}
+
+public class ItemTicketDto
+{
+    private static readonly System.Globalization.CultureInfo Cultura = new("es-AR");
+
+    public string Producto { get; set; } = string.Empty;
+    public int Cantidad { get; set; }
+    public decimal PrecioUnitario { get; set; }
+    public decimal Descuento { get; set; }
+
+    public decimal Subtotal => Cantidad * PrecioUnitario;
+    public decimal PorcentajeCobertura => Subtotal == 0 ? 0 : Math.Round(Descuento * 100 / Subtotal, 0);
+    public bool TieneDescuento => Descuento > 0;
+    public string Linea => $"{Cantidad} x {PrecioUnitario.ToString("N2", Cultura)}";
+    public string TextoDescuento => $"  Cobertura {PorcentajeCobertura:0}%";
 }
 
 

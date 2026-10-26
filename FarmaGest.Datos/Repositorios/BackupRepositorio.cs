@@ -95,6 +95,71 @@ public class BackupRepositorio
     }
 
     /// <summary>
+    /// Si el archivo existe, visto por el servicio de SQL Server (que es quien escribe los .bak).
+    /// La app puede no tener permiso de lectura sobre la carpeta de SQL Server, por eso no alcanza con File.Exists.
+    /// </summary>
+    public async Task<bool> ArchivoExisteAsync(string ruta)
+    {
+        try
+        {
+            await using var conexion = ConexionSingleton.Instancia.CrearConexion();
+            await conexion.OpenAsync();
+
+            // sys.dm_os_file_exists: SQL Server 2017 o posterior
+            await using var comando = new SqlCommand(
+                "SELECT CAST(file_exists AS BIT) FROM sys.dm_os_file_exists(@ruta);", conexion);
+            comando.Parameters.Add("@ruta", SqlDbType.NVarChar, 260).Value = ruta;
+
+            return await comando.ExecuteScalarAsync() is true;
+        }
+        catch
+        {
+            // Versión de SQL Server sin esa función: se intenta desde la app
+            return File.Exists(ruta);
+        }
+    }
+
+    // =========================================================
+    // PARÁMETROS (tabla Configuracion: clave / valor)
+    // =========================================================
+
+    /// <summary>Valor de un parámetro, o null si no existe (o si la tabla todavía no se creó).</summary>
+    public async Task<string?> ObtenerParametroAsync(string clave)
+    {
+        await using var conexion = ConexionSingleton.Instancia.CrearConexion();
+        await conexion.OpenAsync();
+
+        await using var comando = new SqlCommand(@"
+            IF OBJECT_ID('dbo.Configuracion') IS NOT NULL
+                SELECT valor FROM dbo.Configuracion WHERE clave = @clave;", conexion);
+        comando.Parameters.Add("@clave", SqlDbType.VarChar, 50).Value = clave;
+
+        return await comando.ExecuteScalarAsync() as string;
+    }
+
+    /// <summary>Guarda (crea o actualiza) un parámetro. Si la tabla no existe, la crea.</summary>
+    public async Task GuardarParametroAsync(string clave, string valor)
+    {
+        await using var conexion = ConexionSingleton.Instancia.CrearConexion();
+        await conexion.OpenAsync();
+
+        await using var comando = new SqlCommand(@"
+            IF OBJECT_ID('dbo.Configuracion') IS NULL
+                CREATE TABLE dbo.Configuracion (
+                    clave  VARCHAR(50)  NOT NULL PRIMARY KEY,
+                    valor  VARCHAR(200) NOT NULL
+                );
+
+            UPDATE dbo.Configuracion SET valor = @valor WHERE clave = @clave;
+            IF @@ROWCOUNT = 0
+                INSERT INTO dbo.Configuracion (clave, valor) VALUES (@clave, @valor);", conexion);
+        comando.Parameters.Add("@clave", SqlDbType.VarChar, 50).Value = clave;
+        comando.Parameters.Add("@valor", SqlDbType.VarChar, 200).Value = valor;
+
+        await comando.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
     /// Restaura la base desde un .bak. Se conecta a master, deja la base en
     /// modo de un solo usuario (corta las otras conexiones), restaura y la
     /// vuelve a modo multiusuario.

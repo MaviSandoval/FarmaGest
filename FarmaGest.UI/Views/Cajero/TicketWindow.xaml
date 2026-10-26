@@ -4,6 +4,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         Title="Ticket"
         Width="440" Height="720"
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         ExtendsContentIntoTitleBar="True"
@@ -24,7 +25,7 @@
 
 		<!-- ===================== TICKET (estilo comprobante impreso) ===================== -->
 		<ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="24,8,24,0">
-			<Border Background="White" Padding="22,20" CornerRadius="4" BorderBrush="#E7ECEB" BorderThickness="1">
+			<Border x:Name="TicketContenido" Background="White" Padding="22,20" CornerRadius="4" BorderBrush="#E7ECEB" BorderThickness="1">
 				<StackPanel TextElement.FontFamily="Consolas" TextElement.FontSize="12.5" TextElement.Foreground="#1F2E2C">
 
 					<!-- Datos del comercio -->
@@ -34,11 +35,11 @@
 					<TextBlock Text="- - - - - - - - - - - - - - - - - - -" HorizontalAlignment="Center" Margin="0,8" />
 
 					<!-- Datos del comprobante -->
-					<TextBlock Text="Ticket N° 0001-00001046" FontWeight="Bold" />
-					<TextBlock Text="Fecha: 23/09/2026 11:31" />
-					<TextBlock Text="Venta N° 1046" />
-					<TextBlock Text="Preparó: Farmacéutico Sistema" />
-					<TextBlock Text="Cobró:   Cajero Sistema" />
+					<TextBlock x:Name="NumeroText" FontWeight="Bold" />
+					<TextBlock x:Name="FechaText" />
+					<TextBlock x:Name="VentaText" />
+					<TextBlock x:Name="PreparoText" />
+					<TextBlock x:Name="CobroText" />
 					<TextBlock Text="- - - - - - - - - - - - - - - - - - -" HorizontalAlignment="Center" Margin="0,8" />
 
 					<!-- Detalle de productos -->
@@ -67,7 +68,7 @@
 						<TextBlock Text="Subtotal" />
 						<TextBlock x:Name="SubtotalText" HorizontalAlignment="Right" />
 					</Grid>
-					<Grid>
+					<Grid x:Name="DescuentoFila">
 						<TextBlock Text="Cobertura obra social" />
 						<TextBlock x:Name="DescuentoText" HorizontalAlignment="Right" />
 					</Grid>
@@ -81,18 +82,18 @@
 					<!-- Pago -->
 					<Grid>
 						<TextBlock Text="Medio de pago" />
-						<TextBlock Text="Efectivo" HorizontalAlignment="Right" />
+						<TextBlock x:Name="MedioText" HorizontalAlignment="Right" />
 					</Grid>
-					<Grid>
+					<Grid x:Name="PagaConFila">
 						<TextBlock Text="Paga con" />
-						<TextBlock Text="$ 10.000,00" HorizontalAlignment="Right" />
+						<TextBlock x:Name="PagaConText" HorizontalAlignment="Right" />
 					</Grid>
-					<Grid>
+					<Grid x:Name="VueltoFila">
 						<TextBlock Text="Vuelto" />
-						<TextBlock Text="$ 230,00" HorizontalAlignment="Right" />
+						<TextBlock x:Name="VueltoText" HorizontalAlignment="Right" />
 					</Grid>
-					<TextBlock Text="Obra social: OSDE · Plan 210" Margin="0,6,0,0" />
-					<TextBlock Text="Afiliado: Juan Pérez · 61-458921-02" />
+					<TextBlock x:Name="ObraSocialText" Margin="0,6,0,0" />
+					<TextBlock x:Name="AfiliadoText" />
 
 					<TextBlock Text="- - - - - - - - - - - - - - - - - - -" HorizontalAlignment="Center" Margin="0,8" />
 					<TextBlock Text="¡Gracias por su compra!" HorizontalAlignment="Center" FontWeight="Bold" />
@@ -104,7 +105,7 @@
 		<!-- ===================== BOTONES ===================== -->
 		<Border Grid.Row="2" Background="White" BorderBrush="#E7ECEB" BorderThickness="0,1,0,0" Padding="24,14">
 			<StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-				<ui:Button Content="Cerrar" Margin="0,0,8,0" Click="Cerrar_Click" />
+				<ui:Button Content="Cerrar" Margin="0,0,8,0" IsCancel="True" Click="Cerrar_Click" />
 				<ui:Button Content="Imprimir" Appearance="Primary" Icon="{ui:SymbolIcon Print24}" Click="Imprimir_Click" />
 			</StackPanel>
 		</Border>

@@ -165,7 +165,20 @@ public class VentaService
         }
 
         context.Ventas.Add(venta);
-        await context.SaveChangesAsync();
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateException) when (receta != null)
+        {
+            // Dos farmacéuticos usaron la misma receta al mismo tiempo: el índice único
+            // UX_Venta_RecetaActiva deja pasar solo a la primera venta (la transacción
+            // se deshace al salir, así que el stock reservado vuelve).
+            throw new InvalidOperationException(
+                "Otro farmacéutico acaba de usar esta receta en una venta. Actualizá la pantalla y elegí otra.");
+        }
+
         await transaccion.CommitAsync();
 
         return venta.Id;

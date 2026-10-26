@@ -212,33 +212,17 @@ public partial class ResumenCajaPage : Page
     // VER TICKET
     // =========================================================
 
-    private void VerTicket_Click(
+    private async void VerTicket_Click(
         object sender,
         RoutedEventArgs e)
     {
-        if (sender is FrameworkElement elemento &&
-            elemento.DataContext is MovimientoVista movimiento)
+        if (sender is FrameworkElement { DataContext: MovimientoVista movimiento })
         {
-            var ventana =
-                new TicketWindow
-                {
-                    Owner =
-                        Window.GetWindow(this)
-                };
-
-            ventana.ShowDialog();
-
-            return;
+            await TicketWindow.AbrirAsync(
+                _facturacionService,
+                movimiento.Numero,
+                Window.GetWindow(this));
         }
-
-        var ticket =
-            new TicketWindow
-            {
-                Owner =
-                    Window.GetWindow(this)
-            };
-
-        ticket.ShowDialog();
     }
 
     // =========================================================

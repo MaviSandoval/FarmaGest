@@ -11,6 +11,9 @@
    Contenido:
      1. Facturacion.MontoCambio ........ vuelto entregado en cobros en efectivo
      2. CK_Producto_StockVenta ......... el stock nunca puede quedar negativo
+     3. Recetas.estado acepta NULL ..... NULL = Pendiente de validación
+     4. Tabla Configuracion ............ parámetros (backup automático on/off)
+     5. UX_Venta_RecetaActiva .......... una receta, una sola venta activa
    ===================================================================== */
 
 USE FarmaGestDB;
@@ -55,4 +58,82 @@ BEGIN
 END
 ELSE
     PRINT 'CK_Producto_StockVenta ya existía.';
+GO
+
+
+/* =====================================================================
+   3. RECETAS: estado acepta NULL
+      NULL = Pendiente (todavía no la revisó el Farmacéutico),
+      1 = Validada, 0 = Rechazada. Antes la columna era NOT NULL DEFAULT 1,
+      así que toda receta entraba validada sin pasar por el Farmacéutico.
+   ===================================================================== */
+
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID('Recetas') AND name = 'estado' AND is_nullable = 0)
+BEGIN
+    -- Se quita el DEFAULT 1 (su nombre lo genera SQL Server, por eso se busca)
+    DECLARE @default SYSNAME =
+        (SELECT d.name
+         FROM sys.default_constraints d
+         JOIN sys.columns c ON c.object_id = d.parent_object_id AND c.column_id = d.parent_column_id
+         WHERE c.object_id = OBJECT_ID('Recetas') AND c.name = 'estado');
+
+    IF @default IS NOT NULL
+        EXEC('ALTER TABLE Recetas DROP CONSTRAINT ' + @default);
+
+    ALTER TABLE Recetas ALTER COLUMN estado BIT NULL;
+
+    PRINT 'Recetas.estado ahora acepta NULL (Pendiente).';
+END
+ELSE
+    PRINT 'Recetas.estado ya aceptaba NULL.';
+GO
+
+
+/* =====================================================================
+   4. CONFIGURACION: parámetros del sistema (clave / valor)
+      BackupAutomaticoActivo: '1' = backup diario a las 00:00, '0' = solo manual.
+      Se cambia desde Administrador > Configuración.
+   ===================================================================== */
+
+IF OBJECT_ID('dbo.Configuracion') IS NULL
+BEGIN
+    CREATE TABLE Configuracion (
+        clave  VARCHAR(50)  NOT NULL PRIMARY KEY,
+        valor  VARCHAR(200) NOT NULL
+    );
+
+    PRINT 'Creada la tabla Configuracion.';
+END
+ELSE
+    PRINT 'La tabla Configuracion ya existía.';
+GO
+
+IF NOT EXISTS (SELECT 1 FROM Configuracion WHERE clave = 'BackupAutomaticoActivo')
+    INSERT INTO Configuracion (clave, valor) VALUES ('BackupAutomaticoActivo', '1');
+GO
+
+
+/* =====================================================================
+   5. VENTA: una receta en una sola venta activa
+      Si dos farmacéuticos arman una venta con la misma receta al mismo
+      tiempo, la base deja guardar solo la primera (VentaService avisa a la otra).
+   ===================================================================== */
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'UX_Venta_RecetaActiva')
+BEGIN
+    IF EXISTS (SELECT id_Receta FROM Venta
+               WHERE estado = 1 AND id_Receta IS NOT NULL
+               GROUP BY id_Receta HAVING COUNT(*) > 1)
+        PRINT 'ATENCIÓN: hay recetas usadas en más de una venta activa. Anulá las ventas repetidas y volvé a ejecutar este paso.';
+    ELSE
+    BEGIN
+        CREATE UNIQUE INDEX UX_Venta_RecetaActiva ON Venta (id_Receta)
+            WHERE estado = 1 AND id_Receta IS NOT NULL;
+
+        PRINT 'Creado el índice UX_Venta_RecetaActiva.';
+    END
+END
+ELSE
+    PRINT 'UX_Venta_RecetaActiva ya existía.';
 GO

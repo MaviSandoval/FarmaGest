@@ -411,6 +411,54 @@ public class ReporteService
         return resumen;
     }
 
+    /// <summary>
+    /// Productos más vendidos dentro de cada obra social ("Particular" = ventas sin receta).
+    /// Cruza Venta, DetalleVenta, Producto, Facturacion, Receta, Afiliado, Plan y ObraSocial.
+    /// </summary>
+    public async Task<List<ReporteProductoObraSocialDto>> ProductosPorObraSocialAsync(DateTime desde, DateTime hasta, int topPorObra = 5)
+    {
+        await using var context = await _factory.CreateDbContextAsync();
+        var (inicio, fin) = Rango(desde, hasta);
+
+        var filas = await VentasCobradas(context, inicio, fin)
+            .SelectMany(v => v.Detalles.Select(d => new
+            {
+                ObraSocial = v.Receta == null ? null : v.Receta.Afiliado.Plan.ObraSocial.Nombre,
+                d.Producto.Descripcion,
+                d.Cantidad,
+                Bruto = d.Cantidad * d.PrecioUnitario,
+                d.Descuento
+            }))
+            .GroupBy(x => new { x.ObraSocial, x.Descripcion })
+            .Select(g => new
+            {
+                g.Key.ObraSocial,
+                g.Key.Descripcion,
+                Unidades = g.Sum(x => x.Cantidad),
+                Bruto = g.Sum(x => x.Bruto),
+                Cubierto = g.Sum(x => x.Descuento)
+            })
+            .ToListAsync();
+
+        // Obras sociales ordenadas por facturación; dentro de cada una, el top por unidades
+        return filas
+            .GroupBy(f => f.ObraSocial ?? "Particular")
+            .OrderByDescending(g => g.Sum(f => f.Bruto))
+            .SelectMany(g => g
+                .OrderByDescending(f => f.Unidades).ThenByDescending(f => f.Bruto)
+                .Take(topPorObra)
+                .Select((f, i) => new ReporteProductoObraSocialDto
+                {
+                    ObraSocial = g.Key,
+                    Puesto = i + 1,
+                    Producto = f.Descripcion,
+                    Unidades = f.Unidades,
+                    Cubierto = f.Cubierto,
+                    Total = f.Bruto - f.Cubierto
+                }))
+            .ToList();
+    }
+
     /// <summary>Ventas activas del rango que ya fueron cobradas (tienen Facturacion).</summary>
     private static IQueryable<Venta> VentasCobradas(FarmaGestDbContext context, DateTime inicio, DateTime fin) =>
         context.Ventas
@@ -442,6 +490,16 @@ public class ReporteObraSocialDto
     public decimal TotalVendido { get; set; }
     public decimal TotalCubierto { get; set; }
     public decimal PagadoCliente => TotalVendido - TotalCubierto;
+}
+
+public class ReporteProductoObraSocialDto
+{
+    public string ObraSocial { get; set; } = string.Empty;
+    public int Puesto { get; set; }
+    public string Producto { get; set; } = string.Empty;
+    public int Unidades { get; set; }
+    public decimal Cubierto { get; set; }
+    public decimal Total { get; set; }
 }
 
 public class ResumenReportesDto

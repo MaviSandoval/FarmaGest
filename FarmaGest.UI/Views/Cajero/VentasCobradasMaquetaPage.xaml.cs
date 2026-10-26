@@ -28,8 +28,9 @@ public partial class VentasCobradasMaquetaPage : Page
 
     private void VerTicket_Click(object sender, RoutedEventArgs e)
     {
-        var ticket = new TicketWindow { Owner = Window.GetWindow(this) };
-        ticket.ShowDialog();
+        // Maqueta sin datos reales: el ticket real necesita una venta cobrada en la base
+        MessageBox.Show("Maqueta: el ticket real se ve en Preventas / Ventas cobradas.", "FarmaGest",
+            MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
     private class VentaCobradaFalsa

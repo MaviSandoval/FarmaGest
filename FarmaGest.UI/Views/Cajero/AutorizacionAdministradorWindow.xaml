@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Autorización de administrador"
         Width="430"
-        Height="330"
+        SizeToContent="Height"
+        MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#F4F7F6">
@@ -79,6 +80,7 @@
                     Width="95"
                     Height="36"
                     Margin="0,0,10,0"
+                    IsCancel="True"
                     Click="Cancelar_Click"/>
 
             <Button x:Name="BtnAutorizar"
@@ -88,6 +90,7 @@
                     Background="#1F7A6C"
                     Foreground="White"
                     BorderThickness="0"
+                    IsDefault="True"
                     Click="Autorizar_Click"/>
 
         </StackPanel>

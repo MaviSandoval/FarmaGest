@@ -29,6 +29,7 @@ public partial class ReportesFarmaceuticoPage : Page
     private List<ReporteProductoDto> _productos = new();
     private List<ReporteRecetasDto> _recetas = new();
     private List<ReportePeriodoDto> _periodos = new();
+    private ResumenReportesDto? _resumen;
 
     public ReportesFarmaceuticoPage(ReporteService reporteService, SesionUsuarioService sesion)
     {
@@ -69,7 +70,8 @@ public partial class ReportesFarmaceuticoPage : Page
             RecetasGrid.ItemsSource = _recetas;
             PeriodoGrid.ItemsSource = _periodos;
 
-            Resumen.Mostrar(await _reporteService.ResumenAsync(desde, hasta));
+            _resumen = await _reporteService.ResumenAsync(desde, hasta);
+            Resumen.Mostrar(_resumen);
             ActualizarGraficos();
         }
         catch (Exception ex)
@@ -132,7 +134,107 @@ public partial class ReportesFarmaceuticoPage : Page
 
     private void ExportarCsv_Click(object sender, RoutedEventArgs e) => Exportar(pdf: false);
 
-    private void ExportarPdf_Click(object sender, RoutedEventArgs e) => Exportar(pdf: true);
+    private async void ExportarPdf_Click(object sender, RoutedEventArgs e) => await ExportarInformeAsync();
+
+    // =========================================================
+    // INFORME PDF COMPLETO DEL PERÍODO
+    // =========================================================
+    private async Task ExportarInformeAsync()
+    {
+        if (DesdePicker.SelectedDate is not DateTime desde || HastaPicker.SelectedDate is not DateTime hasta || _resumen == null)
+        {
+            MessageBox.Show("Generá los reportes del período antes de exportar.", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var porObraSocial = await _reporteService.ProductosPorObraSocialAsync(desde, hasta);
+            var r = _resumen;
+
+            var indicadores = new List<IndicadorPdf>
+            {
+                new("Facturación", $"$ {r.Facturacion:N0}",
+                    r.Variacion is decimal v ? $"{(v >= 0 ? "+" : "")}{v:N1} % respecto al período anterior" : "Sin ventas en el período anterior"),
+                new("Ventas cobradas", r.Ventas.ToString("N0"), $"Ticket promedio $ {r.TicketPromedio:N0}"),
+                new("Unidades vendidas", r.Unidades.ToString("N0"), $"{r.UnidadesConReceta:N0} con receta"),
+                new("Ventas con obra social", $"{r.PorcentajeConObraSocial:N0} %", $"Cobertura descontada $ {r.CoberturaDescontada:N0}")
+            };
+
+            // En "por obra social" el nombre se muestra solo en la primera fila de cada grupo
+            string? anterior = null;
+            var filasPorObra = porObraSocial.Select(p =>
+            {
+                var fila = new object?[] { p.ObraSocial == anterior ? "" : p.ObraSocial, p.Puesto, p.Producto, p.Unidades, p.Cubierto, p.Total };
+                anterior = p.ObraSocial;
+                return fila;
+            }).ToList();
+
+            var secciones = new List<SeccionPdf>
+            {
+                new()
+                {
+                    Titulo = "Ventas por obra social",
+                    Descripcion = "Total vendido, lo que cubrió la obra social y lo que pagó el cliente.",
+                    Columnas = new[] { "Obra social", "Ventas", "Total vendido", "Cubierto por la OS", "Pagado por el cliente" },
+                    Filas = _obrasSociales.Select(o => new object?[] { o.ObraSocial, o.Ventas, o.TotalVendido, o.TotalCubierto, o.PagadoCliente }).ToList()
+                },
+                new()
+                {
+                    Titulo = "Productos más vendidos por obra social",
+                    Descripcion = "Los 5 productos con más unidades dentro de cada obra social (Particular = ventas sin receta).",
+                    Columnas = new[] { "Obra social", "#", "Producto", "Unidades", "Cubierto por la OS", "Facturación" },
+                    Filas = filasPorObra
+                },
+                new()
+                {
+                    Titulo = "Productos más vendidos",
+                    Descripcion = "Ranking general por unidades vendidas.",
+                    Columnas = new[] { "#", "Producto", "Categoría", "Unidades", "Facturación" },
+                    Filas = _productos.Select(p => new object?[] { p.Puesto, p.Producto, p.Categoria, p.Unidades, p.Total }).ToList()
+                },
+                new()
+                {
+                    Titulo = "Ventas por categoría",
+                    Columnas = new[] { "Categoría", "Unidades", "Facturación", "% del total" },
+                    Filas = r.Categorias.Select(c => new object?[] { c.Nombre, c.Cantidad, c.Importe, $"{c.Porcentaje:N1} %" }).ToList()
+                },
+                new()
+                {
+                    Titulo = "Medios de pago",
+                    Columnas = new[] { "Medio de pago", "Cobros", "Importe", "% del total" },
+                    Filas = r.MediosPago.Select(m => new object?[] { m.Nombre, m.Cantidad, m.Importe, $"{m.Porcentaje:N1} %" }).ToList()
+                },
+                new()
+                {
+                    Titulo = "Recetas por obra social",
+                    Descripcion = "Según la fecha de emisión de la receta.",
+                    Columnas = new[] { "Obra social", "Recibidas", "Pendientes", "Validadas", "Rechazadas", "Usadas en ventas" },
+                    Filas = _recetas.Select(x => new object?[] { x.ObraSocial, x.Total, x.Pendientes, x.Validadas, x.Rechazadas, x.Usadas }).ToList()
+                },
+                new()
+                {
+                    Titulo = PorMes ? "Ventas por mes" : "Ventas por semana",
+                    Columnas = new[] { "Período", "Ventas", "Con receta", "Total vendido", "Cubierto por la OS", "Pagado por el cliente", "Ticket promedio" },
+                    Filas = _periodos.Select(x => new object?[] { x.Periodo, x.Ventas, x.ConReceta, x.TotalVendido, x.TotalCubierto, x.PagadoCliente, x.TicketPromedio }).ToList()
+                }
+            };
+
+            string? ruta = ExportadorPdf.ExportarInforme(
+                "Informe de ventas y recetas",
+                $"Período: {desde:dd/MM/yyyy} al {hasta:dd/MM/yyyy} · Toda la farmacia · Solo ventas cobradas",
+                "Informe_ventas_recetas", indicadores, secciones);
+
+            if (ruta != null)
+                MessageBox.Show($"Informe exportado en:\n{ruta}", "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"No se pudo exportar el informe.\n\n{ex.Message}", "FarmaGest",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
 
     /// <summary>Exporta a CSV o PDF el reporte de la pestaña que se está viendo.</summary>
     private void Exportar(bool pdf)
