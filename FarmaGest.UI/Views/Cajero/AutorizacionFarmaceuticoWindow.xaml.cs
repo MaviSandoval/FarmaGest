@@ -56,7 +56,7 @@ public partial class AutorizacionFarmaceuticoWindow : Window
             if (usuario.Rol == null ||
                 !string.Equals(
                     usuario.Rol.Nombre,
-                    "Farmacéutico",
+                    "Farmaceutico",
                     StringComparison.OrdinalIgnoreCase))
             {
                 TxtMensaje.Text =

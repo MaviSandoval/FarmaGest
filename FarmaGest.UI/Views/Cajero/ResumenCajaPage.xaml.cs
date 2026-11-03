@@ -12,6 +12,7 @@ public partial class ResumenCajaPage : Page
     private readonly FacturacionService _facturacionService;
     private readonly SesionUsuarioService _sesionUsuarioService;
     private readonly CajaService _cajaService;
+    private readonly UsuarioService _usuarioService;
 
     // =========================================================
     // CONSTRUCTOR
@@ -20,13 +21,15 @@ public partial class ResumenCajaPage : Page
     public ResumenCajaPage(
         FacturacionService facturacionService,
         SesionUsuarioService sesionUsuarioService,
-        CajaService cajaService)
+        CajaService cajaService,
+        UsuarioService usuarioService)
     {
         InitializeComponent();
 
         _facturacionService = facturacionService;
         _sesionUsuarioService = sesionUsuarioService;
         _cajaService = cajaService;
+        _usuarioService = usuarioService;
 
         Loaded += ResumenCajaPage_Loaded;
     }
@@ -192,7 +195,8 @@ public partial class ResumenCajaPage : Page
         var ventana =
             new CierreCajaWindow(
                 _cajaService,
-                _sesionUsuarioService)
+                _sesionUsuarioService,
+                _usuarioService)
             {
                 Owner =
                     Window.GetWindow(this)
@@ -216,7 +220,10 @@ public partial class ResumenCajaPage : Page
         object sender,
         RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: MovimientoVista movimiento })
+        if (sender is FrameworkElement
+            {
+                DataContext: MovimientoVista movimiento
+            })
         {
             await TicketWindow.AbrirAsync(
                 _facturacionService,
