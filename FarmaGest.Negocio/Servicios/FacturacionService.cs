@@ -17,6 +17,7 @@ public class FacturacionService
     // =========================================================
     // OBTENER VENTAS PENDIENTES DE FACTURACIÓN
     // =========================================================
+
     public async Task<List<VentaPendienteFacturacionDto>>
         ObtenerVentasPendientesAsync()
     {
@@ -56,6 +57,7 @@ public class FacturacionService
     // =========================================================
     // OBTENER VENTAS COBRADAS
     // =========================================================
+
     public async Task<List<VentaCobradaDto>>
         ObtenerVentasCobradasAsync()
     {
@@ -67,20 +69,22 @@ public class FacturacionService
             .Where(f => f.Venta.Estado)
             .Select(f => new VentaCobradaDto
             {
+                FacturacionId = f.Id,
+
                 VentaId = f.VentaId,
 
                 Fecha = f.Fecha,
 
-                // Usuario que realizó/preparó la venta.
                 Responsable =
                     f.Venta.Usuario.Nombre + " " +
                     f.Venta.Usuario.Apellido,
 
-                MetodoPago = f.MetodoPago,
+                MetodoPago =
+                    f.MedioPago.Nombre,
 
-                Importe = f.Importe,
+                Importe =
+                    f.Importe,
 
-                // Usuario que realizó el cobro.
                 Cajero =
                     f.Usuario.Nombre + " " +
                     f.Usuario.Apellido
@@ -94,15 +98,12 @@ public class FacturacionService
     // =========================================================
     // OBTENER RESUMEN DE LA CAJA ABIERTA
     // =========================================================
+
     public async Task<ResumenCajaDto?>
         ObtenerResumenCajaAbiertaAsync(int usuarioId)
     {
         await using var context =
             await _factory.CreateDbContextAsync();
-
-        // -----------------------------------------------------
-        // 1. Buscar la caja abierta del cajero
-        // -----------------------------------------------------
 
         var caja = await context.Cajas
             .AsNoTracking()
@@ -124,10 +125,6 @@ public class FacturacionService
         if (caja == null)
             return null;
 
-        // -----------------------------------------------------
-        // 2. Obtener todos los cobros realizados en esa caja
-        // -----------------------------------------------------
-
         var cobros = await context.Facturaciones
             .AsNoTracking()
             .Where(f =>
@@ -141,21 +138,18 @@ public class FacturacionService
 
                 Fecha = f.Fecha,
 
-                // Usuario que realizó/preparó originalmente la venta.
                 Responsable =
                     f.Venta.Usuario.Nombre + " " +
                     f.Venta.Usuario.Apellido,
 
-                MetodoPago = f.MetodoPago,
+                MetodoPago =
+                    f.MedioPago.Nombre,
 
-                Importe = f.Importe
+                Importe =
+                    f.Importe
             })
             .OrderByDescending(f => f.Fecha)
             .ToListAsync();
-
-        // -----------------------------------------------------
-        // 3. Calcular totales
-        // -----------------------------------------------------
 
         decimal totalCobrado =
             cobros.Sum(c => c.Importe);
@@ -171,57 +165,38 @@ public class FacturacionService
         decimal efectivoEsperado =
             caja.MontoInicial + totalEfectivo;
 
-        // -----------------------------------------------------
-        // 4. Agrupar cobros por medio de pago
-        // -----------------------------------------------------
-
         var mediosPago = cobros
             .GroupBy(c => c.MetodoPago)
             .Select(g => new MedioPagoResumenDto
             {
                 Medio = g.Key,
-
                 Cantidad = g.Count(),
-
                 Importe = g.Sum(c => c.Importe)
             })
             .OrderBy(m => m.Medio)
             .ToList();
 
-        // -----------------------------------------------------
-        // 5. Armar resumen
-        // -----------------------------------------------------
-
         return new ResumenCajaDto
         {
             CajaId = caja.Id,
-
             FechaApertura = caja.FechaApertura,
-
             Cajero = caja.Cajero,
-
             MontoInicial = caja.MontoInicial,
-
             TotalCobrado = totalCobrado,
-
             TotalEfectivo = totalEfectivo,
-
             EfectivoEsperado = efectivoEsperado,
-
             CantidadCobros = cobros.Count,
-
             MediosPago = mediosPago,
-
             Movimientos = cobros
         };
     }
 
     // =========================================================
     // TICKET DE UNA VENTA COBRADA
-    // Cruza Facturacion, Venta, DetalleVenta, Producto, Usuario
-    // (quien preparó y quien cobró) y Receta/Afiliado/Plan/ObraSocial.
     // =========================================================
-    public async Task<TicketDto?> ObtenerTicketAsync(int ventaId)
+
+    public async Task<TicketDto?>
+        ObtenerTicketAsync(int ventaId)
     {
         await using var context =
             await _factory.CreateDbContextAsync();
@@ -234,15 +209,39 @@ public class FacturacionService
                 VentaId = f.VentaId,
                 FacturacionId = f.Id,
                 Fecha = f.Fecha,
-                Preparo = f.Venta.Usuario.Nombre + " " + f.Venta.Usuario.Apellido,
-                Cobro = f.Usuario.Nombre + " " + f.Usuario.Apellido,
+
+                Preparo =
+                    f.Venta.Usuario.Nombre + " " +
+                    f.Venta.Usuario.Apellido,
+
+                Cobro =
+                    f.Usuario.Nombre + " " +
+                    f.Usuario.Apellido,
+
                 MetodoPago = f.MetodoPago,
+
                 Importe = f.Importe,
+
                 MontoCambio = f.MontoCambio,
-                ObraSocial = f.Venta.Receta == null ? null : f.Venta.Receta.Afiliado.Plan.ObraSocial.Nombre,
-                Plan = f.Venta.Receta == null ? null : f.Venta.Receta.Afiliado.Plan.NombrePlan,
-                Afiliado = f.Venta.Receta == null ? null
-                    : f.Venta.Receta.Afiliado.Nombre + " " + f.Venta.Receta.Afiliado.Apellido
+
+                ObraSocial =
+                    f.Venta.Receta == null
+                        ? null
+                        : f.Venta.Receta.Afiliado
+                            .Plan.ObraSocial.Nombre,
+
+                Plan =
+                    f.Venta.Receta == null
+                        ? null
+                        : f.Venta.Receta.Afiliado
+                            .Plan.NombrePlan,
+
+                Afiliado =
+                    f.Venta.Receta == null
+                        ? null
+                        : f.Venta.Receta.Afiliado.Nombre +
+                          " " +
+                          f.Venta.Receta.Afiliado.Apellido
             })
             .FirstOrDefaultAsync();
 
@@ -266,8 +265,26 @@ public class FacturacionService
     }
 
     // =========================================================
+    // OBTENER MEDIOS DE PAGO ACTIVOS
+    // =========================================================
+
+    public async Task<List<MedioPago>>
+        ObtenerMediosPagoActivosAsync()
+    {
+        await using var context =
+            await _factory.CreateDbContextAsync();
+
+        return await context.MediosPago
+            .AsNoTracking()
+            .Where(m => m.Estado)
+            .OrderBy(m => m.Id)
+            .ToListAsync();
+    }
+
+    // =========================================================
     // FACTURAR / COBRAR UNA VENTA
     // =========================================================
+
     public async Task FacturarVentaAsync(
         int ventaId,
         int usuarioId,
@@ -328,6 +345,15 @@ public class FacturacionService
             throw new InvalidOperationException(
                 "Debe seleccionar un método de pago.");
 
+        var medioPago = await context.MediosPago
+            .FirstOrDefaultAsync(m =>
+                m.Estado &&
+                m.Nombre == metodoPago.Trim());
+
+        if (medioPago == null)
+            throw new InvalidOperationException(
+                "El método de pago seleccionado no existe o está inactivo.");
+
         // -----------------------------------------------------
         // 5. Calcular importe
         // -----------------------------------------------------
@@ -349,8 +375,7 @@ public class FacturacionService
             throw new InvalidOperationException(
                 "El monto de cambio no puede ser negativo.");
 
-        // Si el pago no es en efectivo, no corresponde vuelto.
-        if (!metodoPago.Trim().Equals(
+        if (!medioPago.Nombre.Equals(
                 "Efectivo",
                 StringComparison.OrdinalIgnoreCase))
         {
@@ -366,8 +391,11 @@ public class FacturacionService
             {
                 Fecha = DateTime.Now,
 
-                MetodoPago =
-                    metodoPago.Trim(),
+                // Se mantiene temporalmente mientras
+                // finalizamos la migración.
+                MetodoPago = medioPago.Nombre,
+
+                MedioPagoId = medioPago.Id,
 
                 Importe = importe,
 
@@ -375,7 +403,6 @@ public class FacturacionService
 
                 VentaId = venta.Id,
 
-                // Cajero que realizó el cobro
                 UsuarioId = usuarioId,
 
                 CajaId = caja.Id
@@ -390,11 +417,15 @@ public class FacturacionService
         }
         catch (DbUpdateException)
         {
-            // Dos cajeros cobraron la misma venta a la vez: el índice único
-            // de Facturacion.id_venta deja pasar solo al primero.
-            if (await context.Facturaciones.AsNoTracking().AnyAsync(f => f.VentaId == ventaId && f.Id != facturacion.Id))
+            if (await context.Facturaciones
+                .AsNoTracking()
+                .AnyAsync(f =>
+                    f.VentaId == ventaId &&
+                    f.Id != facturacion.Id))
+            {
                 throw new InvalidOperationException(
                     "Otro cajero acaba de cobrar esta venta. Actualizá la lista de preventas.");
+            }
 
             throw;
         }
@@ -409,45 +440,89 @@ public class FacturacionService
 public class TicketDto
 {
     public int VentaId { get; set; }
+
     public int FacturacionId { get; set; }
+
     public DateTime Fecha { get; set; }
-    public string Preparo { get; set; } = string.Empty;
-    public string Cobro { get; set; } = string.Empty;
-    public string MetodoPago { get; set; } = string.Empty;
+
+    public string Preparo { get; set; } =
+        string.Empty;
+
+    public string Cobro { get; set; } =
+        string.Empty;
+
+    public string MetodoPago { get; set; } =
+        string.Empty;
+
     public decimal Importe { get; set; }
+
     public decimal MontoCambio { get; set; }
+
     public string? ObraSocial { get; set; }
+
     public string? Plan { get; set; }
+
     public string? Afiliado { get; set; }
 
-    public List<ItemTicketDto> Items { get; set; } = new();
+    public List<ItemTicketDto> Items { get; set; } =
+        new();
 
-    public decimal Subtotal => Items.Sum(i => i.Subtotal);
-    public decimal Descuento => Items.Sum(i => i.Descuento);
-    public decimal Total => Subtotal - Descuento;
+    public decimal Subtotal =>
+        Items.Sum(i => i.Subtotal);
 
-    public bool EsEfectivo => MetodoPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase);
+    public decimal Descuento =>
+        Items.Sum(i => i.Descuento);
 
-    /// <summary>Lo que entregó el cliente: importe + vuelto.</summary>
-    public decimal PagaCon => Importe + MontoCambio;
+    public decimal Total =>
+        Subtotal - Descuento;
 
-    public string NumeroTicket => $"0001-{FacturacionId:D8}";
+    public bool EsEfectivo =>
+        MetodoPago.Equals(
+            "Efectivo",
+            StringComparison.OrdinalIgnoreCase);
+
+    public decimal PagaCon =>
+        Importe + MontoCambio;
+
+    public string NumeroTicket =>
+        $"0001-{FacturacionId:D8}";
 }
+
 
 public class ItemTicketDto
 {
-    private static readonly System.Globalization.CultureInfo Cultura = new("es-AR");
+    private static readonly
+        System.Globalization.CultureInfo Cultura =
+            new("es-AR");
 
-    public string Producto { get; set; } = string.Empty;
+    public string Producto { get; set; } =
+        string.Empty;
+
     public int Cantidad { get; set; }
+
     public decimal PrecioUnitario { get; set; }
+
     public decimal Descuento { get; set; }
 
-    public decimal Subtotal => Cantidad * PrecioUnitario;
-    public decimal PorcentajeCobertura => Subtotal == 0 ? 0 : Math.Round(Descuento * 100 / Subtotal, 0);
-    public bool TieneDescuento => Descuento > 0;
-    public string Linea => $"{Cantidad} x {PrecioUnitario.ToString("N2", Cultura)}";
-    public string TextoDescuento => $"  Cobertura {PorcentajeCobertura:0}%";
+    public decimal Subtotal =>
+        Cantidad * PrecioUnitario;
+
+    public decimal PorcentajeCobertura =>
+        Subtotal == 0
+            ? 0
+            : Math.Round(
+                Descuento * 100 / Subtotal,
+                0);
+
+    public bool TieneDescuento =>
+        Descuento > 0;
+
+    public string Linea =>
+        $"{Cantidad} x " +
+        $"{PrecioUnitario.ToString("N2", Cultura)}";
+
+    public string TextoDescuento =>
+        $"  Cobertura {PorcentajeCobertura:0}%";
 }
 
 
@@ -465,6 +540,8 @@ public class ResumenCajaDto
         string.Empty;
 
     public decimal MontoInicial { get; set; }
+
+    public decimal MontoFinal { get; set; }
 
     public decimal TotalCobrado { get; set; }
 

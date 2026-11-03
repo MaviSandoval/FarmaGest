@@ -1,4 +1,4 @@
-﻿<Page
+﻿ <Page
     x:Class="FarmaGest.UI.Views.Cajero.PreventasPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -104,25 +104,29 @@
                     <DataGridTextColumn
                         Header="Total"
                         Binding="{Binding Total}"
-                        Width="130" />
+                        Width="120" />
 
                     <DataGridTextColumn
                         Header="Estado"
                         Binding="{Binding Estado}"
-                        Width="120" />
+                        Width="130" />
 
                     <DataGridTemplateColumn
                         Header="Acción"
-                        Width="120">
+                        Width="150">
 
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
 
-                                <ui:Button
-                                    Content="Cobrar"
-                                    Appearance="Primary"
-                                    Padding="14,6"
-                                    Click="Cobrar_Click" />
+                                <Grid>
+                                    <ui:Button
+                                        Content="Cobrar"
+                                        Appearance="Primary"
+                                        Padding="16,6"
+                                        Margin="12,0,8,0"
+                                        HorizontalAlignment="Right"
+                                        Click="Cobrar_Click" />
+                                </Grid>
 
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>

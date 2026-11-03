@@ -16,7 +16,6 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
@@ -74,69 +73,214 @@
             <ComboBox x:Name="CmbMetodoPago"
                       Height="38"
                       FontSize="14"
-                      SelectedIndex="0"
-                      SelectionChanged="CmbMetodoPago_SelectionChanged">
-
-                <ComboBoxItem Content="Efectivo"/>
-                <ComboBoxItem Content="Débito"/>
-                <ComboBoxItem Content="Crédito"/>
-                <ComboBoxItem Content="Transferencia"/>
-
-            </ComboBox>
+                      DisplayMemberPath="Nombre"
+                      SelectionChanged="CmbMetodoPago_SelectionChanged"/>
 
         </StackPanel>
 
-        <!-- DATOS PARA EFECTIVO -->
+        <!-- PANELES SEGÚN MÉTODO DE PAGO -->
 
-        <Border Grid.Row="4"
-                x:Name="PanelEfectivo"
-                Background="White"
-                CornerRadius="10"
-                Padding="18"
-                Margin="0,20,0,0">
+        <Grid Grid.Row="4"
+              Margin="0,20,0,0">
 
-            <StackPanel>
+            <!-- EFECTIVO -->
 
-                <TextBlock Text="Efectivo recibido"
-                           FontSize="14"
-                           FontWeight="SemiBold"
-                           Margin="0,0,0,8"/>
+            <Border x:Name="PanelEfectivo"
+                    Background="White"
+                    CornerRadius="10"
+                    Padding="18"
+                    VerticalAlignment="Top"
+                    Visibility="Collapsed">
 
-                <TextBox x:Name="TxtEfectivoRecibido"
-                         Height="38"
-                         FontSize="16"
-                         VerticalContentAlignment="Center"
-                         TextChanged="TxtEfectivoRecibido_TextChanged"/>
+                <StackPanel>
 
-                <Grid Margin="0,18,0,0">
-
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-
-                    <TextBlock Grid.Column="0"
-                               Text="Vuelto"
-                               FontSize="15"
-                               FontWeight="SemiBold"/>
-
-                    <TextBlock Grid.Column="1"
-                               x:Name="TxtVuelto"
-                               Text="$ 0,00"
-                               FontSize="20"
+                    <TextBlock Text="Efectivo recibido"
+                               FontSize="14"
                                FontWeight="SemiBold"
-                               Foreground="{StaticResource FarmaPrimaryBrush}"/>
+                               Margin="0,0,0,8"/>
 
-                </Grid>
+                    <TextBox x:Name="TxtEfectivoRecibido"
+                             Height="38"
+                             FontSize="16"
+                             VerticalContentAlignment="Center"
+                             TextChanged="TxtEfectivoRecibido_TextChanged"/>
 
-            </StackPanel>
+                    <Grid Margin="0,18,0,0">
 
-        </Border>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="Vuelto"
+                                   FontSize="15"
+                                   FontWeight="SemiBold"/>
+
+                        <TextBlock Grid.Column="1"
+                                   x:Name="TxtVuelto"
+                                   Text="$ 0,00"
+                                   FontSize="20"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource FarmaPrimaryBrush}"/>
+
+                    </Grid>
+
+                </StackPanel>
+
+            </Border>
+
+            <!-- TARJETA: DÉBITO / CRÉDITO -->
+
+            <Border x:Name="PanelTarjeta"
+                    Background="White"
+                    CornerRadius="10"
+                    Padding="18"
+                    VerticalAlignment="Top"
+                    Visibility="Collapsed">
+
+                <StackPanel>
+
+                    <TextBlock x:Name="TxtTituloTarjeta"
+                               Text="Datos de tarjeta"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,15"/>
+
+                    <!-- TITULAR -->
+
+                    <TextBlock Text="Titular"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,5"/>
+
+                    <TextBox x:Name="TxtTitularTarjeta"
+                             Height="36"
+                             FontSize="14"
+                             VerticalContentAlignment="Center"
+                             Margin="0,0,0,12"/>
+
+                    <!-- NÚMERO DE TARJETA -->
+
+                    <TextBlock Text="Número de tarjeta"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,5"/>
+
+                    <TextBox x:Name="TxtNumeroTarjeta"
+                             Height="36"
+                             FontSize="14"
+                             MaxLength="19"
+                             VerticalContentAlignment="Center"
+                             Margin="0,0,0,12"/>
+
+                    <!-- VENCIMIENTO Y CVV -->
+
+                    <Grid Margin="0,0,0,12">
+
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="15"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0">
+
+                            <TextBlock Text="Vencimiento (MM/AA)"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,5"/>
+
+                            <TextBox x:Name="TxtVencimiento"
+                                     Height="36"
+                                     FontSize="14"
+                                     MaxLength="5"
+                                     VerticalContentAlignment="Center"/>
+
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="2">
+
+                            <TextBlock Text="CVV"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,5"/>
+
+                            <PasswordBox x:Name="TxtCvv"
+                                         Height="36"
+                                         FontSize="14"
+                                         MaxLength="4"
+                                         VerticalContentAlignment="Center"/>
+
+                        </StackPanel>
+
+                    </Grid>
+
+                    <!-- CUOTAS: SOLO CRÉDITO -->
+
+                    <StackPanel x:Name="PanelCuotas"
+                                Visibility="Collapsed">
+
+                        <TextBlock Text="Cuotas"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   Margin="0,0,0,5"/>
+
+                        <ComboBox x:Name="CmbCuotas"
+                                  Height="36"
+                                  FontSize="14"
+                                  SelectedIndex="0">
+
+                            <ComboBoxItem Content="1"/>
+                            <ComboBoxItem Content="3"/>
+                            <ComboBoxItem Content="6"/>
+                            <ComboBoxItem Content="12"/>
+
+                        </ComboBox>
+
+                    </StackPanel>
+
+                </StackPanel>
+
+            </Border>
+
+            <!-- TRANSFERENCIA -->
+
+            <Border x:Name="PanelTransferencia"
+                    Background="White"
+                    CornerRadius="10"
+                    Padding="18"
+                    VerticalAlignment="Top"
+                    Visibility="Collapsed">
+
+                <StackPanel>
+
+                    <TextBlock Text="Datos de transferencia"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,15"/>
+
+                    <TextBlock Text="Número de operación / comprobante"
+                               FontSize="13"
+                               FontWeight="SemiBold"
+                               Margin="0,0,0,5"/>
+
+                    <TextBox x:Name="TxtNumeroOperacion"
+                             Height="38"
+                             FontSize="14"
+                             MaxLength="100"
+                             VerticalContentAlignment="Center"/>
+
+                </StackPanel>
+
+            </Border>
+
+        </Grid>
 
         <!-- BOTONES -->
 
-        <Grid Grid.Row="6"
-              Margin="0,30,0,0">
+        <Grid Grid.Row="5"
+              Margin="0,25,0,0">
 
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -165,4 +309,5 @@
         </Grid>
 
     </Grid>
+
 </Window>

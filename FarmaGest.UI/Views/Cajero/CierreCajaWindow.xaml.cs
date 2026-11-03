@@ -19,6 +19,7 @@ public partial class CierreCajaWindow : FluentWindow
 
     private readonly CajaService _cajaService;
     private readonly SesionUsuarioService _sesionUsuarioService;
+    private readonly UsuarioService _usuarioService;
 
     private decimal _efectivoEsperado;
 
@@ -26,12 +27,14 @@ public partial class CierreCajaWindow : FluentWindow
 
     public CierreCajaWindow(
         CajaService cajaService,
-        SesionUsuarioService sesionUsuarioService)
+        SesionUsuarioService sesionUsuarioService,
+        UsuarioService usuarioService)
     {
         InitializeComponent();
 
         _cajaService = cajaService;
         _sesionUsuarioService = sesionUsuarioService;
+        _usuarioService = usuarioService;
 
         Loaded += CierreCajaWindow_Loaded;
     }
@@ -61,7 +64,8 @@ public partial class CierreCajaWindow : FluentWindow
             }
 
             var caja =
-                await _cajaService.ObtenerCajaAbiertaAsync(usuario.Id);
+                await _cajaService.ObtenerCajaAbiertaAsync(
+                    usuario.Id);
 
             if (caja == null)
             {
@@ -76,42 +80,55 @@ public partial class CierreCajaWindow : FluentWindow
             }
 
             var efectivo =
-                await _cajaService.ObtenerTotalEfectivoAsync(caja.Id);
+                await _cajaService.ObtenerTotalEfectivoAsync(
+                    caja.Id);
 
             var cantidadEfectivo =
-                await _cajaService.ObtenerCantidadCobrosEfectivoAsync(caja.Id);
+                await _cajaService.ObtenerCantidadCobrosEfectivoAsync(
+                    caja.Id);
 
             var otrosMedios =
-                await _cajaService.ObtenerTotalOtrosMediosAsync(caja.Id);
+                await _cajaService.ObtenerTotalOtrosMediosAsync(
+                    caja.Id);
 
             var cantidadOtros =
-                await _cajaService.ObtenerCantidadOtrosMediosAsync(caja.Id);
+                await _cajaService.ObtenerCantidadOtrosMediosAsync(
+                    caja.Id);
 
             _efectivoEsperado =
-                await _cajaService.ObtenerMontoEsperadoAsync(caja.Id);
+                await _cajaService.ObtenerMontoEsperadoAsync(
+                    caja.Id);
 
-            // Estos nombres los agregaremos ahora al XAML.
             TxtInfoCaja.Text =
-                $"Caja N° {caja.Id} · Abierta a las {caja.FechaApertura:HH:mm}. " +
+                $"Caja N° {caja.Id} · Abierta a las " +
+                $"{caja.FechaApertura:HH:mm}. " +
                 "Contá el efectivo del cajón e ingresalo abajo.";
 
             TxtMontoInicial.Text =
-                caja.MontoInicial.ToString("C", Cultura);
+                caja.MontoInicial.ToString(
+                    "C",
+                    Cultura);
 
             TxtCantidadEfectivo.Text =
                 $"Cobros en efectivo ({cantidadEfectivo})";
 
             TxtTotalEfectivo.Text =
-                efectivo.ToString("C", Cultura);
+                efectivo.ToString(
+                    "C",
+                    Cultura);
 
             TxtEfectivoEsperado.Text =
-                _efectivoEsperado.ToString("C", Cultura);
+                _efectivoEsperado.ToString(
+                    "C",
+                    Cultura);
 
             TxtCantidadOtros.Text =
                 $"Débito · Crédito · Transferencia ({cantidadOtros})";
 
             TxtTotalOtros.Text =
-                otrosMedios.ToString("C", Cultura);
+                otrosMedios.ToString(
+                    "C",
+                    Cultura);
         }
         catch (Exception ex)
         {
@@ -135,14 +152,16 @@ public partial class CierreCajaWindow : FluentWindow
         TextChangedEventArgs e)
     {
         var contado =
-            ValidacionEntrada.LeerDecimal(EfectivoContadoText.Text);
+            ValidacionEntrada.LeerDecimal(
+                EfectivoContadoText.Text);
 
         if (contado == null)
         {
             DiferenciaText.Text = "—";
 
             DiferenciaText.Foreground =
-                (Brush)FindResource("FarmaTextMutedBrush");
+                (Brush)FindResource(
+                    "FarmaTextMutedBrush");
 
             return;
         }
@@ -153,8 +172,11 @@ public partial class CierreCajaWindow : FluentWindow
         DiferenciaText.Text =
             diferencia == 0
                 ? "Sin diferencia"
-                : (diferencia > 0 ? "Sobrante " : "Faltante ") +
-                  Math.Abs(diferencia).ToString("C", Cultura);
+                : (diferencia > 0
+                    ? "Sobrante "
+                    : "Faltante ") +
+                  Math.Abs(diferencia)
+                      .ToString("C", Cultura);
 
         DiferenciaText.Foreground =
             (Brush)FindResource(
@@ -173,13 +195,19 @@ public partial class CierreCajaWindow : FluentWindow
     {
         MensajeText.Text = string.Empty;
 
+        // -----------------------------------------------------
+        // VALIDAR EFECTIVO CONTADO
+        // -----------------------------------------------------
+
         var contado =
-            ValidacionEntrada.LeerDecimal(EfectivoContadoText.Text);
+            ValidacionEntrada.LeerDecimal(
+                EfectivoContadoText.Text);
 
         if (contado == null)
         {
             MensajeText.Text =
                 "Ingresá el efectivo contado.";
+
             return;
         }
 
@@ -187,21 +215,61 @@ public partial class CierreCajaWindow : FluentWindow
         {
             MensajeText.Text =
                 "El efectivo contado no puede ser negativo.";
+
             return;
         }
+
+        // -----------------------------------------------------
+        // VALIDAR DIFERENCIA
+        // -----------------------------------------------------
 
         if (contado.Value != _efectivoEsperado &&
-            string.IsNullOrWhiteSpace(ObservacionesText.Text))
+            string.IsNullOrWhiteSpace(
+                ObservacionesText.Text))
         {
             MensajeText.Text =
-                "Hay diferencia con lo esperado: escribí una observación.";
+                "Hay diferencia con lo esperado: " +
+                "escribí una observación.";
+
             return;
         }
 
-        var usuario = _sesionUsuarioService.UsuarioActual;
+        var usuario =
+            _sesionUsuarioService.UsuarioActual;
 
         if (usuario == null)
+        {
+            MensajeText.Text =
+                "No hay un usuario autenticado.";
+
             return;
+        }
+
+        // -----------------------------------------------------
+        // AUTORIZACIÓN DEL FARMACÉUTICO
+        // -----------------------------------------------------
+
+        var ventanaAutorizacion =
+            new AutorizacionFarmaceuticoWindow(
+                _usuarioService)
+            {
+                Owner = this
+            };
+
+        var autorizado =
+            ventanaAutorizacion.ShowDialog();
+
+        if (autorizado != true)
+        {
+            MensajeText.Text =
+                "El cierre de caja no fue autorizado.";
+
+            return;
+        }
+
+        // -----------------------------------------------------
+        // CERRAR CAJA
+        // -----------------------------------------------------
 
         try
         {
@@ -222,9 +290,14 @@ public partial class CierreCajaWindow : FluentWindow
         catch (Exception ex)
         {
             MensajeText.Text =
-                "No se pudo cerrar la caja: " + ex.Message;
+                "No se pudo cerrar la caja: " +
+                ex.Message;
         }
     }
+
+    // =========================================================
+    // CANCELAR
+    // =========================================================
 
     private void Cancelar_Click(
         object sender,
