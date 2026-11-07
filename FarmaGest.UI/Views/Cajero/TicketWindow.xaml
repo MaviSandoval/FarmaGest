@@ -30,8 +30,7 @@
 
 					<!-- Datos del comercio -->
 					<TextBlock Text="FARMA GEST" FontSize="17" FontWeight="Bold" HorizontalAlignment="Center" />
-					<TextBlock Text="Farmacia · Corrientes Capital" HorizontalAlignment="Center" />
-					<TextBlock Text="Av. Ejemplo 1234 · Tel. 0379-400-0000" HorizontalAlignment="Center" />
+					<TextBlock Text="Farmacia" HorizontalAlignment="Center" />
 					<TextBlock Text="- - - - - - - - - - - - - - - - - - -" HorizontalAlignment="Center" Margin="0,8" />
 
 					<!-- Datos del comprobante -->
@@ -92,6 +91,7 @@
 						<TextBlock Text="Vuelto" />
 						<TextBlock x:Name="VueltoText" HorizontalAlignment="Right" />
 					</Grid>
+                    <TextBlock x:Name="DatosPagoText" TextWrapping="Wrap" Visibility="Collapsed" />
 					<TextBlock x:Name="ObraSocialText" Margin="0,6,0,0" />
 					<TextBlock x:Name="AfiliadoText" />
 

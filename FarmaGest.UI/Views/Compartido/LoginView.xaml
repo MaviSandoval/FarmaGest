@@ -9,6 +9,8 @@
     d:DesignHeight="700"
     d:DesignWidth="900"
     Background="#F3F4F6"
+    PreviewMouseDown="Login_PreviewMouseDown"
+    LostKeyboardFocus="Login_LostKeyboardFocus"
     mc:Ignorable="d">
 
     <Grid>
@@ -88,8 +90,44 @@
                     FontSize="14"
                     PlaceholderText="Email o DNI"
                     MaxLength="120"
+                    PreviewMouseLeftButtonDown="TxtUsuario_PreviewMouseLeftButtonDown"
                     PreviewKeyDown="TxtUsuario_PreviewKeyDown"
                     Text="{Binding Usuario, UpdateSourceTrigger=PropertyChanged}" />
+
+                <Popup x:Name="UsuariosPopup" Placement="Bottom" PlacementTarget="{Binding ElementName=TxtUsuario}"
+                       StaysOpen="False" AllowsTransparency="True">
+                    <Border Width="{Binding ActualWidth, ElementName=TxtUsuario}"
+                            Background="White" BorderBrush="#D1D5DB" BorderThickness="1"
+                            CornerRadius="6" Padding="4">
+                        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding UsuariosRecordados}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Background="Transparent" BorderThickness="0" Padding="8"
+                                                    HorizontalContentAlignment="Left" Click="SeleccionarUsuario_Click"
+                                                    ToolTip="Completar usuario">
+                                                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                            <Button Grid.Column="1" Content="×" Width="30" Margin="4,0,0,0"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    ToolTip="Eliminar del historial de esta computadora"
+                                                    AutomationProperties.Name="Eliminar usuario recordado"
+                                                    Click="EliminarUsuario_Click" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
+                <TextBlock Text="{Binding MensajeHistorial}" Foreground="#DC2626"
+                           FontSize="12" TextWrapping="Wrap" />
 
                 <!-- Contraseña -->
                 <TextBlock
@@ -102,6 +140,8 @@
                     Margin="0,0,0,24"
                     Padding="12,10"
                     FontSize="14"
+                    PreviewMouseDown="TxtPassword_PreviewMouseDown"
+                    GotKeyboardFocus="TxtPassword_GotKeyboardFocus"
                     PasswordChanged="TxtPassword_PasswordChanged"
                     PreviewKeyDown="TxtPassword_PreviewKeyDown"
                     PlaceholderText="••••••••" />

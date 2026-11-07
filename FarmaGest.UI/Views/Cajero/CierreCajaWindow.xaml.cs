@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,6 +22,8 @@ public partial class CierreCajaWindow : FluentWindow
     private readonly UsuarioService _usuarioService;
 
     private decimal _efectivoEsperado;
+    private int _cajaId;
+    private bool _confirmando;
 
     public bool CajaCerrada { get; private set; }
 
@@ -79,25 +81,8 @@ public partial class CierreCajaWindow : FluentWindow
                 return;
             }
 
-            var efectivo =
-                await _cajaService.ObtenerTotalEfectivoAsync(
-                    caja.Id);
-
-            var cantidadEfectivo =
-                await _cajaService.ObtenerCantidadCobrosEfectivoAsync(
-                    caja.Id);
-
-            var otrosMedios =
-                await _cajaService.ObtenerTotalOtrosMediosAsync(
-                    caja.Id);
-
-            var cantidadOtros =
-                await _cajaService.ObtenerCantidadOtrosMediosAsync(
-                    caja.Id);
-
-            _efectivoEsperado =
-                await _cajaService.ObtenerMontoEsperadoAsync(
-                    caja.Id);
+            _cajaId = caja.Id;
+            await ActualizarTotalesAsync();
 
             TxtInfoCaja.Text =
                 $"Caja N° {caja.Id} · Abierta a las " +
@@ -109,26 +94,6 @@ public partial class CierreCajaWindow : FluentWindow
                     "C",
                     Cultura);
 
-            TxtCantidadEfectivo.Text =
-                $"Cobros en efectivo ({cantidadEfectivo})";
-
-            TxtTotalEfectivo.Text =
-                efectivo.ToString(
-                    "C",
-                    Cultura);
-
-            TxtEfectivoEsperado.Text =
-                _efectivoEsperado.ToString(
-                    "C",
-                    Cultura);
-
-            TxtCantidadOtros.Text =
-                $"Débito · Crédito · Transferencia ({cantidadOtros})";
-
-            TxtTotalOtros.Text =
-                otrosMedios.ToString(
-                    "C",
-                    Cultura);
         }
         catch (Exception ex)
         {
@@ -147,9 +112,25 @@ public partial class CierreCajaWindow : FluentWindow
     // DIFERENCIA
     // =========================================================
 
+    private async System.Threading.Tasks.Task ActualizarTotalesAsync()
+    {
+        var totales = await _cajaService.ObtenerTotalesAsync(_cajaId);
+        _efectivoEsperado = totales.EfectivoEsperado;
+        TxtCantidadEfectivo.Text = $"Cobros en efectivo ({totales.CantidadEfectivo})";
+        TxtTotalEfectivo.Text = totales.TotalEfectivo.ToString("C", Cultura);
+        TxtEfectivoEsperado.Text = _efectivoEsperado.ToString("C", Cultura);
+        TxtCantidadOtros.Text = $"Débito · Crédito · Transferencia ({totales.CantidadCobros - totales.CantidadEfectivo})";
+        TxtTotalOtros.Text = totales.TotalOtrosMedios.ToString("C", Cultura);
+        ActualizarDiferencia();
+    }
     private void EfectivoContado_TextChanged(
         object sender,
         TextChangedEventArgs e)
+    {
+        ActualizarDiferencia();
+    }
+
+    private void ActualizarDiferencia()
     {
         var contado =
             ValidacionEntrada.LeerDecimal(
@@ -193,6 +174,7 @@ public partial class CierreCajaWindow : FluentWindow
         object sender,
         RoutedEventArgs e)
     {
+        if (_confirmando) return;
         MensajeText.Text = string.Empty;
 
         // -----------------------------------------------------
@@ -219,21 +201,6 @@ public partial class CierreCajaWindow : FluentWindow
             return;
         }
 
-        // -----------------------------------------------------
-        // VALIDAR DIFERENCIA
-        // -----------------------------------------------------
-
-        if (contado.Value != _efectivoEsperado &&
-            string.IsNullOrWhiteSpace(
-                ObservacionesText.Text))
-        {
-            MensajeText.Text =
-                "Hay diferencia con lo esperado: " +
-                "escribí una observación.";
-
-            return;
-        }
-
         var usuario =
             _sesionUsuarioService.UsuarioActual;
 
@@ -245,6 +212,29 @@ public partial class CierreCajaWindow : FluentWindow
             return;
         }
 
+        // Validar contra los cobros actuales antes de solicitar autorización.
+        try
+        {
+            _confirmando = true;
+            var cajaActual = await _cajaService.ObtenerCajaAbiertaAsync(usuario.Id);
+            if (cajaActual == null || cajaActual.Id != _cajaId)
+            {
+                MensajeText.Text = "La caja cambió o ya fue cerrada. Volvé a abrir el arqueo.";
+                return;
+            }
+            await ActualizarTotalesAsync();
+            if (contado.Value != _efectivoEsperado && string.IsNullOrWhiteSpace(ObservacionesText.Text))
+            {
+                MensajeText.Text = "Hay diferencia con lo esperado: escribí una observación.";
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            MensajeText.Text = "No se pudo actualizar el arqueo: " + ex.Message;
+            return;
+        }
+        finally { _confirmando = false; }
         // -----------------------------------------------------
         // AUTORIZACIÓN DEL FARMACÉUTICO
         // -----------------------------------------------------
@@ -273,6 +263,25 @@ public partial class CierreCajaWindow : FluentWindow
 
         try
         {
+            _confirmando = true;
+            var cajaActual = await _cajaService.ObtenerCajaAbiertaAsync(usuario.Id);
+            if (cajaActual == null || cajaActual.Id != _cajaId)
+            {
+                MensajeText.Text = "La caja cambió o ya fue cerrada. Volvé a abrir el arqueo.";
+                return;
+            }
+            var esperadoAnterior = _efectivoEsperado;
+            await ActualizarTotalesAsync();
+            if (esperadoAnterior != _efectivoEsperado)
+            {
+                MensajeText.Text = "Los cobros cambiaron. Revisá el efectivo actualizado y confirmá nuevamente.";
+                return;
+            }
+            if (contado.Value != _efectivoEsperado && string.IsNullOrWhiteSpace(ObservacionesText.Text))
+            {
+                MensajeText.Text = "Hay diferencia con lo esperado: escribí una observación.";
+                return;
+            }
             await _cajaService.CerrarCajaAsync(
                 usuario.Id,
                 contado.Value);
@@ -293,6 +302,7 @@ public partial class CierreCajaWindow : FluentWindow
                 "No se pudo cerrar la caja: " +
                 ex.Message;
         }
+        finally { _confirmando = false; }
     }
 
     // =========================================================

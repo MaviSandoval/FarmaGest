@@ -15,6 +15,7 @@ namespace FarmaGest.UI.Views.Cajero
             new("es-AR");
 
         private readonly FacturacionService _facturacionService;
+        private bool _validandoTransferencia;
 
         public int VentaId { get; }
 
@@ -35,9 +36,6 @@ namespace FarmaGest.UI.Views.Cajero
             = string.Empty;
 
         public string TitularTarjeta { get; private set; }
-            = string.Empty;
-
-        public string NumeroAutorizacion { get; private set; }
             = string.Empty;
 
         public int Cuotas { get; private set; } = 1;
@@ -66,6 +64,8 @@ namespace FarmaGest.UI.Views.Cajero
 
             TxtTotal.Text =
                 Total.ToString("C", _cultura);
+
+            TxtTotalTransferencia.Text = Total.ToString("C", _cultura);
 
             TxtVuelto.Text =
                 0m.ToString("C", _cultura);
@@ -134,6 +134,9 @@ namespace FarmaGest.UI.Views.Cajero
             PanelCuotas.Visibility =
                 Visibility.Collapsed;
 
+            // La declaración solo vale para la selección actual de transferencia.
+            ChkTransferenciaVerificada.IsChecked = false;
+
             if (CmbMetodoPago.SelectedItem
                 is not MedioPago medioPago)
             {
@@ -182,6 +185,9 @@ namespace FarmaGest.UI.Views.Cajero
                 PanelCuotas.Visibility =
                     Visibility.Collapsed;
 
+                CmbCuotas.SelectedIndex = 0;
+                Cuotas = 1;
+
                 return;
             }
 
@@ -201,6 +207,14 @@ namespace FarmaGest.UI.Views.Cajero
 
                 PanelCuotas.Visibility =
                     Visibility.Visible;
+
+                // El panel acaba de expandirse: esperar al layout antes de mostrar
+                // el último campo, incluso en pantallas de poca altura.
+                Dispatcher.InvokeAsync(() =>
+                {
+                    if (PanelCuotas.IsVisible)
+                        CmbCuotas.BringIntoView();
+                }, System.Windows.Threading.DispatcherPriority.Loaded);
 
                 return;
             }
@@ -278,10 +292,11 @@ namespace FarmaGest.UI.Views.Cajero
         // CONFIRMAR
         // =====================================================
 
-        private void Confirmar_Click(
+        private async void Confirmar_Click(
             object sender,
             RoutedEventArgs e)
         {
+            if (_validandoTransferencia) return;
             if (CmbMetodoPago.SelectedItem
                 is not MedioPago medioPago)
             {
@@ -307,7 +322,6 @@ namespace FarmaGest.UI.Views.Cajero
             MontoCambio = 0;
             Ultimos4Tarjeta = string.Empty;
             TitularTarjeta = string.Empty;
-            NumeroAutorizacion = string.Empty;
             Cuotas = 1;
             NumeroOperacionTransferencia = string.Empty;
 
@@ -433,23 +447,16 @@ namespace FarmaGest.UI.Views.Cajero
                 TitularTarjeta =
                     titular;
 
-                // Simulamos la autorización del procesador.
-                NumeroAutorizacion =
-                    Guid.NewGuid()
-                        .ToString("N")
-                        .Substring(0, 10)
-                        .ToUpperInvariant();
+                // El servicio genera y persiste una referencia SIM- al registrar el cobro.
+                // No se realiza ninguna autorización bancaria.
 
                 // Crédito permite cuotas
                 if (metodo.Equals(
                         "Crédito",
                         StringComparison.OrdinalIgnoreCase))
                 {
-                    if (CmbCuotas.SelectedItem
-                        is not ComboBoxItem cuotaSeleccionada ||
-                        !int.TryParse(
-                            cuotaSeleccionada.Content?.ToString(),
-                            out int cantidadCuotas))
+                    if (!int.TryParse(CmbCuotas.SelectedValue?.ToString(),
+                            out int cantidadCuotas) || cantidadCuotas is not (1 or 3 or 6 or 12))
                     {
                         MessageBox.Show(
                             "Seleccione la cantidad de cuotas.",
@@ -478,23 +485,49 @@ namespace FarmaGest.UI.Views.Cajero
                     "Transferencia",
                     StringComparison.OrdinalIgnoreCase))
             {
-                string numeroOperacion =
-                    TxtNumeroOperacion.Text.Trim();
-
-                if (string.IsNullOrWhiteSpace(
-                        numeroOperacion))
+                string numeroOperacion;
+                try
                 {
-                    MessageBox.Show(
-                        "Ingrese el número de operación o comprobante.",
-                        "FarmaGest",
-                        MessageBoxButton.OK,
-                        MessageBoxImage.Warning);
-
+                    numeroOperacion = ValidacionTransferencia.Normalizar(TxtNumeroOperacion.Text);
+                    TxtNumeroOperacion.Text = numeroOperacion;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    MessageBox.Show(ex.Message, "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    TxtNumeroOperacion.Focus();
+                    TxtNumeroOperacion.BringIntoView();
                     return;
                 }
 
-                NumeroOperacionTransferencia =
-                    numeroOperacion;
+                if (ChkTransferenciaVerificada.IsChecked != true)
+                {
+                    MessageBox.Show(
+                        "Debe confirmar que verificó la acreditación de la transferencia antes de registrar el cobro.",
+                        "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    ChkTransferenciaVerificada.Focus();
+                    ChkTransferenciaVerificada.BringIntoView();
+                    return;
+                }
+
+                try
+                {
+                    _validandoTransferencia = true;
+                    IsEnabled = false;
+                    NumeroOperacionTransferencia = await _facturacionService
+                        .ValidarNumeroOperacionTransferenciaAsync(numeroOperacion);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex is InvalidOperationException ? ex.Message :
+                        "No se pudo verificar el número de operación. Intente nuevamente.",
+                        "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+                finally
+                {
+                    IsEnabled = true;
+                    _validandoTransferencia = false;
+                }
             }
 
             DialogResult = true;

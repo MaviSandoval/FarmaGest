@@ -1,4 +1,4 @@
-﻿using FarmaGest.Datos.Contexto;
+using FarmaGest.Datos.Contexto;
 using FarmaGest.Dominio;
 using Microsoft.EntityFrameworkCore;
 
@@ -99,8 +99,13 @@ public class FacturacionService
     // OBTENER RESUMEN DE LA CAJA ABIERTA
     // =========================================================
 
-    public async Task<ResumenCajaDto?>
-        ObtenerResumenCajaAbiertaAsync(int usuarioId)
+    public Task<ResumenCajaDto?> ObtenerResumenCajaAbiertaAsync(int usuarioId)
+        => ObtenerResumenAsync(usuarioId, true);
+
+    public Task<ResumenCajaDto?> ObtenerResumenCajaAsync(int usuarioId)
+        => ObtenerResumenAsync(usuarioId, false);
+
+    private async Task<ResumenCajaDto?> ObtenerResumenAsync(int usuarioId, bool soloAbierta)
     {
         await using var context =
             await _factory.CreateDbContextAsync();
@@ -109,12 +114,18 @@ public class FacturacionService
             .AsNoTracking()
             .Where(c =>
                 c.UsuarioId == usuarioId &&
-                c.Estado)
+                (!soloAbierta || c.Estado))
+            .OrderByDescending(c => c.Estado)
+            .ThenByDescending(c => c.FechaCierre)
+            .ThenByDescending(c => c.Id)
             .Select(c => new
             {
                 c.Id,
                 c.FechaApertura,
                 c.MontoInicial,
+                c.MontoFinal,
+                c.FechaCierre,
+                c.Estado,
 
                 Cajero =
                     c.Usuario.Nombre + " " +
@@ -157,13 +168,11 @@ public class FacturacionService
         decimal totalEfectivo =
             cobros
                 .Where(c =>
-                    c.MetodoPago.Equals(
-                        "Efectivo",
-                        StringComparison.OrdinalIgnoreCase))
+                    CalculosCaja.EsEfectivo(c.MetodoPago))
                 .Sum(c => c.Importe);
 
         decimal efectivoEsperado =
-            caja.MontoInicial + totalEfectivo;
+            CalculosCaja.EfectivoEsperado(caja.MontoInicial, totalEfectivo);
 
         var mediosPago = cobros
             .GroupBy(c => c.MetodoPago)
@@ -182,6 +191,9 @@ public class FacturacionService
             FechaApertura = caja.FechaApertura,
             Cajero = caja.Cajero,
             MontoInicial = caja.MontoInicial,
+            MontoFinal = caja.MontoFinal,
+            FechaCierre = caja.FechaCierre,
+            Estado = caja.Estado,
             TotalCobrado = totalCobrado,
             TotalEfectivo = totalEfectivo,
             EfectivoEsperado = efectivoEsperado,
@@ -223,6 +235,12 @@ public class FacturacionService
                 Importe = f.Importe,
 
                 MontoCambio = f.MontoCambio,
+
+                TitularTarjeta = f.DetallePagoTarjeta == null ? null : f.DetallePagoTarjeta.Titular,
+                Ultimos4Tarjeta = f.DetallePagoTarjeta == null ? null : f.DetallePagoTarjeta.Ultimos4,
+                ReferenciaSimulacion = f.DetallePagoTarjeta == null ? null : f.DetallePagoTarjeta.NumeroAutorizacion,
+                Cuotas = f.DetallePagoTarjeta == null ? null : (int?)f.DetallePagoTarjeta.Cuotas,
+                NumeroOperacion = f.DetalleTransferencia == null ? null : f.DetalleTransferencia.NumeroOperacion,
 
                 ObraSocial =
                     f.Venta.Receta == null
@@ -285,11 +303,29 @@ public class FacturacionService
     // FACTURAR / COBRAR UNA VENTA
     // =========================================================
 
+    public async Task<string> ValidarNumeroOperacionTransferenciaAsync(string? numeroOperacion)
+    {
+        var numero = ValidacionTransferencia.Normalizar(numeroOperacion);
+        await using var context = await _factory.CreateDbContextAsync();
+        await VerificarOperacionDisponibleAsync(context, numero);
+        return numero;
+    }
+
+    private static async Task VerificarOperacionDisponibleAsync(FarmaGestDbContext context, string numero)
+    {
+        // Collation explícita para no depender de si la base distingue mayúsculas.
+        if (await context.DetallesTransferencia.AsNoTracking().AnyAsync(d =>
+            EF.Functions.Collate(d.NumeroOperacion.Trim(), "Latin1_General_100_CI_AS") == numero))
+            throw new InvalidOperationException(ValidacionTransferencia.MensajeDuplicado);
+    }
+
     public async Task FacturarVentaAsync(
         int ventaId,
         int usuarioId,
         string metodoPago,
-        decimal montoCambio)
+        decimal montoCambio,
+        DatosTarjetaSolicitud? tarjeta = null,
+        string? numeroOperacion = null)
     {
         await using var context =
             await _factory.CreateDbContextAsync();
@@ -408,15 +444,73 @@ public class FacturacionService
                 CajaId = caja.Id
             };
 
+        if (medioPago.Nombre.Equals("Débito", StringComparison.OrdinalIgnoreCase) ||
+            medioPago.Nombre.Equals("Crédito", StringComparison.OrdinalIgnoreCase))
+        {
+            if (tarjeta == null || string.IsNullOrWhiteSpace(tarjeta.Titular) ||
+                tarjeta.Titular.Trim().Length > 100 || tarjeta.Ultimos4 == null ||
+                tarjeta.Ultimos4.Length != 4 || tarjeta.Ultimos4.Any(c => c < '0' || c > '9'))
+                throw new InvalidOperationException("Ingrese titular y los últimos cuatro dígitos de la tarjeta.");
+
+            bool debito = medioPago.Nombre.Equals("Débito", StringComparison.OrdinalIgnoreCase);
+            if ((debito && tarjeta.Cuotas != 1) || (!debito && tarjeta.Cuotas is not (1 or 3 or 6 or 12)))
+                throw new InvalidOperationException("La cantidad de cuotas no es válida para el medio de pago.");
+            if (numeroOperacion != null)
+                throw new InvalidOperationException("El pago con tarjeta no debe incluir datos de transferencia.");
+
+            facturacion.DetallePagoTarjeta = new DetallePagoTarjeta
+            {
+                Titular = tarjeta.Titular.Trim(),
+                Ultimos4 = tarjeta.Ultimos4,
+                Cuotas = tarjeta.Cuotas,
+                // La columna conserva su nombre por compatibilidad con el esquema existente.
+                NumeroAutorizacion = $"SIM-{Guid.NewGuid():N}"
+            };
+        }
+        else if (medioPago.Nombre.Equals("Transferencia", StringComparison.OrdinalIgnoreCase))
+        {
+            numeroOperacion = ValidacionTransferencia.Normalizar(numeroOperacion);
+            if (tarjeta != null)
+                throw new InvalidOperationException("La transferencia no debe incluir datos de tarjeta.");
+            facturacion.DetalleTransferencia = new DetalleTransferencia
+            {
+                NumeroOperacion = numeroOperacion
+            };
+        }
+        else if (tarjeta != null || numeroOperacion != null)
+        {
+            throw new InvalidOperationException("Los detalles no corresponden al medio de pago seleccionado.");
+        }
+
         context.Facturaciones.Add(
             facturacion);
 
+        // Solo las transferencias necesitan exclusión entre la consulta y el INSERT.
+        await using var transaccion = facturacion.DetalleTransferencia != null
+            ? await context.Database.BeginTransactionAsync()
+            : null;
         try
         {
+            if (transaccion != null)
+            {
+                // Bloqueo compartido por todas las instancias de FarmaGest en esta BD.
+                // Se libera al confirmar/revertir la transacción. No modifica el esquema.
+                await context.Database.ExecuteSqlRawAsync(@"
+DECLARE @resultado int;
+EXEC @resultado = sys.sp_getapplock
+    @Resource = N'FarmaGest.Transferencias.Registro',
+    @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 10000;
+IF @resultado < 0
+    THROW 51000, 'No se pudo validar la transferencia por concurrencia. Intente nuevamente.', 1;");
+                await VerificarOperacionDisponibleAsync(context, numeroOperacion!);
+            }
+            // La facturación y su detalle se confirman o revierten juntos.
             await context.SaveChangesAsync();
+            if (transaccion != null) await transaccion.CommitAsync();
         }
         catch (DbUpdateException)
         {
+            if (transaccion != null) await transaccion.RollbackAsync();
             if (await context.Facturaciones
                 .AsNoTracking()
                 .AnyAsync(f =>
@@ -439,6 +533,16 @@ public class FacturacionService
 
 public class TicketDto
 {
+    public string? TitularTarjeta { get; set; }
+    public string? Ultimos4Tarjeta { get; set; }
+    public string? ReferenciaSimulacion { get; set; }
+    public int? Cuotas { get; set; }
+    public string? NumeroOperacion { get; set; }
+
+    public bool EsTarjeta => MetodoPago.Equals("Débito", StringComparison.OrdinalIgnoreCase) ||
+        MetodoPago.Equals("Crédito", StringComparison.OrdinalIgnoreCase);
+    public bool EsTransferencia => MetodoPago.Equals("Transferencia", StringComparison.OrdinalIgnoreCase);
+
     public int VentaId { get; set; }
 
     public int FacturacionId { get; set; }
@@ -541,7 +645,21 @@ public class ResumenCajaDto
 
     public decimal MontoInicial { get; set; }
 
-    public decimal MontoFinal { get; set; }
+    public decimal? MontoFinal { get; set; }
+
+    public bool Estado { get; set; }
+
+    public DateTime? FechaCierre { get; set; }
+
+    public int CantidadEfectivo => Movimientos.Count(c => CalculosCaja.EsEfectivo(c.MetodoPago));
+
+    public decimal TotalOtrosMedios => TotalCobrado - TotalEfectivo;
+
+    public decimal TicketPromedio => CantidadCobros == 0 ? 0 : TotalCobrado / CantidadCobros;
+
+    public decimal? VentaMayorImporte => Movimientos.Count == 0 ? null : Movimientos.Max(m => m.Importe);
+
+    public decimal? Diferencia => Estado ? null : MontoFinal - EfectivoEsperado;
 
     public decimal TotalCobrado { get; set; }
 

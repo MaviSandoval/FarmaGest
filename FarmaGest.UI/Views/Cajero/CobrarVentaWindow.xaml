@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Cobrar venta"
-        SizeToContent="Height"
+        Height="760"
         MaxHeight="{Binding Source={x:Static SystemParameters.WorkArea}, Path=Height}"
         Width="500"
         WindowStartupLocation="CenterOwner"
@@ -12,11 +12,22 @@
     <Grid Margin="30">
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- El formulario se desplaza; las acciones permanecen fuera del scroll. -->
+        <ScrollViewer x:Name="FormularioScroll" Grid.Row="0"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="0,0,8,12">
+        <Grid>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -229,12 +240,13 @@
                         <ComboBox x:Name="CmbCuotas"
                                   Height="36"
                                   FontSize="14"
+                                  SelectedValuePath="Tag"
                                   SelectedIndex="0">
 
-                            <ComboBoxItem Content="1"/>
-                            <ComboBoxItem Content="3"/>
-                            <ComboBoxItem Content="6"/>
-                            <ComboBoxItem Content="12"/>
+                            <ComboBoxItem Content="1 cuota" Tag="1"/>
+                            <ComboBoxItem Content="3 cuotas" Tag="3"/>
+                            <ComboBoxItem Content="6 cuotas" Tag="6"/>
+                            <ComboBoxItem Content="12 cuotas" Tag="12"/>
 
                         </ComboBox>
 
@@ -260,6 +272,10 @@
                                FontWeight="SemiBold"
                                Margin="0,0,0,15"/>
 
+                    <TextBlock Text="Importe a transferir" FontSize="13" FontWeight="SemiBold" />
+                    <TextBlock x:Name="TxtTotalTransferencia" FontSize="22" FontWeight="SemiBold"
+                               Margin="0,5,0,15" Foreground="{StaticResource FarmaPrimaryBrush}" />
+
                     <TextBlock Text="Número de operación / comprobante"
                                FontSize="13"
                                FontWeight="SemiBold"
@@ -271,15 +287,27 @@
                              MaxLength="100"
                              VerticalContentAlignment="Center"/>
 
+                    <TextBlock Text="Entre 6 y 50 caracteres: letras, números y guiones."
+                               FontSize="12" Foreground="#6B7777" TextWrapping="Wrap" Margin="0,5,0,0" />
+
+                    <CheckBox x:Name="ChkTransferenciaVerificada" Margin="0,16,0,0"
+                              HorizontalContentAlignment="Stretch">
+                        <TextBlock Text="Confirmo que verifiqué la acreditación de la transferencia"
+                                   TextWrapping="Wrap" FontSize="13" />
+                    </CheckBox>
+
                 </StackPanel>
 
             </Border>
 
         </Grid>
 
+        </Grid>
+        </ScrollViewer>
+
         <!-- BOTONES -->
 
-        <Grid Grid.Row="5"
+        <Grid Grid.Row="1"
               Margin="0,25,0,0">
 
             <Grid.ColumnDefinitions>

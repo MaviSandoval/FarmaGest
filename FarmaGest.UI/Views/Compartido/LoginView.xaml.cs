@@ -12,6 +12,7 @@ namespace FarmaGest.UI.Views.Compartido;
 public partial class LoginView : Page
 {
     private readonly LoginViewModel _viewModel;
+    private int _versionApertura;
 
     public LoginView()
     {
@@ -39,6 +40,17 @@ public partial class LoginView : Page
         object sender,
         KeyEventArgs e)
     {
+        if (e.Key == Key.Down && _viewModel.UsuariosRecordados.Count > 0)
+        {
+            UsuariosPopup.IsOpen = true;
+            e.Handled = true;
+            return;
+        }
+        if (e.Key == Key.Escape)
+        {
+            CerrarSugerencias();
+            return;
+        }
         if (e.Key == Key.V &&
             Keyboard.Modifiers.HasFlag(
                 ModifierKeys.Control))
@@ -57,6 +69,67 @@ public partial class LoginView : Page
 
                 e.Handled = true;
             }
+        }
+    }
+
+    private void TxtUsuario_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Abrir después del clic evita que la captura del Popup interprete
+        // ese mismo clic sobre el campo como un clic exterior.
+        var version = ++_versionApertura;
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (version == _versionApertura && TxtUsuario.IsKeyboardFocusWithin)
+                UsuariosPopup.IsOpen = _viewModel.UsuariosRecordados.Count > 0;
+        },
+            System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    private void CerrarSugerencias()
+    {
+        // Invalidar también una apertura diferida que todavía no se ejecutó.
+        _versionApertura++;
+        UsuariosPopup.IsOpen = false;
+    }
+
+    private void Login_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!TxtUsuario.IsMouseOver && UsuariosPopup.Child?.IsMouseOver != true)
+            CerrarSugerencias();
+    }
+
+    private void TxtPassword_PreviewMouseDown(object sender, MouseButtonEventArgs e)
+        => CerrarSugerencias();
+
+    private void TxtPassword_GotKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+        => CerrarSugerencias();
+
+    private void Login_LostKeyboardFocus(object sender, KeyboardFocusChangedEventArgs e)
+    {
+        // Esperar al nuevo foco permite interactuar con las opciones y con ×.
+        Dispatcher.InvokeAsync(() =>
+        {
+            if (!TxtUsuario.IsKeyboardFocusWithin && UsuariosPopup.Child?.IsKeyboardFocusWithin != true)
+                CerrarSugerencias();
+        }, System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    private void SeleccionarUsuario_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: string identificador })
+        {
+            _viewModel.Usuario = identificador;
+            CerrarSugerencias();
+            TxtPassword.Focus();
+        }
+    }
+
+    private void EliminarUsuario_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: string identificador })
+        {
+            _viewModel.EliminarUsuarioRecordado(identificador);
+            if (_viewModel.UsuariosRecordados.Count == 0) CerrarSugerencias();
         }
     }
 
