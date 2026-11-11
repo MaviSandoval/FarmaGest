@@ -272,7 +272,7 @@ public class FarmaGestDbContext : DbContext
         // ===== Facturacion =====
         modelBuilder.Entity<Facturacion>(e =>
         {
-            e.ToTable("Facturacion");
+            e.ToTable("Cobro");
 
             e.Property(x => x.Id)
                 .HasColumnName("id_facturacion");

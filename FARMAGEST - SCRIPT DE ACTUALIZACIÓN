@@ -19,6 +19,14 @@
 USE FarmaGestDB;
 GO
 
+-- Para bases existentes, ejecutar primero:
+-- FARMAGEST - RENOMBRAR FACTURACION A COBRO.sql
+IF OBJECT_ID(N'dbo.Cobro', N'U') IS NULL
+BEGIN
+    THROW 51000, 'Falta dbo.Cobro. Ejecutar primero el script de renombrado de Facturacion a Cobro.', 1;
+END;
+GO
+
 
 /* =====================================================================
    1. FACTURACION: columna MontoCambio
@@ -26,16 +34,16 @@ GO
       cobro falla con "Invalid column name 'MontoCambio'".
    ===================================================================== */
 
-IF COL_LENGTH('Facturacion', 'MontoCambio') IS NULL
+IF COL_LENGTH('Cobro', 'MontoCambio') IS NULL AND COL_LENGTH('Cobro', 'monto_cambio') IS NULL
 BEGIN
-    ALTER TABLE Facturacion
+    ALTER TABLE Cobro
         ADD MontoCambio DECIMAL(10,2) NOT NULL
             CONSTRAINT DF_Facturacion_MontoCambio DEFAULT 0;
 
-    PRINT 'Agregada la columna Facturacion.MontoCambio.';
+    PRINT 'Agregada la columna Cobro.MontoCambio.';
 END
 ELSE
-    PRINT 'Facturacion.MontoCambio ya existía.';
+    PRINT 'La columna de vuelto de Cobro ya existía.';
 GO
 
 

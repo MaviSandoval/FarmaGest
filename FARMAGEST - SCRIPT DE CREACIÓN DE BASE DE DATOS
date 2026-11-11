@@ -238,7 +238,7 @@ CREATE TABLE DetalleVenta (
 GO
 
 -- Cobro de la venta realizado por el Cajero
-CREATE TABLE Facturacion (
+CREATE TABLE Cobro (
     id_facturacion  INT IDENTITY(1,1) PRIMARY KEY,
     fecha           DATETIME      NOT NULL DEFAULT GETDATE(),
     metodo_pago     VARCHAR(30)   NOT NULL,
