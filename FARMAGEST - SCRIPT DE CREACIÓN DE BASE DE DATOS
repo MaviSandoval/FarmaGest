@@ -11,7 +11,8 @@
         2.2 Productos ........ CategoriasProductos, Producto
         2.3 Obras sociales ... ObraSocial, Planes, Afiliados, CoberturaPlan
         2.4 Recetas .......... Recetas, DetalleReceta
-        2.5 Caja y ventas .... Caja, Venta, DetalleVenta, Facturacion
+        2.5 Caja y ventas .... Caja, Venta, DetalleVenta, MedioPago, Cobro,
+                              DetallePagoTarjeta, DetalleTransferencia
         2.6 Configuración .... Configuracion (parámetros del sistema)
      3. Datos iniciales (roles, usuarios, categorías)
      4. Datos de prueba (productos)
@@ -185,8 +186,8 @@ GO
    ---------------------------------------------------------------------
    Flujo:
      1. El Farmacéutico arma la venta (Venta + DetalleVenta).
-     2. La venta queda pendiente de cobro (sin registro en Facturacion).
-     3. El Cajero la cobra con su caja abierta -> se crea la Facturacion.
+     2. La venta queda pendiente de cobro (sin registro en Cobro).
+     3. El Cajero la cobra con su caja abierta -> se crea el Cobro.
    ===================================================================== */
 
 -- Apertura y cierre de caja de cada cajero
@@ -237,21 +238,58 @@ CREATE TABLE DetalleVenta (
 );
 GO
 
+-- Medios de pago que acepta la farmacia
+CREATE TABLE MedioPago (
+    id_medio_pago  INT IDENTITY(1,1) PRIMARY KEY,
+    nombre         VARCHAR(30) NOT NULL,
+    estado         BIT         NOT NULL DEFAULT 1,
+
+    CONSTRAINT UQ_MedioPago_Nombre UNIQUE (nombre)
+);
+GO
+
 -- Cobro de la venta realizado por el Cajero
-CREATE TABLE Facturacion (
+CREATE TABLE Cobro (
     id_facturacion  INT IDENTITY(1,1) PRIMARY KEY,
     fecha           DATETIME      NOT NULL DEFAULT GETDATE(),
-    metodo_pago     VARCHAR(30)   NOT NULL,
+    metodo_pago     VARCHAR(30)   NOT NULL,  -- campo anterior, se mantiene por compatibilidad
     importe         DECIMAL(10,2) NOT NULL,
     id_venta        INT           NOT NULL,
     id_usuario      INT           NOT NULL,  -- cajero que cobró
     id_caja         INT           NOT NULL,  -- caja abierta al momento del cobro
-    MontoCambio     DECIMAL(10,2) NOT NULL CONSTRAINT DF_Facturacion_MontoCambio DEFAULT 0,  -- vuelto entregado (solo efectivo)
+    monto_cambio    DECIMAL(18,2) NOT NULL CONSTRAINT DF_Cobro_MontoCambio DEFAULT 0,  -- vuelto entregado (solo efectivo)
+    id_medio_pago   INT           NOT NULL,
 
-    CONSTRAINT UQ_Facturacion_Venta   UNIQUE (id_venta),  -- una venta se cobra una sola vez
-    CONSTRAINT FK_Facturacion_Venta   FOREIGN KEY (id_venta)   REFERENCES Venta(id_venta),
-    CONSTRAINT FK_Facturacion_Usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario),
-    CONSTRAINT FK_Facturacion_Caja    FOREIGN KEY (id_caja)    REFERENCES Caja(id_caja)
+    CONSTRAINT UQ_Cobro_Venta     UNIQUE (id_venta),  -- una venta se cobra una sola vez
+    CONSTRAINT FK_Cobro_Venta     FOREIGN KEY (id_venta)      REFERENCES Venta(id_venta),
+    CONSTRAINT FK_Cobro_Usuario   FOREIGN KEY (id_usuario)    REFERENCES Usuario(id_usuario),
+    CONSTRAINT FK_Cobro_Caja      FOREIGN KEY (id_caja)       REFERENCES Caja(id_caja),
+    CONSTRAINT FK_Cobro_MedioPago FOREIGN KEY (id_medio_pago) REFERENCES MedioPago(id_medio_pago)
+);
+GO
+
+-- Datos del pago con tarjeta (débito o crédito): uno por cobro como máximo
+CREATE TABLE DetallePagoTarjeta (
+    id_detalle_pago      INT IDENTITY(1,1) PRIMARY KEY,
+    id_facturacion       INT          NOT NULL,
+    ultimos_4            VARCHAR(4)   NOT NULL,
+    titular              VARCHAR(100) NOT NULL,
+    numero_autorizacion  VARCHAR(50)  NOT NULL,
+    cuotas               INT          NOT NULL DEFAULT 1,
+
+    CONSTRAINT UQ_DetallePagoTarjeta_Cobro UNIQUE (id_facturacion),
+    CONSTRAINT FK_DetallePagoTarjeta_Cobro FOREIGN KEY (id_facturacion) REFERENCES Cobro(id_facturacion)
+);
+GO
+
+-- Datos del pago por transferencia: uno por cobro como máximo
+CREATE TABLE DetalleTransferencia (
+    id_detalle_transferencia  INT IDENTITY(1,1) PRIMARY KEY,
+    id_facturacion            INT          NOT NULL,
+    numero_operacion          VARCHAR(100) NOT NULL,
+
+    CONSTRAINT UQ_DetalleTransferencia_Cobro UNIQUE (id_facturacion),
+    CONSTRAINT FK_DetalleTransferencia_Cobro FOREIGN KEY (id_facturacion) REFERENCES Cobro(id_facturacion)
 );
 GO
 
@@ -269,6 +307,10 @@ CREATE TABLE Configuracion (
 GO
 
 INSERT INTO Configuracion (clave, valor) VALUES ('BackupAutomaticoActivo', '1');
+GO
+
+-- Medios de pago (el código compara por estos nombres)
+INSERT INTO MedioPago (nombre) VALUES ('Efectivo'), ('Débito'), ('Crédito'), ('Transferencia');
 GO
 
 

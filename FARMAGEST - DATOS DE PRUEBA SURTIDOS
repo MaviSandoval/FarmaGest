@@ -1,0 +1,494 @@
+/* =====================================================================
+   FARMAGEST - DATOS DE PRUEBA SURTIDOS (lote completo para los reportes)
+   ---------------------------------------------------------------------
+   Taller de Programación II - FaCENA UNNE - 2026 - Grupo 23
+   Motor: SQL Server
+
+   Qué carga (todo se puede volver a ejecutar sin duplicar el catálogo):
+
+   1. CATÁLOGO
+      - 2 farmacéuticos y 1 cajero más (misma contraseña que el usuario
+        inicial de su rol), para que los reportes por usuario se comparen.
+      - Categorías y productos nuevos: perfumería, gastrointestinales,
+        endocrinología.
+      - 6 obras sociales con planes Activos / Jubilados / Adherentes y su
+        cobertura sobre todos los medicamentos (Jubilados > Activos > Adherentes).
+      - 60 afiliados repartidos entre los planes.
+
+   2. ACTIVIDAD (últimos @Dias días, hasta ayer)
+      - Turnos de caja: el día (08:00 a 20:00) se reparte entre los cajeros
+        activos; cada cobro cae en la caja del turno. Cierre con arqueo y
+        algunas diferencias.
+      - Más ventas de lunes a viernes, menos sábados y domingos, picos a
+        principio de mes y una leve tendencia de crecimiento.
+      - ~40 % con receta (cobertura del plan), ~5 % anuladas.
+      - Productos con distinta popularidad: hay "más vendidos" claros.
+      - Algunas recetas rechazadas.
+      - Medios de pago: Efectivo (con vuelto), Débito, Crédito, Transferencia.
+
+   3. ESTADO DE HOY (para la Nueva venta y las notificaciones)
+      - Recetas pendientes de validar, validadas sin usar, por vencer y vencidas.
+
+   PARÁMETROS (abajo):
+     @Dias ................... días hacia atrás a generar (por defecto 120).
+     @ReemplazarActividad .... 0 = si ya hay ventas en el período no genera
+                                   actividad (evita duplicar).
+                               1 = borra las ventas, cobros, cajas cerradas y
+                                   recetas usadas de ese período (antes de hoy)
+                                   y las vuelve a generar.
+
+   IMPORTANTE:
+     - Generá antes una copia de seguridad desde Configuración.
+     - No modifica el stock (son datos históricos).
+     - Requiere el SCRIPT DE ACTUALIZACIÓN aplicado (tablas Cobro y MedioPago).
+     - Si algo falla, se deshace todo.
+   ===================================================================== */
+
+USE FarmaGestDB;
+GO
+
+SET NOCOUNT ON;
+
+DECLARE @Dias                INT = 120;
+DECLARE @ReemplazarActividad BIT = 0;
+
+BEGIN TRY
+BEGIN TRANSACTION;
+
+/* =====================================================================
+   1. CATÁLOGO
+   ===================================================================== */
+
+-- 1.1 Usuarios extra (se copia el hash de la contraseña del usuario inicial del rol)
+INSERT INTO Usuario (dni, nombre, apellido, email, contrasena, estado, requiere_cambio_contrasena, id_rol)
+SELECT n.dni, n.nombre, n.apellido, n.email,
+       (SELECT TOP 1 u.contrasena FROM Usuario u WHERE u.id_rol = r.id_rol ORDER BY u.id_usuario),
+       1, 0, r.id_rol
+FROM (VALUES
+    ('30111222', 'Lucía',   'Fernández', 'lfernandez@farmagest.com', 'Farmaceutico'),
+    ('31222333', 'Martín',  'Ríos',      'mrios@farmagest.com',      'Farmaceutico'),
+    ('32333444', 'Sofía',   'Benítez',   'sbenitez@farmagest.com',   'Cajero')
+) AS n (dni, nombre, apellido, email, rol)
+JOIN Rol r ON r.nombre = n.rol
+WHERE NOT EXISTS (SELECT 1 FROM Usuario u WHERE u.dni = n.dni)
+  AND EXISTS (SELECT 1 FROM Usuario u WHERE u.id_rol = r.id_rol);
+
+-- 1.2 Categorías nuevas
+INSERT INTO CategoriasProductos (nombre)
+SELECT c.nombre
+FROM (VALUES ('Perfumería'), ('Gastrointestinales'), ('Diabetes y Endocrinología')) AS c (nombre)
+WHERE NOT EXISTS (SELECT 1 FROM CategoriasProductos x WHERE x.nombre = c.nombre);
+
+-- 1.3 Productos nuevos
+INSERT INTO Producto (descripcion, precioVenta, stockVenta, requiereReceta, esMedicamento, id_categoria)
+SELECT p.descripcion, p.precio, p.stock, p.receta, p.medicamento, c.id_categoria
+FROM (VALUES
+    ('Perfume floral 50 ml',                    32500.00, 12, 0, 0, 'Perfumería'),
+    ('Desodorante en aerosol 150 ml',            3900.00, 60, 0, 0, 'Perfumería'),
+    ('Shampoo anticaspa 400 ml',                 7200.00, 35, 0, 0, 'Perfumería'),
+    ('Crema hidratante facial 50 g',            15800.00, 20, 0, 0, 'Perfumería'),
+    ('Jabón de glicerina x 3',                   2700.00, 80, 0, 0, 'Perfumería'),
+    ('Pañales talle G x 30',                    16900.00, 25, 0, 0, 'Cuidado Personal'),
+    ('Cepillo dental medio',                     2300.00, 70, 0, 0, 'Cuidado Personal'),
+    ('Omeprazol 20 mg x 14 cáps.',               4600.00, 50, 0, 1, 'Gastrointestinales'),
+    ('Sales de rehidratación x 10 sobres',       3800.00, 40, 0, 1, 'Gastrointestinales'),
+    ('Loperamida 2 mg x 6 comp.',                2500.00, 30, 0, 1, 'Gastrointestinales'),
+    ('Pantoprazol 40 mg x 28 comp.',            13900.00, 15, 1, 1, 'Gastrointestinales'),
+    ('Metformina 850 mg x 30 comp.',             6400.00, 40, 1, 1, 'Diabetes y Endocrinología'),
+    ('Levotiroxina 50 mcg x 50 comp.',           9300.00, 35, 1, 1, 'Diabetes y Endocrinología'),
+    ('Glibenclamida 5 mg x 40 comp.',            5700.00,  6, 1, 1, 'Diabetes y Endocrinología'),
+    ('Tiras reactivas glucosa x 50',            24800.00,  9, 0, 0, 'Diabetes y Endocrinología')
+) AS p (descripcion, precio, stock, receta, medicamento, categoria)
+JOIN CategoriasProductos c ON c.nombre = p.categoria
+WHERE NOT EXISTS (SELECT 1 FROM Producto x WHERE x.descripcion = p.descripcion);
+
+-- 1.4 Obras sociales
+INSERT INTO ObraSocial (nombre, codigo, telefono)
+SELECT o.nombre, o.codigo, o.telefono
+FROM (VALUES
+    ('IOSCOR - Instituto de Obra Social de Corrientes', 'IOSCOR',  '0379 447-5700'),
+    ('PAMI',                                            'PAMI',    '138'),
+    ('OSDE',                                            'OSDE',    '0810 555-6733'),
+    ('Swiss Medical',                                   'SWISS',   '0810 333-8876'),
+    ('OSECAC',                                          'OSECAC',  '0810 666-7322'),
+    ('Unión Personal',                                  'UP',      '0800 999-8000')
+) AS o (nombre, codigo, telefono)
+WHERE NOT EXISTS (SELECT 1 FROM ObraSocial x WHERE x.codigo = o.codigo);
+
+-- 1.5 Planes por perfil de afiliado, con su porcentaje base de cobertura
+DECLARE @Planes TABLE (codigo VARCHAR(20), plan_ VARCHAR(100), descripcion VARCHAR(200), pct DECIMAL(5,2));
+INSERT INTO @Planes VALUES
+    ('IOSCOR', 'Activos',     'Afiliados en actividad',          40),
+    ('IOSCOR', 'Jubilados',   'Jubilados y pensionados',         70),
+    ('IOSCOR', 'Adherentes',  'Grupo familiar adherente',        30),
+    ('PAMI',   'Jubilados',   'Jubilados y pensionados',         80),
+    ('OSDE',   'Activos',     'Plan 310',                        50),
+    ('OSDE',   'Jubilados',   'Plan 410',                        70),
+    ('OSDE',   'Adherentes',  'Plan 210',                        40),
+    ('SWISS',  'Activos',     'Plan SMG20',                      50),
+    ('SWISS',  'Adherentes',  'Plan SMG10',                      35),
+    ('OSECAC', 'Activos',     'Empleados de comercio',           40),
+    ('OSECAC', 'Jubilados',   'Jubilados de comercio',           60),
+    ('UP',     'Activos',     'Personal civil de la Nación',     45),
+    ('UP',     'Adherentes',  'Adherentes voluntarios',          30);
+
+INSERT INTO Planes (nombrePlan, descripcion, id_ObraSocial)
+SELECT p.plan_, p.descripcion, o.id_ObraSocial
+FROM @Planes p
+JOIN ObraSocial o ON o.codigo = p.codigo
+WHERE NOT EXISTS (SELECT 1 FROM Planes x WHERE x.nombrePlan = p.plan_ AND x.id_ObraSocial = o.id_ObraSocial);
+
+-- 1.6 Cobertura de cada plan sobre cada medicamento
+--     Los de venta libre se cubren 10 puntos menos que los recetados.
+INSERT INTO CoberturaPlan (porcentajeCobertura, idPlan, id_producto)
+SELECT CASE WHEN pr.requiereReceta = 1 THEN p.pct ELSE p.pct - 10 END,
+       pl.idPlan, pr.id_producto
+FROM @Planes p
+JOIN ObraSocial o ON o.codigo = p.codigo
+JOIN Planes pl    ON pl.id_ObraSocial = o.id_ObraSocial AND pl.nombrePlan = p.plan_
+CROSS JOIN Producto pr
+WHERE pr.esMedicamento = 1 AND pr.estado = 1
+  AND NOT EXISTS (SELECT 1 FROM CoberturaPlan x WHERE x.idPlan = pl.idPlan AND x.id_producto = pr.id_producto);
+
+-- 1.7 Afiliados (60 combinaciones de nombre y apellido que todavía no existan)
+DECLARE @Nombres TABLE (nombre VARCHAR(80));
+INSERT INTO @Nombres VALUES ('Ana'),('Carlos'),('María'),('José'),('Laura'),('Jorge'),('Valeria'),('Diego'),
+    ('Carolina'),('Pablo'),('Gabriela'),('Raúl'),('Florencia'),('Hugo'),('Romina'),('Néstor'),('Julieta'),('Oscar'),
+    ('Mónica'),('Facundo');
+
+DECLARE @Apellidos TABLE (apellido VARCHAR(80));
+INSERT INTO @Apellidos VALUES ('González'),('Romero'),('Sosa'),('Ramírez'),('Acosta'),('Benítez'),('Duarte'),
+    ('Ojeda'),('Vallejos'),('Aquino'),('Cáceres'),('Fernández'),('Gómez'),('Insaurralde'),('Medina'),('Leiva'),
+    ('Escobar'),('Maidana'),('Ríos'),('Zalazar');
+
+DECLARE @PlanesIds TABLE (n INT IDENTITY(1,1), idPlan INT);
+INSERT INTO @PlanesIds (idPlan)
+SELECT pl.idPlan FROM @Planes p
+JOIN ObraSocial o ON o.codigo = p.codigo
+JOIN Planes pl ON pl.id_ObraSocial = o.id_ObraSocial AND pl.nombrePlan = p.plan_;
+
+DECLARE @nPlanes INT = (SELECT COUNT(*) FROM @PlanesIds);
+
+IF @nPlanes > 0
+    INSERT INTO Afiliados (nombre, apellido, activo, idPlan)
+    SELECT TOP (60) n.nombre, a.apellido,
+           CASE WHEN ABS(CHECKSUM(NEWID())) % 100 < 93 THEN 1 ELSE 0 END,   -- algunos dados de baja
+           (SELECT idPlan FROM @PlanesIds WHERE n = 1 + ABS(CHECKSUM(NEWID(), n.nombre, a.apellido)) % @nPlanes)
+    FROM @Nombres n CROSS JOIN @Apellidos a
+    WHERE NOT EXISTS (SELECT 1 FROM Afiliados x WHERE x.nombre = n.nombre AND x.apellido = a.apellido)
+    ORDER BY NEWID();
+
+PRINT '1. Catálogo listo (usuarios, productos, obras sociales, planes, coberturas y afiliados).';
+
+
+/* =====================================================================
+   2. ACTIVIDAD HISTÓRICA
+   ===================================================================== */
+
+DECLARE @hoy DATE = CAST(GETDATE() AS DATE);
+DECLARE @desde DATE = DATEADD(DAY, -@Dias, @hoy);
+
+-- 2.0 Reemplazar o no la actividad previa del período
+DECLARE @previas INT = (SELECT COUNT(*) FROM Venta WHERE fecha >= @desde AND fecha < @hoy);
+DECLARE @generar BIT = 1;
+
+IF @previas > 0 AND @ReemplazarActividad = 0
+BEGIN
+    SET @generar = 0;
+    PRINT CONCAT('2. Ya hay ', @previas, ' ventas en el período: no se genera actividad para no duplicar. ',
+                 'Poné @ReemplazarActividad = 1 para regenerarla.');
+END
+
+IF @previas > 0 AND @ReemplazarActividad = 1
+BEGIN
+    DECLARE @VentasBorrar TABLE (id INT PRIMARY KEY, id_Receta INT);
+    INSERT INTO @VentasBorrar SELECT id_venta, id_Receta FROM Venta WHERE fecha >= @desde AND fecha < @hoy;
+
+    DELETE t FROM DetallePagoTarjeta t   JOIN Cobro c ON c.id_facturacion = t.id_facturacion JOIN @VentasBorrar v ON v.id = c.id_venta;
+    DELETE t FROM DetalleTransferencia t JOIN Cobro c ON c.id_facturacion = t.id_facturacion JOIN @VentasBorrar v ON v.id = c.id_venta;
+    DELETE c FROM Cobro c        JOIN @VentasBorrar v ON v.id = c.id_venta;
+    DELETE d FROM DetalleVenta d JOIN @VentasBorrar v ON v.id = d.id_venta;
+    DELETE x FROM Venta x        JOIN @VentasBorrar v ON v.id = x.id_venta;
+
+    -- Recetas que solo se usaron en esas ventas
+    DELETE dr FROM DetalleReceta dr
+    WHERE dr.id_Receta IN (SELECT id_Receta FROM @VentasBorrar WHERE id_Receta IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM Venta v WHERE v.id_Receta = dr.id_Receta);
+    DELETE r FROM Recetas r
+    WHERE r.id_Receta IN (SELECT id_Receta FROM @VentasBorrar WHERE id_Receta IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM Venta v WHERE v.id_Receta = r.id_Receta);
+
+    -- Cajas cerradas del período que quedaron sin cobros
+    DELETE cj FROM Caja cj
+    WHERE cj.estado = 0 AND cj.fecha_apertura >= @desde AND cj.fecha_apertura < @hoy
+      AND NOT EXISTS (SELECT 1 FROM Cobro c WHERE c.id_caja = cj.id_caja);
+
+    PRINT CONCAT('2. Se borraron ', @previas, ' ventas previas del período.');
+END
+
+IF @generar = 1
+BEGIN
+    -- ---------- Participantes ----------
+    DECLARE @Cajeros TABLE (n INT IDENTITY(1,1), id INT);
+    INSERT INTO @Cajeros (id)
+    SELECT u.id_usuario FROM Usuario u JOIN Rol r ON r.id_rol = u.id_rol
+    WHERE r.nombre = 'Cajero' AND u.estado = 1 ORDER BY u.id_usuario;
+
+    -- Farmacéuticos con distinto "peso": unos venden más que otros
+    DECLARE @Farmaceuticos TABLE (id INT, peso FLOAT);
+    INSERT INTO @Farmaceuticos (id, peso)
+    SELECT u.id_usuario, 1 + ROW_NUMBER() OVER (ORDER BY u.id_usuario) % 3
+    FROM Usuario u JOIN Rol r ON r.id_rol = u.id_rol
+    WHERE r.nombre = 'Farmaceutico' AND u.estado = 1;
+
+    -- Popularidad de 1 a 6: los productos baratos y de uso diario se venden más
+    DECLARE @Libres TABLE (id INT, precio DECIMAL(10,2), peso FLOAT);
+    INSERT INTO @Libres (id, precio, peso)
+    SELECT id_producto, precioVenta,
+           CASE WHEN precioVenta < 3000 THEN 6 WHEN precioVenta < 5000 THEN 4
+                WHEN precioVenta < 10000 THEN 2 ELSE 1 END + id_producto % 2
+    FROM Producto WHERE estado = 1 AND requiereReceta = 0;
+
+    DECLARE @Recetados TABLE (id INT, peso FLOAT);
+    INSERT INTO @Recetados (id, peso)
+    SELECT id_producto, 1 + id_producto % 4
+    FROM Producto WHERE estado = 1 AND requiereReceta = 1;
+
+    DECLARE @Afiliados TABLE (n INT IDENTITY(1,1), id INT, idPlan INT);
+    INSERT INTO @Afiliados (id, idPlan)
+    SELECT id_afiliado, idPlan FROM Afiliados WHERE activo = 1;
+
+    DECLARE @Medicos TABLE (n INT IDENTITY(1,1), nombre VARCHAR(120), matricula VARCHAR(30));
+    INSERT INTO @Medicos (nombre, matricula) VALUES
+        ('Dra. Laura Gómez', 'MP 12345'), ('Dr. Ricardo Benítez', 'MP 20451'),
+        ('Dra. Paula Sosa', 'MP 18733'),  ('Dr. Martín Acosta', 'MP 22019'),
+        ('Dr. Esteban Quiroga', 'MP 19872'), ('Dra. Silvina Romero', 'MP 21544'),
+        ('Dr. Alejandro Vera', 'MP 23310'), ('Dra. Natalia Pereyra', 'MP 17650');
+
+    DECLARE @nCajeros INT = (SELECT COUNT(*) FROM @Cajeros),
+            @nFarma   INT = (SELECT COUNT(*) FROM @Farmaceuticos),
+            @nLibres  INT = (SELECT COUNT(*) FROM @Libres),
+            @nRecet   INT = (SELECT COUNT(*) FROM @Recetados),
+            @nAfil    INT = (SELECT COUNT(*) FROM @Afiliados),
+            @nMed     INT = (SELECT COUNT(*) FROM @Medicos);
+
+    IF @nCajeros = 0 OR @nFarma = 0 OR @nLibres = 0
+        THROW 50001, 'Faltan cajeros activos, farmacéuticos activos o productos de venta libre.', 1;
+
+    DECLARE @turno INT = 720 / @nCajeros;   -- minutos de cada turno de caja
+
+    DECLARE @dia INT = @Dias, @fecha DATE, @c INT, @v INT, @ventasDia INT, @dow INT,
+            @cajero INT, @caja INT, @farma INT, @hora DATETIME, @cobro DATETIME, @min INT,
+            @conReceta BIT, @anulada BIT, @afiliado INT, @plan INT,
+            @receta INT, @emision DATE, @medico VARCHAR(120), @matricula VARCHAR(30),
+            @venta INT, @extra INT, @importe DECIMAL(10,2), @r INT,
+            @medio VARCHAR(30), @vuelto DECIMAL(10,2), @cobroId INT;
+
+    DECLARE @CajasDia TABLE (n INT, id_caja INT, id_usuario INT);
+
+    WHILE @dia >= 1
+    BEGIN
+        SET @fecha = DATEADD(DAY, -@dia, @hoy);
+        SET @dow = (DATEPART(WEEKDAY, @fecha) + @@DATEFIRST) % 7;   -- 1 = domingo, 0 = sábado (sin depender del idioma)
+        DELETE FROM @CajasDia;
+
+        -- 2.1 Un turno de caja por cajero (08:00 a 20:00 repartido)
+        SET @c = 1;
+        WHILE @c <= @nCajeros
+        BEGIN
+            SELECT @cajero = id FROM @Cajeros WHERE n = @c;
+
+            INSERT INTO Caja (fecha_apertura, monto_inicial, estado, id_usuario)
+            VALUES (DATEADD(MINUTE, 480 + (@c - 1) * @turno, CAST(@fecha AS DATETIME)),
+                    CASE WHEN @c = 1 THEN 20000 ELSE 15000 END, 1, @cajero);
+
+            INSERT INTO @CajasDia VALUES (@c, SCOPE_IDENTITY(), @cajero);
+            SET @c += 1;
+        END
+
+        -- 2.2 Cantidad de ventas: base + tendencia + principio de mes - fin de semana
+        SET @ventasDia = 7 + ABS(CHECKSUM(NEWID())) % 8 + (@Dias - @dia) / 30;
+        IF DAY(@fecha) <= 5 SET @ventasDia += 4;
+        IF @dow = 0 SET @ventasDia = @ventasDia * 3 / 4;
+        IF @dow = 1 SET @ventasDia = @ventasDia / 2;
+
+        SET @v = 1;
+        WHILE @v <= @ventasDia
+        BEGIN
+            SET @hora = DATEADD(MINUTE, 480 + ABS(CHECKSUM(NEWID())) % 680, CAST(@fecha AS DATETIME));  -- 08:00 a 19:20
+
+            -- Farmacéutico elegido según su peso
+            SELECT TOP 1 @farma = id FROM @Farmaceuticos
+            ORDER BY -LOG(1 - RAND(CHECKSUM(NEWID())) * 0.999999) / peso;
+
+            SET @conReceta = CASE WHEN @nAfil > 0 AND @nRecet > 0 AND ABS(CHECKSUM(NEWID())) % 100 < 40 THEN 1 ELSE 0 END;
+            SET @anulada   = CASE WHEN ABS(CHECKSUM(NEWID())) % 100 < 5 THEN 1 ELSE 0 END;
+            SET @receta = NULL;
+
+            IF @conReceta = 1
+            BEGIN
+                SELECT @afiliado = id, @plan = idPlan FROM @Afiliados WHERE n = 1 + ABS(CHECKSUM(NEWID())) % @nAfil;
+                SELECT @medico = nombre, @matricula = matricula FROM @Medicos WHERE n = 1 + ABS(CHECKSUM(NEWID())) % @nMed;
+                SET @emision = DATEADD(DAY, -(ABS(CHECKSUM(NEWID())) % 6), @fecha);
+
+                INSERT INTO Recetas (fechaEmision, fechaVencimiento, matriculaMedico, nombreMedico, estado, id_afiliado)
+                VALUES (@emision, DATEADD(DAY, 30, @emision), @matricula, @medico, 1, @afiliado);
+                SET @receta = SCOPE_IDENTITY();
+
+                -- 1 a 3 medicamentos distintos según su popularidad
+                INSERT INTO DetalleReceta (Cantidad, id_Receta, id_producto)
+                SELECT TOP (1 + ABS(CHECKSUM(NEWID())) % 3) 1 + ABS(CHECKSUM(NEWID())) % 2, @receta, id
+                FROM @Recetados
+                ORDER BY -LOG(1 - RAND(CHECKSUM(NEWID())) * 0.999999) / peso;
+            END
+
+            INSERT INTO Venta (fecha, estado, tipoVenta, id_Receta, id_usuario)
+            VALUES (@hora, CASE WHEN @anulada = 1 THEN 0 ELSE 1 END,
+                    CASE WHEN @conReceta = 1 THEN 'Con receta' ELSE 'Venta libre' END,
+                    @receta, @farma);
+            SET @venta = SCOPE_IDENTITY();
+
+            IF @conReceta = 1
+                INSERT INTO DetalleVenta (cantidad, precioUnitario, descuento, id_producto, id_venta, id_cobertura)
+                SELECT dr.Cantidad, p.precioVenta,
+                       ROUND(dr.Cantidad * p.precioVenta * ISNULL(cp.porcentajeCobertura, 0) / 100, 2),
+                       p.id_producto, @venta, cp.id_cobertura
+                FROM DetalleReceta dr
+                JOIN Producto p ON p.id_producto = dr.id_producto
+                LEFT JOIN CoberturaPlan cp ON cp.idPlan = @plan AND cp.id_producto = dr.id_producto
+                WHERE dr.id_Receta = @receta;
+
+            -- Venta libre: 1 a 4 productos; con receta: 0 o 1 extra
+            SET @extra = CASE WHEN @conReceta = 1 THEN ABS(CHECKSUM(NEWID())) % 2 ELSE 1 + ABS(CHECKSUM(NEWID())) % 4 END;
+            INSERT INTO DetalleVenta (cantidad, precioUnitario, descuento, id_producto, id_venta, id_cobertura)
+            SELECT TOP (@extra) CASE WHEN ABS(CHECKSUM(NEWID())) % 100 < 75 THEN 1 ELSE 2 + ABS(CHECKSUM(NEWID())) % 2 END,
+                   precio, 0, id, @venta, NULL
+            FROM @Libres
+            ORDER BY -LOG(1 - RAND(CHECKSUM(NEWID())) * 0.999999) / peso;
+
+            -- Cobro en la caja del turno correspondiente
+            IF @anulada = 0
+            BEGIN
+                SET @cobro = DATEADD(MINUTE, 3 + ABS(CHECKSUM(NEWID())) % 30, @hora);
+                SET @min = DATEDIFF(MINUTE, CAST(@fecha AS DATETIME), @cobro) - 480;
+                SET @c = 1 + @min / @turno;
+                IF @c > @nCajeros SET @c = @nCajeros;
+
+                SELECT @caja = id_caja, @cajero = id_usuario FROM @CajasDia WHERE n = @c;
+                SELECT @importe = SUM(cantidad * precioUnitario - descuento) FROM DetalleVenta WHERE id_venta = @venta;
+
+                SET @r = ABS(CHECKSUM(NEWID())) % 100;
+                SET @medio = CASE WHEN @r < 40 THEN 'Efectivo'
+                                  WHEN @r < 68 THEN 'Débito'
+                                  WHEN @r < 85 THEN 'Crédito'
+                                  ELSE 'Transferencia' END;
+
+                SET @vuelto = CASE WHEN @medio = 'Efectivo' THEN CEILING(@importe / 1000.0) * 1000 - @importe ELSE 0 END;
+
+                INSERT INTO Cobro (fecha, metodo_pago, importe, id_venta, id_usuario, id_caja, monto_cambio, id_medio_pago)
+                VALUES (@cobro, @medio, @importe, @venta, @cajero, @caja, @vuelto,
+                        (SELECT id_medio_pago FROM MedioPago WHERE nombre = @medio));
+                SET @cobroId = SCOPE_IDENTITY();
+
+                -- Detalle del pago con tarjeta o transferencia
+                IF @medio IN ('Débito', 'Crédito')
+                    INSERT INTO DetallePagoTarjeta (id_facturacion, ultimos_4, titular, numero_autorizacion, cuotas)
+                    VALUES (@cobroId, RIGHT('000' + CAST(ABS(CHECKSUM(NEWID())) % 10000 AS VARCHAR(4)), 4), 'Titular de prueba',
+                            CAST(100000 + ABS(CHECKSUM(NEWID())) % 900000 AS VARCHAR(10)),
+                            CASE WHEN @medio = 'Crédito' THEN 1 + (ABS(CHECKSUM(NEWID())) % 3) * 2 ELSE 1 END);  -- 1, 3 o 5 cuotas
+                ELSE IF @medio = 'Transferencia'
+                    INSERT INTO DetalleTransferencia (id_facturacion, numero_operacion)
+                    VALUES (@cobroId, CAST(10000000 + ABS(CHECKSUM(NEWID())) % 90000000 AS VARCHAR(20)));
+            END
+
+            SET @v += 1;
+        END
+
+        -- 2.3 Alguna receta rechazada en el día (~1 de cada 3 días)
+        IF @nAfil > 0 AND @nRecet > 0 AND ABS(CHECKSUM(NEWID())) % 3 = 0
+        BEGIN
+            SELECT @afiliado = id FROM @Afiliados WHERE n = 1 + ABS(CHECKSUM(NEWID())) % @nAfil;
+            SELECT @medico = nombre, @matricula = matricula FROM @Medicos WHERE n = 1 + ABS(CHECKSUM(NEWID())) % @nMed;
+
+            INSERT INTO Recetas (fechaEmision, fechaVencimiento, matriculaMedico, nombreMedico, estado, id_afiliado)
+            VALUES (@fecha, DATEADD(DAY, 30, @fecha), @matricula, @medico, 0, @afiliado);
+
+            INSERT INTO DetalleReceta (Cantidad, id_Receta, id_producto)
+            SELECT TOP 1 1, SCOPE_IDENTITY(), id FROM @Recetados ORDER BY NEWID();
+        END
+
+        -- 2.4 Cierre de cada turno: arqueo en efectivo, ~15 % con diferencia
+        UPDATE cj
+        SET fecha_cierre = DATEADD(MINUTE, 480 + d.n * @turno, CAST(@fecha AS DATETIME)),
+            estado = 0,
+            monto_final = cj.monto_inicial
+                + ISNULL((SELECT SUM(f.importe) FROM Cobro f WHERE f.id_caja = cj.id_caja AND f.metodo_pago = 'Efectivo'), 0)
+                + CASE WHEN ABS(CHECKSUM(NEWID())) % 100 < 15 THEN (ABS(CHECKSUM(NEWID())) % 5 - 2) * 500 ELSE 0 END
+        FROM Caja cj
+        JOIN @CajasDia d ON d.id_caja = cj.id_caja;
+
+        SET @dia -= 1;
+    END
+
+    PRINT CONCAT('2. Actividad generada: últimos ', @Dias, ' días hasta ayer.');
+END
+
+
+/* =====================================================================
+   3. ESTADO DE HOY: recetas para validar, para vender y para las alertas
+   ===================================================================== */
+
+DECLARE @Hoy3 TABLE (n INT IDENTITY(1,1), estado BIT NULL, emision DATE);
+INSERT INTO @Hoy3 (estado, emision) VALUES
+    (NULL, @hoy), (NULL, @hoy), (NULL, DATEADD(DAY, -1, @hoy)), (NULL, DATEADD(DAY, -2, @hoy)),  -- pendientes de validar
+    (1, DATEADD(DAY, -3, @hoy)), (1, DATEADD(DAY, -5, @hoy)), (1, DATEADD(DAY, -8, @hoy)),         -- validadas y vigentes
+    (1, DATEADD(DAY, -27, @hoy)), (1, DATEADD(DAY, -28, @hoy)),                                   -- por vencer (2-3 días)
+    (1, DATEADD(DAY, -35, @hoy)), (NULL, DATEADD(DAY, -40, @hoy));                                -- vencidas
+
+DECLARE @k INT = 1, @est BIT, @em DATE, @rec INT, @afi INT, @nAf INT = (SELECT COUNT(*) FROM Afiliados WHERE activo = 1);
+
+IF @nAf > 0 AND EXISTS (SELECT 1 FROM Producto WHERE requiereReceta = 1 AND estado = 1 AND stockVenta > 2)
+BEGIN
+    WHILE @k <= (SELECT COUNT(*) FROM @Hoy3)
+    BEGIN
+        SELECT @est = estado, @em = emision FROM @Hoy3 WHERE n = @k;
+        SELECT TOP 1 @afi = id_afiliado FROM Afiliados WHERE activo = 1 ORDER BY NEWID();
+
+        INSERT INTO Recetas (fechaEmision, fechaVencimiento, matriculaMedico, nombreMedico, estado, id_afiliado)
+        VALUES (@em, DATEADD(DAY, 30, @em), 'MP 24108', 'Dra. Carla Ledesma', @est, @afi);
+        SET @rec = SCOPE_IDENTITY();
+
+        -- Medicamentos con stock suficiente, así se pueden vender desde la app
+        INSERT INTO DetalleReceta (Cantidad, id_Receta, id_producto)
+        SELECT TOP (1 + ABS(CHECKSUM(NEWID())) % 2) 1, @rec, id_producto
+        FROM Producto WHERE requiereReceta = 1 AND estado = 1 AND stockVenta > 2
+        ORDER BY NEWID();
+
+        SET @k += 1;
+    END
+    PRINT '3. Recetas de hoy: 5 pendientes/vencidas para validar, 5 validadas vigentes (2 por vencer), 1 validada vencida.';
+END
+
+COMMIT TRANSACTION;
+
+-- ---------- Resumen ----------
+SELECT
+    (SELECT COUNT(*) FROM Usuario)        AS usuarios,
+    (SELECT COUNT(*) FROM Producto)       AS productos,
+    (SELECT COUNT(*) FROM ObraSocial)     AS obras_sociales,
+    (SELECT COUNT(*) FROM Planes)         AS planes,
+    (SELECT COUNT(*) FROM Afiliados)      AS afiliados,
+    (SELECT COUNT(*) FROM Venta)          AS ventas,
+    (SELECT COUNT(*) FROM Venta WHERE estado = 0) AS anuladas,
+    (SELECT COUNT(*) FROM Cobro)          AS cobros,
+    (SELECT COUNT(*) FROM Caja)           AS cajas,
+    (SELECT COUNT(*) FROM Recetas)        AS recetas;
+
+END TRY
+BEGIN CATCH
+    IF @@TRANCOUNT > 0
+        ROLLBACK TRANSACTION;
+
+    PRINT 'No se cargó nada (se deshizo todo): ' + ERROR_MESSAGE();
+END CATCH;
+GO

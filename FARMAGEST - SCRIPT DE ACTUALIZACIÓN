@@ -9,11 +9,14 @@
    (Las bases nuevas no lo necesitan: el script de creación ya lo incluye.)
 
    Contenido:
-     1. Facturacion.MontoCambio ........ vuelto entregado en cobros en efectivo
+     0. Facturacion pasa a llamarse Cobro (pedido del profesor; no se pierden datos)
+     1. Cobro.monto_cambio ............. vuelto entregado en cobros en efectivo
      2. CK_Producto_StockVenta ......... el stock nunca puede quedar negativo
      3. Recetas.estado acepta NULL ..... NULL = Pendiente de validación
      4. Tabla Configuracion ............ parámetros (backup automático on/off)
      5. UX_Venta_RecetaActiva .......... una receta, una sola venta activa
+     6. Medios de pago ................. MedioPago, Cobro.id_medio_pago,
+                                         DetallePagoTarjeta, DetalleTransferencia
    ===================================================================== */
 
 USE FarmaGestDB;
@@ -21,21 +24,49 @@ GO
 
 
 /* =====================================================================
-   1. FACTURACION: columna MontoCambio
-      La usa el cobro en caja (FacturacionService). Sin esta columna el
-      cobro falla con "Invalid column name 'MontoCambio'".
+   0. RENOMBRAR Facturacion -> Cobro
+      sp_rename cambia el nombre conservando datos, claves y relaciones.
+      También se renombran las restricciones para que coincidan.
    ===================================================================== */
 
-IF COL_LENGTH('Facturacion', 'MontoCambio') IS NULL
+IF OBJECT_ID('dbo.Facturacion') IS NOT NULL AND OBJECT_ID('dbo.Cobro') IS NULL
 BEGIN
-    ALTER TABLE Facturacion
-        ADD MontoCambio DECIMAL(10,2) NOT NULL
-            CONSTRAINT DF_Facturacion_MontoCambio DEFAULT 0;
+    EXEC sp_rename 'Facturacion', 'Cobro';
 
-    PRINT 'Agregada la columna Facturacion.MontoCambio.';
+    IF OBJECT_ID('UQ_Facturacion_Venta') IS NOT NULL       EXEC sp_rename 'UQ_Facturacion_Venta', 'UQ_Cobro_Venta', 'OBJECT';
+    IF OBJECT_ID('FK_Facturacion_Venta') IS NOT NULL       EXEC sp_rename 'FK_Facturacion_Venta', 'FK_Cobro_Venta', 'OBJECT';
+    IF OBJECT_ID('FK_Facturacion_Usuario') IS NOT NULL     EXEC sp_rename 'FK_Facturacion_Usuario', 'FK_Cobro_Usuario', 'OBJECT';
+    IF OBJECT_ID('FK_Facturacion_Caja') IS NOT NULL        EXEC sp_rename 'FK_Facturacion_Caja', 'FK_Cobro_Caja', 'OBJECT';
+    IF OBJECT_ID('DF_Facturacion_MontoCambio') IS NOT NULL EXEC sp_rename 'DF_Facturacion_MontoCambio', 'DF_Cobro_MontoCambio', 'OBJECT';
+    IF OBJECT_ID('FK_Facturacion_MedioPago') IS NOT NULL   EXEC sp_rename 'FK_Facturacion_MedioPago', 'FK_Cobro_MedioPago', 'OBJECT';
+
+    PRINT 'La tabla Facturacion ahora se llama Cobro.';
 END
 ELSE
-    PRINT 'Facturacion.MontoCambio ya existía.';
+    PRINT 'La tabla Cobro ya existía.';
+GO
+
+
+/* =====================================================================
+   1. COBRO: columna monto_cambio (vuelto en cobros en efectivo)
+      El código la mapea como monto_cambio. Si la base tiene la versión
+      anterior "MontoCambio" se renombra; si no existe, se crea.
+   ===================================================================== */
+
+IF COL_LENGTH('Cobro', 'monto_cambio') IS NULL AND COL_LENGTH('Cobro', 'MontoCambio') IS NOT NULL
+BEGIN
+    EXEC sp_rename 'Cobro.MontoCambio', 'monto_cambio', 'COLUMN';
+    PRINT 'Cobro.MontoCambio ahora se llama monto_cambio.';
+END
+ELSE IF COL_LENGTH('Cobro', 'monto_cambio') IS NULL
+BEGIN
+    ALTER TABLE Cobro
+        ADD monto_cambio DECIMAL(18,2) NOT NULL
+            CONSTRAINT DF_Cobro_MontoCambio DEFAULT 0;
+    PRINT 'Agregada la columna Cobro.monto_cambio.';
+END
+ELSE
+    PRINT 'Cobro.monto_cambio ya existía.';
 GO
 
 
@@ -136,4 +167,112 @@ BEGIN
 END
 ELSE
     PRINT 'UX_Venta_RecetaActiva ya existía.';
+GO
+
+
+/* =====================================================================
+   6. MEDIOS DE PAGO
+      Cada cobro se relaciona con un medio de pago. Los datos propios de
+      la tarjeta y de la transferencia van en tablas de detalle.
+      metodo_pago se mantiene por compatibilidad con el código anterior.
+   ===================================================================== */
+
+IF OBJECT_ID('dbo.MedioPago') IS NULL
+BEGIN
+    CREATE TABLE MedioPago (
+        id_medio_pago  INT IDENTITY(1,1) PRIMARY KEY,
+        nombre         VARCHAR(30) NOT NULL,
+        estado         BIT         NOT NULL DEFAULT 1,
+
+        CONSTRAINT UQ_MedioPago_Nombre UNIQUE (nombre)
+    );
+    PRINT 'Creada la tabla MedioPago.';
+END
+ELSE
+    PRINT 'La tabla MedioPago ya existía.';
+GO
+
+-- Medios que usa el código (compara por nombre)
+INSERT INTO MedioPago (nombre)
+SELECT m.nombre
+FROM (VALUES ('Efectivo'), ('Débito'), ('Crédito'), ('Transferencia')) AS m (nombre)
+WHERE NOT EXISTS (SELECT 1 FROM MedioPago x WHERE x.nombre = m.nombre);
+GO
+
+IF COL_LENGTH('Cobro', 'id_medio_pago') IS NULL
+BEGIN
+    ALTER TABLE Cobro ADD id_medio_pago INT NULL;
+    PRINT 'Agregada la columna Cobro.id_medio_pago.';
+END
+ELSE
+    PRINT 'Cobro.id_medio_pago ya existía.';
+GO
+
+-- Cobros anteriores: se les asigna el medio según el texto de metodo_pago
+-- (si hubiera un nombre que no está en MedioPago, se agrega como inactivo)
+INSERT INTO MedioPago (nombre, estado)
+SELECT DISTINCT c.metodo_pago, 0
+FROM Cobro c
+WHERE c.id_medio_pago IS NULL
+  AND NOT EXISTS (SELECT 1 FROM MedioPago m WHERE m.nombre = c.metodo_pago);
+
+UPDATE c
+SET id_medio_pago = m.id_medio_pago
+FROM Cobro c
+JOIN MedioPago m ON m.nombre = c.metodo_pago
+WHERE c.id_medio_pago IS NULL;
+GO
+
+IF EXISTS (SELECT 1 FROM sys.columns
+           WHERE object_id = OBJECT_ID('Cobro') AND name = 'id_medio_pago' AND is_nullable = 1)
+BEGIN
+    ALTER TABLE Cobro ALTER COLUMN id_medio_pago INT NOT NULL;
+    PRINT 'Cobro.id_medio_pago ahora es obligatorio.';
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys
+               WHERE parent_object_id = OBJECT_ID('Cobro') AND referenced_object_id = OBJECT_ID('MedioPago'))
+BEGIN
+    ALTER TABLE Cobro
+        ADD CONSTRAINT FK_Cobro_MedioPago FOREIGN KEY (id_medio_pago) REFERENCES MedioPago(id_medio_pago);
+    PRINT 'Agregada la clave foránea FK_Cobro_MedioPago.';
+END
+ELSE
+    PRINT 'FK_Cobro_MedioPago ya existía.';
+GO
+
+IF OBJECT_ID('dbo.DetallePagoTarjeta') IS NULL
+BEGIN
+    CREATE TABLE DetallePagoTarjeta (
+        id_detalle_pago      INT IDENTITY(1,1) PRIMARY KEY,
+        id_facturacion       INT          NOT NULL,
+        ultimos_4            VARCHAR(4)   NOT NULL,
+        titular              VARCHAR(100) NOT NULL,
+        numero_autorizacion  VARCHAR(50)  NOT NULL,
+        cuotas               INT          NOT NULL DEFAULT 1,
+
+        CONSTRAINT UQ_DetallePagoTarjeta_Cobro UNIQUE (id_facturacion),
+        CONSTRAINT FK_DetallePagoTarjeta_Cobro FOREIGN KEY (id_facturacion) REFERENCES Cobro(id_facturacion)
+    );
+    PRINT 'Creada la tabla DetallePagoTarjeta.';
+END
+ELSE
+    PRINT 'La tabla DetallePagoTarjeta ya existía.';
+GO
+
+IF OBJECT_ID('dbo.DetalleTransferencia') IS NULL
+BEGIN
+    CREATE TABLE DetalleTransferencia (
+        id_detalle_transferencia  INT IDENTITY(1,1) PRIMARY KEY,
+        id_facturacion            INT          NOT NULL,
+        numero_operacion          VARCHAR(100) NOT NULL,
+
+        CONSTRAINT UQ_DetalleTransferencia_Cobro UNIQUE (id_facturacion),
+        CONSTRAINT FK_DetalleTransferencia_Cobro FOREIGN KEY (id_facturacion) REFERENCES Cobro(id_facturacion)
+    );
+    PRINT 'Creada la tabla DetalleTransferencia.';
+END
+ELSE
+    PRINT 'La tabla DetalleTransferencia ya existía.';
 GO
