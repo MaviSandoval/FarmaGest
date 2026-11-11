@@ -62,6 +62,28 @@ public partial class TicketWindow : FluentWindow
 
         MedioText.Text = t.MetodoPago;
 
+        var datosPago = new System.Collections.Generic.List<string>();
+        if (t.EsTarjeta)
+        {
+            if (!string.IsNullOrWhiteSpace(t.TitularTarjeta))
+                datosPago.Add($"Titular: {t.TitularTarjeta}");
+            if (!string.IsNullOrWhiteSpace(t.Ultimos4Tarjeta))
+                datosPago.Add($"Tarjeta: **** {t.Ultimos4Tarjeta}");
+            if (t.Cuotas.HasValue)
+                datosPago.Add($"Cuotas: {t.Cuotas}");
+            if (string.IsNullOrWhiteSpace(t.TitularTarjeta) ||
+                string.IsNullOrWhiteSpace(t.Ultimos4Tarjeta) || !t.Cuotas.HasValue)
+                datosPago.Add("Datos del medio de pago no registrados");
+        }
+        else if (t.EsTransferencia)
+        {
+            datosPago.Add(string.IsNullOrWhiteSpace(t.NumeroOperacion)
+                ? "Datos del medio de pago no registrados"
+                : $"N° operación ingresado: {t.NumeroOperacion}");
+        }
+        DatosPagoText.Text = string.Join(Environment.NewLine, datosPago);
+        DatosPagoText.Visibility = datosPago.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+
         // "Paga con" y "Vuelto" solo tienen sentido en efectivo
         var efectivo = t.EsEfectivo ? Visibility.Visible : Visibility.Collapsed;
         PagaConFila.Visibility = efectivo;

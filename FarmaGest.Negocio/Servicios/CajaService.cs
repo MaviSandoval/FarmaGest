@@ -1,4 +1,4 @@
-﻿using FarmaGest.Datos.Contexto;
+using FarmaGest.Datos.Contexto;
 using FarmaGest.Dominio;
 using Microsoft.EntityFrameworkCore;
 
@@ -78,120 +78,41 @@ public class CajaService
         await context.SaveChangesAsync();
     }
 
-    // =========================================================
-    // TOTAL DE VENTAS - TODOS LOS MEDIOS DE PAGO
-    // =========================================================
-
-    public async Task<decimal> ObtenerTotalVentasAsync(
-        int cajaId)
+    public async Task<ResumenCajaDto> ObtenerTotalesAsync(int cajaId)
     {
-        await using var context =
-            await _factory.CreateDbContextAsync();
-
-        return await context.Facturaciones
-            .Where(f =>
-                f.CajaId == cajaId &&
-                f.Venta.Estado)
-            .SumAsync(f => (decimal?)f.Importe)
-            ?? 0;
+        await using var context = await _factory.CreateDbContextAsync();
+        var caja = await context.Cajas.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cajaId)
+            ?? throw new InvalidOperationException("Caja no encontrada.");
+        var cobros = await context.Facturaciones.AsNoTracking()
+            .Where(f => f.CajaId == cajaId && f.Venta.Estado)
+            .Select(f => new MovimientoCajaDto { MetodoPago = f.MedioPago.Nombre, Importe = f.Importe })
+            .ToListAsync();
+        var efectivo = cobros.Where(c => CalculosCaja.EsEfectivo(c.MetodoPago)).Sum(c => c.Importe);
+        return new ResumenCajaDto
+        {
+            TotalCobrado = cobros.Sum(c => c.Importe),
+            TotalEfectivo = efectivo,
+            EfectivoEsperado = CalculosCaja.EfectivoEsperado(caja.MontoInicial, efectivo),
+            CantidadCobros = cobros.Count,
+            Movimientos = cobros
+        };
     }
 
-    // =========================================================
-    // TOTAL COBRADO EN EFECTIVO
-    // =========================================================
+    public async Task<decimal> ObtenerTotalVentasAsync(int cajaId)
+        => (await ObtenerTotalesAsync(cajaId)).TotalCobrado;
 
-    public async Task<decimal> ObtenerTotalEfectivoAsync(
-        int cajaId)
-    {
-        await using var context =
-            await _factory.CreateDbContextAsync();
+    public async Task<decimal> ObtenerTotalEfectivoAsync(int cajaId)
+        => (await ObtenerTotalesAsync(cajaId)).TotalEfectivo;
 
-        return await context.Facturaciones
-            .Where(f =>
-                f.CajaId == cajaId &&
-                f.Venta.Estado &&
-                f.MetodoPago == "Efectivo")
-            .SumAsync(f => (decimal?)f.Importe)
-            ?? 0;
-    }
+    public async Task<int> ObtenerCantidadCobrosEfectivoAsync(int cajaId)
+        => (await ObtenerTotalesAsync(cajaId)).Movimientos.Count(c => CalculosCaja.EsEfectivo(c.MetodoPago));
 
-    // =========================================================
-    // CANTIDAD DE COBROS EN EFECTIVO
-    // =========================================================
+    public async Task<decimal> ObtenerTotalOtrosMediosAsync(int cajaId)
+        => (await ObtenerTotalesAsync(cajaId)).TotalOtrosMedios;
 
-    public async Task<int> ObtenerCantidadCobrosEfectivoAsync(
-        int cajaId)
-    {
-        await using var context =
-            await _factory.CreateDbContextAsync();
+    public async Task<int> ObtenerCantidadOtrosMediosAsync(int cajaId)
+        => (await ObtenerTotalesAsync(cajaId)).Movimientos.Count(c => !CalculosCaja.EsEfectivo(c.MetodoPago));
 
-        return await context.Facturaciones
-            .CountAsync(f =>
-                f.CajaId == cajaId &&
-                f.Venta.Estado &&
-                f.MetodoPago == "Efectivo");
-    }
-
-    // =========================================================
-    // OTROS MEDIOS DE PAGO
-    // =========================================================
-
-    public async Task<decimal> ObtenerTotalOtrosMediosAsync(
-        int cajaId)
-    {
-        await using var context =
-            await _factory.CreateDbContextAsync();
-
-        return await context.Facturaciones
-            .Where(f =>
-                f.CajaId == cajaId &&
-                f.Venta.Estado &&
-                f.MetodoPago != "Efectivo")
-            .SumAsync(f => (decimal?)f.Importe)
-            ?? 0;
-    }
-
-    public async Task<int> ObtenerCantidadOtrosMediosAsync(
-        int cajaId)
-    {
-        await using var context =
-            await _factory.CreateDbContextAsync();
-
-        return await context.Facturaciones
-            .CountAsync(f =>
-                f.CajaId == cajaId &&
-                f.Venta.Estado &&
-                f.MetodoPago != "Efectivo");
-    }
-
-    // =========================================================
-    // EFECTIVO ESPERADO EN EL CAJÓN
-    // Monto inicial + cobros realizados en efectivo
-    // =========================================================
-
-    public async Task<decimal> ObtenerMontoEsperadoAsync(
-        int cajaId)
-    {
-        await using var context =
-            await _factory.CreateDbContextAsync();
-
-        var caja = await context.Cajas
-            .FirstOrDefaultAsync(c =>
-                c.Id == cajaId);
-
-        if (caja == null)
-            throw new InvalidOperationException(
-                "Caja no encontrada.");
-
-        var efectivoCobrado =
-            await context.Facturaciones
-                .Where(f =>
-                    f.CajaId == cajaId &&
-                    f.Venta.Estado &&
-                    f.MetodoPago == "Efectivo")
-                .SumAsync(f => (decimal?)f.Importe)
-            ?? 0;
-
-        return caja.MontoInicial + efectivoCobrado;
-    }
+    public async Task<decimal> ObtenerMontoEsperadoAsync(int cajaId)
+        => (await ObtenerTotalesAsync(cajaId)).EfectivoEsperado;
 }

@@ -4,11 +4,11 @@ using FarmaGest.Negocio.Servicios;
 
 namespace FarmaGest.UI.Views.Cajero;
 
-public partial class AutorizacionAdministradorWindow : Window
+public partial class AutorizacionFarmaceuticoWindow : Window
 {
     private readonly UsuarioService _usuarioService;
 
-    public AutorizacionAdministradorWindow(
+    public AutorizacionFarmaceuticoWindow(
         UsuarioService usuarioService)
     {
         InitializeComponent();
@@ -56,17 +56,17 @@ public partial class AutorizacionAdministradorWindow : Window
             if (usuario.Rol == null ||
                 !string.Equals(
                     usuario.Rol.Nombre,
-                    "Administrador",
+                    "Farmaceutico",
                     StringComparison.OrdinalIgnoreCase))
             {
                 TxtMensaje.Text =
-                    "El usuario ingresado no tiene permisos de administrador.";
+                    "La autorización debe ser realizada por un farmacéutico.";
 
                 return;
             }
 
             // Autorización correcta.
-            // NO modificamos la sesión actual del cajero.
+            // No se modifica la sesión actual del cajero.
             DialogResult = true;
             Close();
         }

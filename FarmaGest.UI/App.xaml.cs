@@ -154,6 +154,7 @@ public partial class App : Application
         // =====================================================
 
         servicios.AddTransient<LoginViewModel>();
+        servicios.AddSingleton<FarmaGest.UI.Servicios.UsuariosRecordadosService>();
         servicios.AddTransient<AuthWindow>();
         servicios.AddTransient<MiPerfilPage>();
         servicios.AddTransient<CambiarContrasenaViewModel>();

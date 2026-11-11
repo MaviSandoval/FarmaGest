@@ -2,6 +2,8 @@
 
 public class VentaCobradaDto
 {
+    public int FacturacionId { get; set; }
+
     public int VentaId { get; set; }
 
     public DateTime Fecha { get; set; }

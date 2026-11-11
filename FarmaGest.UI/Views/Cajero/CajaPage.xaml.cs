@@ -63,7 +63,10 @@ namespace FarmaGest.UI.Views.Cajero
                 await _cajaService.ObtenerCajaAbiertaAsync(
                     usuario.Id);
 
+            // =================================================
             // CAJA CERRADA
+            // =================================================
+
             if (caja == null)
             {
                 PanelCajaCerrada.Visibility =
@@ -75,7 +78,10 @@ namespace FarmaGest.UI.Views.Cajero
                 return;
             }
 
+            // =================================================
             // CAJA ABIERTA
+            // =================================================
+
             PanelCajaCerrada.Visibility =
                 Visibility.Collapsed;
 
@@ -169,11 +175,11 @@ namespace FarmaGest.UI.Views.Cajero
             }
 
             // -------------------------------------------------
-            // AUTORIZACIÓN DEL ADMINISTRADOR
+            // AUTORIZACIÓN DEL FARMACÉUTICO
             // -------------------------------------------------
 
             var ventanaAutorizacion =
-                new AutorizacionAdministradorWindow(
+                new AutorizacionFarmaceuticoWindow(
                     _usuarioService)
                 {
                     Owner =
@@ -184,7 +190,9 @@ namespace FarmaGest.UI.Views.Cajero
                 ventanaAutorizacion.ShowDialog();
 
             if (autorizado != true)
+            {
                 return;
+            }
 
             // -------------------------------------------------
             // ABRIR CAJA
@@ -233,10 +241,15 @@ namespace FarmaGest.UI.Views.Cajero
             object sender,
             RoutedEventArgs e)
         {
+            // La autorización del farmacéutico se solicita
+            // dentro de CierreCajaWindow justo antes de
+            // confirmar definitivamente el cierre.
+
             var ventana =
                 new CierreCajaWindow(
                     _cajaService,
-                    _sesionUsuarioService)
+                    _sesionUsuarioService,
+                    _usuarioService)
                 {
                     Owner =
                         Window.GetWindow(this)

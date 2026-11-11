@@ -25,6 +25,13 @@ public class FarmaGestDbContext : DbContext
     public DbSet<DetalleVenta> DetallesVenta => Set<DetalleVenta>();
     public DbSet<Facturacion> Facturaciones => Set<Facturacion>();
 
+    // Medios de pago
+    public DbSet<MedioPago> MediosPago => Set<MedioPago>();
+
+    // Detalles de medios de pago
+    public DbSet<DetallePagoTarjeta> DetallesPagoTarjeta => Set<DetallePagoTarjeta>();
+    public DbSet<DetalleTransferencia> DetallesTransferencia => Set<DetalleTransferencia>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         // ===== Rol =====
@@ -168,6 +175,7 @@ public class FarmaGestDbContext : DbContext
             e.Property(x => x.FechaVencimiento).HasColumnName("fechaVencimiento");
             e.Property(x => x.MatriculaMedico).HasColumnName("matriculaMedico").HasMaxLength(30).IsRequired();
             e.Property(x => x.NombreMedico).HasColumnName("nombreMedico").HasMaxLength(120).IsRequired();
+
             // NULL = Pendiente, 1 = Validada, 0 = Rechazada
             e.Property(x => x.Estado).HasColumnName("estado");
             e.Property(x => x.AfiliadoId).HasColumnName("id_afiliado");
@@ -241,6 +249,26 @@ public class FarmaGestDbContext : DbContext
                 .HasForeignKey(x => x.UsuarioId);
         });
 
+        // ===== MedioPago =====
+        modelBuilder.Entity<MedioPago>(e =>
+        {
+            e.ToTable("MedioPago");
+
+            e.Property(x => x.Id)
+                .HasColumnName("id_medio_pago");
+
+            e.Property(x => x.Nombre)
+                .HasColumnName("nombre")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            e.Property(x => x.Estado)
+                .HasColumnName("estado");
+
+            e.HasIndex(x => x.Nombre)
+                .IsUnique();
+        });
+
         // ===== Facturacion =====
         modelBuilder.Entity<Facturacion>(e =>
         {
@@ -253,6 +281,8 @@ public class FarmaGestDbContext : DbContext
             e.Property(x => x.Fecha)
                 .HasColumnName("fecha");
 
+            // Campo anterior.
+            // Se mantiene temporalmente durante la migración.
             e.Property(x => x.MetodoPago)
                 .HasColumnName("metodo_pago")
                 .HasMaxLength(30)
@@ -271,6 +301,13 @@ public class FarmaGestDbContext : DbContext
             e.Property(x => x.CajaId)
                 .HasColumnName("id_caja");
 
+            e.Property(x => x.MontoCambio)
+                .HasColumnName("monto_cambio")
+                .HasColumnType("decimal(18,2)");
+
+            e.Property(x => x.MedioPagoId)
+                .HasColumnName("id_medio_pago");
+
             // Una venta solamente puede facturarse una vez
             e.HasIndex(x => x.VentaId)
                 .IsUnique();
@@ -286,6 +323,77 @@ public class FarmaGestDbContext : DbContext
             e.HasOne(x => x.Caja)
                 .WithMany()
                 .HasForeignKey(x => x.CajaId);
+
+            e.HasOne(x => x.MedioPago)
+                .WithMany(m => m.Facturaciones)
+                .HasForeignKey(x => x.MedioPagoId);
+        });
+
+        // ===== DetallePagoTarjeta =====
+        modelBuilder.Entity<DetallePagoTarjeta>(e =>
+        {
+            e.ToTable("DetallePagoTarjeta");
+
+            e.Property(x => x.Id)
+                .HasColumnName("id_detalle_pago");
+
+            e.Property(x => x.FacturacionId)
+                .HasColumnName("id_facturacion");
+
+            e.Property(x => x.Ultimos4)
+                .HasColumnName("ultimos_4")
+                .HasMaxLength(4)
+                .IsRequired();
+
+            e.Property(x => x.Titular)
+                .HasColumnName("titular")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            e.Property(x => x.NumeroAutorizacion)
+                .HasColumnName("numero_autorizacion")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            e.Property(x => x.Cuotas)
+                .HasColumnName("cuotas");
+
+            // Una facturación puede tener como máximo
+            // un detalle de tarjeta.
+            e.HasIndex(x => x.FacturacionId)
+                .IsUnique();
+
+            e.HasOne(x => x.Facturacion)
+                .WithOne(f => f.DetallePagoTarjeta)
+                .HasForeignKey<DetallePagoTarjeta>(
+                    x => x.FacturacionId);
+        });
+
+        // ===== DetalleTransferencia =====
+        modelBuilder.Entity<DetalleTransferencia>(e =>
+        {
+            e.ToTable("DetalleTransferencia");
+
+            e.Property(x => x.Id)
+                .HasColumnName("id_detalle_transferencia");
+
+            e.Property(x => x.FacturacionId)
+                .HasColumnName("id_facturacion");
+
+            e.Property(x => x.NumeroOperacion)
+                .HasColumnName("numero_operacion")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            // Una facturación puede tener como máximo
+            // un detalle de transferencia.
+            e.HasIndex(x => x.FacturacionId)
+                .IsUnique();
+
+            e.HasOne(x => x.Facturacion)
+                .WithOne(f => f.DetalleTransferencia)
+                .HasForeignKey<DetalleTransferencia>(
+                    x => x.FacturacionId);
         });
 
         // ===== DetalleVenta =====

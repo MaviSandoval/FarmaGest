@@ -1,4 +1,4 @@
-﻿using FarmaGest.Negocio.Servicios;
+using FarmaGest.Negocio.Servicios;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,9 +9,11 @@ namespace FarmaGest.UI.Views.Cajero;
 
 public partial class ResumenCajaPage : Page
 {
+    private static readonly System.Globalization.CultureInfo Cultura = new("es-AR");
     private readonly FacturacionService _facturacionService;
     private readonly SesionUsuarioService _sesionUsuarioService;
     private readonly CajaService _cajaService;
+    private readonly UsuarioService _usuarioService;
 
     // =========================================================
     // CONSTRUCTOR
@@ -20,13 +22,15 @@ public partial class ResumenCajaPage : Page
     public ResumenCajaPage(
         FacturacionService facturacionService,
         SesionUsuarioService sesionUsuarioService,
-        CajaService cajaService)
+        CajaService cajaService,
+        UsuarioService usuarioService)
     {
         InitializeComponent();
 
         _facturacionService = facturacionService;
         _sesionUsuarioService = sesionUsuarioService;
         _cajaService = cajaService;
+        _usuarioService = usuarioService;
 
         Loaded += ResumenCajaPage_Loaded;
     }
@@ -66,7 +70,7 @@ public partial class ResumenCajaPage : Page
 
             var resumen =
                 await _facturacionService
-                    .ObtenerResumenCajaAbiertaAsync(
+                    .ObtenerResumenCajaAsync(
                         usuario.Id);
 
             // -------------------------------------------------
@@ -75,8 +79,12 @@ public partial class ResumenCajaPage : Page
 
             if (resumen == null)
             {
+                TxtEstadoCaja.Text = "Sin cajas";
+                PanelArqueo.Visibility = Visibility.Collapsed;
+                TxtTotalEfectivo.Text = TxtOtrosMedios.Text = TxtTicketPromedio.Text = "$ 0,00";
+                TxtVentaMayor.Text = "Sin cobros";
                 TxtInfoCaja.Text =
-                    "No hay una caja abierta.";
+                    "Todavía no tenés cajas registradas.";
 
                 TxtMontoInicial.Text =
                     "$ 0,00";
@@ -106,27 +114,38 @@ public partial class ResumenCajaPage : Page
             // ENCABEZADO
             // -------------------------------------------------
 
-            TxtInfoCaja.Text =
-                $"Caja N° {resumen.CajaId} · " +
-                $"Abierta hoy a las " +
-                $"{resumen.FechaApertura:HH:mm} · " +
-                $"{resumen.Cajero}";
-
+            TxtEstadoCaja.Text = resumen.Estado ? "Caja abierta" : "Caja cerrada · último cierre";
+            TxtEstadoCaja.Foreground = (System.Windows.Media.Brush)FindResource(
+                resumen.Estado ? "FarmaSuccessBrush" : "FarmaTextMutedBrush");
+            TxtInfoCaja.Text = $"Caja N° {resumen.CajaId} · {resumen.Cajero}\n" +
+                $"Apertura: {resumen.FechaApertura:dd/MM/yyyy HH:mm}" +
+                (resumen.Estado ? "" : $" · Cierre: {resumen.FechaCierre:dd/MM/yyyy HH:mm}");
+            PanelArqueo.Visibility = resumen.Estado ? Visibility.Collapsed : Visibility.Visible;
+            TxtEfectivoContado.Text = resumen.MontoFinal?.ToString("C", Cultura) ?? "No registrado";
+            TxtDiferencia.Text = resumen.Diferencia is not decimal diferencia ? "No registrada" :
+                diferencia == 0 ? "Sin diferencia" :
+                $"{(diferencia > 0 ? "Sobrante" : "Faltante")} {Math.Abs(diferencia).ToString("C", Cultura)}";
+            TxtDiferencia.Foreground = (System.Windows.Media.Brush)FindResource(
+                resumen.Diferencia == 0 ? "FarmaSuccessBrush" : "FarmaDangerBrush");
+            TxtTotalEfectivo.Text = resumen.TotalEfectivo.ToString("C", Cultura);
+            TxtOtrosMedios.Text = resumen.TotalOtrosMedios.ToString("C", Cultura);
+            TxtTicketPromedio.Text = resumen.TicketPromedio.ToString("C", Cultura);
+            TxtVentaMayor.Text = resumen.VentaMayorImporte?.ToString("C", Cultura) ?? "Sin cobros";
             // -------------------------------------------------
             // KPIs
             // -------------------------------------------------
 
             TxtMontoInicial.Text =
                 resumen.MontoInicial.ToString(
-                    "$ #,##0.00");
+                    "C", Cultura);
 
             TxtTotalCobrado.Text =
                 resumen.TotalCobrado.ToString(
-                    "$ #,##0.00");
+                    "C", Cultura);
 
             TxtEfectivoEsperado.Text =
                 resumen.EfectivoEsperado.ToString(
-                    "$ #,##0.00");
+                    "C", Cultura);
 
             TxtCantidadCobros.Text =
                 resumen.CantidadCobros.ToString();
@@ -140,7 +159,7 @@ public partial class ResumenCajaPage : Page
 
             TxtTotalMediosPago.Text =
                 resumen.TotalCobrado.ToString(
-                    "$ #,##0.00");
+                    "C", Cultura);
 
             // -------------------------------------------------
             // MOVIMIENTOS / COBROS
@@ -154,7 +173,7 @@ public partial class ResumenCajaPage : Page
                             m.FacturacionId,
 
                         Hora =
-                            m.Fecha.ToString("HH:mm"),
+                            m.Fecha.ToString("dd/MM HH:mm"),
 
                         Numero =
                             m.VentaId,
@@ -192,7 +211,8 @@ public partial class ResumenCajaPage : Page
         var ventana =
             new CierreCajaWindow(
                 _cajaService,
-                _sesionUsuarioService)
+                _sesionUsuarioService,
+                _usuarioService)
             {
                 Owner =
                     Window.GetWindow(this)
@@ -216,7 +236,10 @@ public partial class ResumenCajaPage : Page
         object sender,
         RoutedEventArgs e)
     {
-        if (sender is FrameworkElement { DataContext: MovimientoVista movimiento })
+        if (sender is FrameworkElement
+            {
+                DataContext: MovimientoVista movimiento
+            })
         {
             await TicketWindow.AbrirAsync(
                 _facturacionService,

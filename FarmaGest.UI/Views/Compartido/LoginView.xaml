@@ -2,7 +2,6 @@
     x:Class="FarmaGest.UI.Views.Compartido.LoginView"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:h="clr-namespace:FarmaGest.UI.Helpers"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
@@ -10,60 +9,66 @@
     d:DesignHeight="700"
     d:DesignWidth="900"
     Background="#F3F4F6"
+    PreviewMouseDown="Login_PreviewMouseDown"
+    LostKeyboardFocus="Login_LostKeyboardFocus"
     mc:Ignorable="d">
 
-	<Grid>
-		<!--  Tarjeta central de login  -->
-		<Border
+    <Grid>
+
+        <!-- Tarjeta central de login -->
+        <Border
             Width="420"
             Padding="40,44"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Background="White"
             CornerRadius="16">
-			<Border.Effect>
-				<DropShadowEffect
+
+            <Border.Effect>
+                <DropShadowEffect
                     BlurRadius="24"
                     Direction="270"
                     Opacity="0.12"
                     ShadowDepth="4"
                     Color="Black" />
-			</Border.Effect>
+            </Border.Effect>
 
-			<StackPanel>
+            <StackPanel>
 
-				<!--  Ícono +  -->
-				<Border
+                <!-- Ícono -->
+                <Border
                     Width="64"
                     Height="64"
                     Margin="0,0,0,20"
                     HorizontalAlignment="Center"
                     Background="#DCFCE7"
                     CornerRadius="16">
-					<ui:SymbolIcon
+
+                    <ui:SymbolIcon
                         FontSize="30"
                         Foreground="#16A34A"
                         Symbol="Add24" />
-				</Border>
 
-				<!--  Título  -->
-				<TextBlock
+                </Border>
+
+                <!-- Título -->
+                <TextBlock
                     HorizontalAlignment="Center"
                     FontFamily="Georgia"
                     FontSize="28"
                     FontWeight="Bold"
                     Text="FarmaGest" />
 
-				<!--  Subtítulo  -->
-				<TextBlock
+                <!-- Subtítulo -->
+                <TextBlock
                     Margin="0,6,0,20"
                     HorizontalAlignment="Center"
                     FontSize="14"
                     Foreground="#6B7280"
                     Text="Sistema de Gestión de Farmacia" />
 
-				<!--  Mensaje de Error  -->
-				<TextBlock
+                <!-- Mensaje de error -->
+                <TextBlock
                     Margin="0,0,0,12"
                     HorizontalAlignment="Center"
                     FontSize="13"
@@ -72,35 +77,77 @@
                     Text="{Binding MensajeError}"
                     TextWrapping="Wrap" />
 
-				<!--  Usuario  -->
-				<TextBlock
+                <!-- Usuario -->
+                <TextBlock
                     Margin="0,0,0,6"
                     FontWeight="SemiBold"
                     Text="Usuario" />
-				<ui:TextBox
+
+                <ui:TextBox
+                    x:Name="TxtUsuario"
                     Margin="0,0,0,18"
                     Padding="12,10"
                     FontSize="14"
-                    PlaceholderText="usuario@farmacia.es"
-                    h:ValidacionEntrada.Tipo="Email"
+                    PlaceholderText="Email o DNI"
                     MaxLength="120"
+                    PreviewMouseLeftButtonDown="TxtUsuario_PreviewMouseLeftButtonDown"
+                    PreviewKeyDown="TxtUsuario_PreviewKeyDown"
                     Text="{Binding Usuario, UpdateSourceTrigger=PropertyChanged}" />
 
-				<!--  Contraseña  -->
-				<TextBlock
+                <Popup x:Name="UsuariosPopup" Placement="Bottom" PlacementTarget="{Binding ElementName=TxtUsuario}"
+                       StaysOpen="False" AllowsTransparency="True">
+                    <Border Width="{Binding ActualWidth, ElementName=TxtUsuario}"
+                            Background="White" BorderBrush="#D1D5DB" BorderThickness="1"
+                            CornerRadius="6" Padding="4">
+                        <ScrollViewer MaxHeight="220" VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled">
+                            <ItemsControl ItemsSource="{Binding UsuariosRecordados}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,2">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button Background="Transparent" BorderThickness="0" Padding="8"
+                                                    HorizontalContentAlignment="Left" Click="SeleccionarUsuario_Click"
+                                                    ToolTip="Completar usuario">
+                                                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" />
+                                            </Button>
+                                            <Button Grid.Column="1" Content="×" Width="30" Margin="4,0,0,0"
+                                                    Background="Transparent" BorderThickness="0"
+                                                    ToolTip="Eliminar del historial de esta computadora"
+                                                    AutomationProperties.Name="Eliminar usuario recordado"
+                                                    Click="EliminarUsuario_Click" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+                </Popup>
+                <TextBlock Text="{Binding MensajeHistorial}" Foreground="#DC2626"
+                           FontSize="12" TextWrapping="Wrap" />
+
+                <!-- Contraseña -->
+                <TextBlock
                     Margin="0,0,0,6"
                     FontWeight="SemiBold"
                     Text="Contraseña" />
-				<ui:PasswordBox
+
+                <ui:PasswordBox
                     x:Name="TxtPassword"
                     Margin="0,0,0,24"
                     Padding="12,10"
                     FontSize="14"
+                    PreviewMouseDown="TxtPassword_PreviewMouseDown"
+                    GotKeyboardFocus="TxtPassword_GotKeyboardFocus"
                     PasswordChanged="TxtPassword_PasswordChanged"
+                    PreviewKeyDown="TxtPassword_PreviewKeyDown"
                     PlaceholderText="••••••••" />
 
-				<!--  Botón Iniciar sesión  -->
-				<ui:Button
+                <!-- Botón iniciar sesión -->
+                <ui:Button
                     Height="44"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
@@ -111,7 +158,10 @@
                     FontSize="14"
                     FontWeight="SemiBold" />
 
-			</StackPanel>
-		</Border>
-	</Grid>
+            </StackPanel>
+
+        </Border>
+
+    </Grid>
+
 </Page>

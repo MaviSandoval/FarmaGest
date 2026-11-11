@@ -101,7 +101,12 @@ namespace FarmaGest.UI.Views.Cajero
                     venta.VentaId,
                     usuario.Id,
                     ventanaCobro.MetodoPagoSeleccionado,
-                    ventanaCobro.MontoCambio);
+                    ventanaCobro.MontoCambio,
+                    string.IsNullOrEmpty(ventanaCobro.Ultimos4Tarjeta) ? null :
+                        new DatosTarjetaSolicitud(ventanaCobro.TitularTarjeta,
+                            ventanaCobro.Ultimos4Tarjeta, ventanaCobro.Cuotas),
+                    string.IsNullOrEmpty(ventanaCobro.NumeroOperacionTransferencia) ? null :
+                        ventanaCobro.NumeroOperacionTransferencia);
 
                 // Volver a cargar las ventas pendientes (la cobrada ya no aparece)
                 await CargarVentasPendientesAsync();
@@ -111,6 +116,11 @@ namespace FarmaGest.UI.Views.Cajero
                     _facturacionService,
                     venta.VentaId,
                     Window.GetWindow(this));
+            }
+            catch (InvalidOperationException ex)
+            {
+                // Incluye el control definitivo de duplicados ante cobros simultáneos.
+                MessageBox.Show(ex.Message, "FarmaGest", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
